@@ -1150,7 +1150,7 @@
                         </div>
                         <div class="flex items-center gap-2 flex-wrap">
                             <label class="flex items-center gap-1.5 text-[11px] text-slate-400 cursor-pointer">
-                                <input type="checkbox" id="calHighOnly" checked class="rounded border-borderBg bg-cardBg text-accentYellow focus:ring-accentYellow/40" onchange="renderEconomicCalendar()">
+                                <input type="checkbox" id="calHighOnly" checked class="rounded border-borderBg bg-cardBg text-accentYellow focus:ring-accentYellow/40" onchange="renderEconomicCalendar(); renderEconHistory();">
                                 Solo alto impacto
                             </label>
                             <button type="button" onclick="loadEconomicCalendar(true)" class="px-2.5 py-1.5 rounded-lg border border-borderBg bg-cardBg hover:bg-borderBg text-[11px] text-slate-300 transition flex items-center gap-1.5">
@@ -1192,6 +1192,42 @@
                                 Fuente: calendario orientativo de eventos macro USD. Las fechas exactas de publicación oficial pueden variar; verifica siempre la agenda de la Fed / BLS.
                             </div>
                         </div>
+                    </div>
+
+                    <!-- Historial 30 días: proyección vs resultado real en BTC -->
+                    <div class="mt-4 border-t border-borderBg pt-3">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                            <div>
+                                <div class="font-semibold text-slate-200 flex items-center gap-1.5 text-sm">
+                                    <i class="fa-solid fa-clock-rotate-left text-accentYellow"></i> Historial 30 días · proyección vs resultado en BTC
+                                </div>
+                                <p class="text-[11px] text-slate-500 mt-0.5">Compara la proyección teórica con el movimiento real de BTC tras cada noticia (1h · 4h · 24h · 3d).</p>
+                            </div>
+                            <div id="calHistoryStats" class="text-[11px] text-slate-400 font-mono"></div>
+                        </div>
+                        <div class="overflow-x-auto min-w-0">
+                            <table class="w-full text-left text-[11px] sm:text-xs min-w-[720px]">
+                                <thead class="text-slate-500 border-b border-borderBg sticky top-0 bg-panelBg">
+                                    <tr>
+                                        <th class="p-2 font-medium">Fecha</th>
+                                        <th class="p-2 font-medium">Evento</th>
+                                        <th class="p-2 font-medium">Proyección</th>
+                                        <th class="p-2 font-medium">1h</th>
+                                        <th class="p-2 font-medium">4h</th>
+                                        <th class="p-2 font-medium">24h</th>
+                                        <th class="p-2 font-medium">3d</th>
+                                        <th class="p-2 font-medium">Impacto máx.</th>
+                                        <th class="p-2 font-medium">Resultado</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="econHistoryBody" class="divide-y divide-borderBg/50 text-slate-300">
+                                    <tr><td colspan="9" class="p-6 text-center text-slate-500 italic">Abre esta pestaña o pulsa Actualizar para analizar los últimos 30 días…</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <p class="text-[10px] text-slate-600 mt-2 leading-relaxed">
+                            El movimiento se mide con velas 1h de BTC/USDT (Binance). Las proyecciones «Condicional / Mixto» dependen del dato vs consenso; el resultado muestra lo que hizo el precio tras el evento.
+                        </p>
                     </div>
                 </div>
             </section>
@@ -1585,8 +1621,8 @@
             }
 
             const y = now.getFullYear();
-            // Generar para mes actual y siguientes 2 meses
-            for (let mOff = 0; mOff <= 2; mOff++) {
+            // Generar 2 meses atrás + actual + 2 adelante (historial + agenda)
+            for (let mOff = -2; mOff <= 2; mOff++) {
                 const base = new Date(y, now.getMonth() + mOff, 1);
                 const yy = base.getFullYear();
                 const mm = base.getMonth();
@@ -1669,8 +1705,8 @@
                 events.push({ date: new Date(yy, mm, dd, 8, 30, 0), country: 'USD', title, impact: 'High' });
             });
 
-            // Filtrar desde ayer hacia ~45 días
-            const from = now.getTime() - 86400000;
+            // -30 días atrás hasta +45 días adelante
+            const from = now.getTime() - 30 * 86400000;
             const to = now.getTime() + 45 * 86400000;
             return events
                 .filter(e => e.date.getTime() >= from && e.date.getTime() <= to)
@@ -1743,6 +1779,9 @@
                 econCalendarCache = events;
                 econCalendarLoadedAt = Date.now();
                 renderEconomicCalendar();
+                // Historial 30d: velas 1h + comparación proyección vs resultado
+                await fetchBtcHourlyForHistory();
+                renderEconHistory();
             } finally {
                 if (icon) icon.classList.remove('fa-spin');
             }
@@ -1823,8 +1862,198 @@
             }
         }
 
+
+        let econHistoryKlines = []; // 1h BTC for impact analysis
+
+        async function fetchBtcHourlyForHistory() {
+            // ~40 días de velas 1h (máx 1000)
+            try {
+                const url = 'https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=1000';
+                const res = await fetch(url);
+                if (!res.ok) throw new Error('HTTP ' + res.status);
+                const raw = await res.json();
+                econHistoryKlines = (raw || []).map(d => ({
+                    time: Math.floor(d[0] / 1000),
+                    open: parseFloat(d[1]),
+                    high: parseFloat(d[2]),
+                    low: parseFloat(d[3]),
+                    close: parseFloat(d[4])
+                }));
+                return econHistoryKlines;
+            } catch (e) {
+                console.warn('historial BTC 1h', e);
+                // Fallback: usar rawKlines si son 1h
+                if (rawKlines && rawKlines.length > 50) {
+                    econHistoryKlines = rawKlines.slice();
+                    return econHistoryKlines;
+                }
+                return [];
+            }
+        }
+
+        function priceAtOrAfter(klines, unixSec) {
+            if (!klines.length) return null;
+            let best = null;
+            for (let i = 0; i < klines.length; i++) {
+                if (klines[i].time >= unixSec) {
+                    best = klines[i];
+                    break;
+                }
+            }
+            if (!best) best = klines[klines.length - 1];
+            return best;
+        }
+
+        function priceAfterHours(klines, eventUnix, hours) {
+            return priceAtOrAfter(klines, eventUnix + hours * 3600);
+        }
+
+        function measureNewsImpact(eventDate, klines) {
+            if (!klines || klines.length < 10) return null;
+            const t0 = Math.floor(eventDate.getTime() / 1000);
+            const base = priceAtOrAfter(klines, t0);
+            if (!base) return null;
+            const p0 = base.close;
+            const horizons = [
+                { key: '1h', hours: 1 },
+                { key: '4h', hours: 4 },
+                { key: '24h', hours: 24 },
+                { key: '3d', hours: 72 }
+            ];
+            const out = { p0 };
+            let peakAbs = 0;
+            let peakKey = '1h';
+            let peakPct = 0;
+            horizons.forEach(h => {
+                const bar = priceAfterHours(klines, t0, h.hours);
+                if (!bar) {
+                    out[h.key] = null;
+                    return;
+                }
+                const pct = ((bar.close - p0) / p0) * 100;
+                out[h.key] = pct;
+                if (Math.abs(pct) >= peakAbs) {
+                    peakAbs = Math.abs(pct);
+                    peakKey = h.key;
+                    peakPct = pct;
+                }
+            });
+            // También mirar high/low en ventana 24h para spike
+            const end24 = t0 + 24 * 3600;
+            let maxP = p0, minP = p0;
+            klines.forEach(k => {
+                if (k.time >= t0 && k.time <= end24) {
+                    if (k.high > maxP) maxP = k.high;
+                    if (k.low < minP) minP = k.low;
+                }
+            });
+            const upSpike = ((maxP - p0) / p0) * 100;
+            const dnSpike = ((minP - p0) / p0) * 100;
+            out.spikeUp = upSpike;
+            out.spikeDn = dnSpike;
+            out.peakHorizon = peakKey;
+            out.peakPct = peakPct;
+            // Dirección dominante: usa 4h si existe, si no 24h
+            const ref = out['4h'] != null ? out['4h'] : out['24h'];
+            if (ref == null) out.actualBias = 'N/D';
+            else if (ref > 0.15) out.actualBias = 'Alcista';
+            else if (ref < -0.15) out.actualBias = 'Bajista';
+            else out.actualBias = 'Lateral';
+            return out;
+        }
+
+        function fmtPct(v) {
+            if (v == null || !Number.isFinite(v)) return '—';
+            const sign = v >= 0 ? '+' : '';
+            const cls = v > 0.15 ? 'text-accentGreen' : (v < -0.15 ? 'text-accentRed' : 'text-slate-400');
+            return `<span class="font-mono ${cls}">${sign}${v.toFixed(2)}%</span>`;
+        }
+
+        function renderEconHistory() {
+            const tbody = document.getElementById('econHistoryBody');
+            const statsEl = document.getElementById('calHistoryStats');
+            if (!tbody) return;
+
+            const now = Date.now();
+            const from = now - 30 * 86400000;
+            let past = (econCalendarCache || [])
+                .filter(e => e.date.getTime() >= from && e.date.getTime() < now - 60 * 60 * 1000)
+                .filter(e => e.impact === 'High' || e.impact === 'Medium')
+                .sort((a, b) => b.date - a.date);
+
+            // Solo alto impacto en historial si checkbox activo
+            const highOnly = document.getElementById('calHighOnly')?.checked !== false;
+            if (highOnly) past = past.filter(e => e.impact === 'High');
+
+            if (!past.length) {
+                tbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-slate-500 italic">No hay eventos en los últimos 30 días con el filtro actual.</td></tr>`;
+                if (statsEl) statsEl.innerText = '';
+                return;
+            }
+
+            if (!econHistoryKlines.length) {
+                tbody.innerHTML = `<tr><td colspan="9" class="p-6 text-center text-slate-500 italic">Cargando velas BTC 1h para medir impacto…</td></tr>`;
+                return;
+            }
+
+            let bull = 0, bear = 0, flat = 0;
+            tbody.innerHTML = past.map(e => {
+                const bias = e.btcBias || btcBiasProjection(e.title, e.impact);
+                const m = measureNewsImpact(e.date, econHistoryKlines);
+                const dateStr = e.date.toLocaleString('es-MX', {
+                    weekday: 'short', month: 'short', day: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                });
+                if (!m) {
+                    return `<tr>
+                        <td class="p-2 font-mono whitespace-nowrap">${dateStr}</td>
+                        <td class="p-2 text-slate-200">${e.title}</td>
+                        <td class="p-2 text-slate-400">${bias.label}</td>
+                        <td class="p-2" colspan="6"><span class="text-slate-500 italic">Sin datos de precio</span></td>
+                    </tr>`;
+                }
+                if (m.actualBias === 'Alcista') bull++;
+                else if (m.actualBias === 'Bajista') bear++;
+                else flat++;
+
+                const actCls = m.actualBias === 'Alcista' ? 'text-accentGreen' :
+                    (m.actualBias === 'Bajista' ? 'text-accentRed' : 'text-slate-400');
+                const peakStr = m.peakPct == null ? '—' :
+                    `${m.peakHorizon}: ${m.peakPct >= 0 ? '+' : ''}${m.peakPct.toFixed(2)}%`;
+                const peakCls = m.peakPct > 0.15 ? 'text-accentGreen' : (m.peakPct < -0.15 ? 'text-accentRed' : 'text-slate-400');
+
+                // ¿La dirección 4h/24h es coherente con un sesgo "condicional"?
+                let resultNote = m.actualBias;
+                if (bias.bias === 'Condicional' || bias.bias === 'Mixto') {
+                    resultNote = `${m.actualBias} (dato vs consenso)`;
+                }
+
+                return `<tr>
+                    <td class="p-2 font-mono whitespace-nowrap text-slate-400">${dateStr}</td>
+                    <td class="p-2 font-medium text-slate-200">${e.title}</td>
+                    <td class="p-2">
+                        <div class="text-slate-300 font-semibold">${bias.label}</div>
+                        <div class="text-[10px] text-slate-500 max-w-[160px] leading-snug">${bias.detail}</div>
+                    </td>
+                    <td class="p-2">${fmtPct(m['1h'])}</td>
+                    <td class="p-2">${fmtPct(m['4h'])}</td>
+                    <td class="p-2">${fmtPct(m['24h'])}</td>
+                    <td class="p-2">${fmtPct(m['3d'])}</td>
+                    <td class="p-2 font-mono ${peakCls}">${peakStr}</td>
+                    <td class="p-2 font-bold ${actCls}">${resultNote}</td>
+                </tr>`;
+            }).join('');
+
+            if (statsEl) {
+                const n = bull + bear + flat;
+                statsEl.innerHTML = `n=${n} · <span class="text-accentGreen">↑${bull}</span> · <span class="text-accentRed">↓${bear}</span> · <span class="text-slate-500">→${flat}</span>`;
+            }
+        }
+
         window.loadEconomicCalendar = loadEconomicCalendar;
         window.renderEconomicCalendar = renderEconomicCalendar;
+        window.renderEconHistory = renderEconHistory;
+
 
         const LS_LIVE = 'bitcash_terminalmx_live';
         const LIVE_INTERVAL_MS = 35000; // 35 segundos
@@ -2432,7 +2661,12 @@
 
             // Sync time scales main <-> trendilo
             mainChart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
-                if (syncingTimeScale || !range || !trendiloChart) return;
+                if (!range) return;
+                // Guardar posición del usuario mientras navega
+                if (!syncingTimeScale && Number.isFinite(range.from) && Number.isFinite(range.to)) {
+                    savedChartLogicalRange = { from: range.from, to: range.to };
+                }
+                if (syncingTimeScale || !trendiloChart) return;
                 syncingTimeScale = true;
                 try { trendiloChart.timeScale().setVisibleLogicalRange(range); } catch (e) {}
                 syncingTimeScale = false;
@@ -2513,8 +2747,44 @@
             return ha;
         }
 
-        function applyMainChartData() {
+        let savedChartLogicalRange = null;
+        let chartViewInitialized = false;
+        let lastChartTf = null;
+
+        function captureChartView() {
+            try {
+                if (mainChart) {
+                    const r = mainChart.timeScale().getVisibleLogicalRange();
+                    if (r && Number.isFinite(r.from) && Number.isFinite(r.to)) {
+                        savedChartLogicalRange = { from: r.from, to: r.to };
+                    }
+                }
+            } catch (e) {}
+        }
+
+        function restoreChartView() {
+            if (!savedChartLogicalRange || !mainChart) return false;
+            try {
+                const r = savedChartLogicalRange;
+                // Evitar rangos degenerados
+                if (!Number.isFinite(r.from) || !Number.isFinite(r.to) || r.to <= r.from) return false;
+                mainChart.timeScale().setVisibleLogicalRange(r);
+                if (trendiloChart) {
+                    try { trendiloChart.timeScale().setVisibleLogicalRange(r); } catch (e) {}
+                }
+                return true;
+            } catch (e) {
+                return false;
+            }
+        }
+
+        function applyMainChartData(opts) {
+            opts = opts || {};
+            const preserveView = opts.preserveView !== false;
             if (!rawKlines.length || !candlestickSeries) return;
+
+            if (preserveView && chartViewInitialized) captureChartView();
+
             const candleData = chartType === 'heikin' ? toHeikinAshi(rawKlines) : rawKlines.map(k => ({
                 time: k.time, open: k.open, high: k.high, low: k.low, close: k.close
             }));
@@ -2541,6 +2811,15 @@
                     color: k.close >= k.open ? 'rgba(14, 203, 129, 0.35)' : 'rgba(246, 70, 93, 0.35)'
                 })));
                 try { volumeSeries.applyOptions({ visible: volumeVisible }); } catch (e) {}
+            }
+
+            // Restaurar vista del usuario (no saltar al inicio en cada refresh)
+            if (preserveView && chartViewInitialized) {
+                requestAnimationFrame(() => {
+                    if (!restoreChartView()) {
+                        // Si falla, al menos no forzar fitContent
+                    }
+                });
             }
 
             // Legend última vela
@@ -3278,17 +3557,30 @@
                 }
                 data = dedup;
 
+                const tfChanged = lastChartTf !== null && lastChartTf !== tfAtStart;
+                const isFirstLoad = !chartViewInitialized;
+                if (chartViewInitialized && !tfChanged) captureChartView();
+
                 rawKlines = data;
-                applyMainChartData();
+                applyMainChartData({ preserveView: !isFirstLoad && !tfChanged });
                 forceChartResize();
-                try { if (mainChart) mainChart.timeScale().fitContent(); } catch (e) {}
-                try { if (trendiloChart) trendiloChart.timeScale().fitContent(); } catch (e) {}
-                requestAnimationFrame(() => {
-                    forceChartResize();
+
+                if (isFirstLoad || tfChanged) {
                     try { if (mainChart) mainChart.timeScale().fitContent(); } catch (e) {}
-                });
-                setTimeout(() => forceChartResize(), 100);
-                setTimeout(() => forceChartResize(), 400);
+                    try { if (trendiloChart) trendiloChart.timeScale().fitContent(); } catch (e) {}
+                    chartViewInitialized = true;
+                    lastChartTf = tfAtStart;
+                    requestAnimationFrame(() => forceChartResize());
+                } else {
+                    requestAnimationFrame(() => {
+                        restoreChartView();
+                        forceChartResize();
+                    });
+                    setTimeout(() => restoreChartView(), 50);
+                    setTimeout(() => { restoreChartView(); forceChartResize(); }, 150);
+                }
+                lastChartTf = tfAtStart;
+                chartViewInitialized = true;
 
                 const lastCandle = rawKlines[rawKlines.length - 1];
                 const prevCandle = rawKlines[rawKlines.length - 2] || lastCandle;
@@ -4099,6 +4391,10 @@
         function changeTimeframe(tf) {
             if (!tf) return;
             try {
+                // Nueva temporalidad → permitir fitContent en el próximo fetch
+                if (String(tf) !== currentInterval) {
+                    savedChartLogicalRange = null;
+                }
                 currentInterval = String(tf);
                 document.querySelectorAll('.tf-btn').forEach(btn => {
                     const btnTf = btn.getAttribute('data-tf') || (btn.id || '').replace(/^tf-/, '');
