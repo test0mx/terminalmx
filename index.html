@@ -428,7 +428,7 @@
             </div>
             <div class="hidden md:block h-5 w-[1px] bg-borderBg"></div>
             <div class="flex items-center space-x-1.5 sm:space-x-2 min-w-0">
-                <span class="font-semibold text-white text-sm sm:text-base hidden sm:inline">BTC/USDT</span>
+                <span id="headerSymbolLabel" class="font-semibold text-white text-sm sm:text-base hidden sm:inline">BTC/USDT</span>
                 <span id="currentPriceDisplay" class="text-accentGreen font-mono font-bold text-sm sm:text-lg truncate">---.--</span>
                 <span id="priceChangeDisplay" class="text-[10px] sm:text-xs px-1 sm:px-1.5 py-0.5 rounded bg-accentGreen/10 text-accentGreen font-mono shrink-0">0.00%</span>
             </div>
@@ -866,6 +866,10 @@
                             <i class="fa-solid fa-calendar-days"></i>
                             <span class="hidden sm:inline">Calendario</span><span class="sm:hidden">Cal.</span>
                         </button>
+                        <button type="button" id="tabBtnAlts" onclick="switchBottomTab('alts')" class="font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs">
+                            <i class="fa-solid fa-coins"></i>
+                            <span class="hidden sm:inline">Altcoins TOTAL2</span><span class="sm:hidden">Alts</span>
+                        </button>
                     </div>
 
                     <div id="journalStatsHeader" class="hidden flex items-center space-x-4">
@@ -1226,9 +1230,54 @@
                             </table>
                         </div>
                         <p class="text-[10px] text-slate-600 mt-2 leading-relaxed">
-                            El movimiento se mide con velas 1h de BTC/USDT (Binance). Las proyecciones «Condicional / Mixto» dependen del dato vs consenso; el resultado muestra lo que hizo el precio tras el evento.
+                            El movimiento se mide con velas 1h del activo activo (Binance). Las proyecciones «Condicional / Mixto» dependen del dato vs consenso; el resultado muestra lo que hizo el precio tras el evento.
                         </p>
                     </div>
+                </div>
+
+                <!-- Tab: Altcoins TOTAL2 (intersección Binance ∩ Bybit ∩ OKX) -->
+                <div id="tabContentAlts" class="flex-1 overflow-auto p-2 sm:p-3 hidden">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                        <div>
+                            <div class="font-semibold text-accentYellow flex items-center gap-1.5 text-sm">
+                                <i class="fa-solid fa-coins"></i> Altcoins · TOTAL2
+                            </div>
+                            <p class="text-[11px] text-slate-500 mt-0.5">
+                                Pares USDT presentes en <strong class="text-slate-400">Binance + Bybit + OKX</strong>. Clic en el símbolo para cargar gráficos e indicadores.
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <input type="search" id="altsSearch" placeholder="Buscar (ETH, SOL…)" oninput="renderAltsTable()"
+                                class="bg-cardBg border border-borderBg rounded-lg px-2.5 py-1.5 text-[11px] text-white w-36 sm:w-44 focus:outline-none focus:border-accentYellow">
+                            <button type="button" onclick="loadAltsList(true)" class="px-2.5 py-1.5 rounded-lg border border-borderBg bg-cardBg hover:bg-borderBg text-[11px] text-slate-300 transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-rotate" id="altsRefreshIcon"></i> Actualizar
+                            </button>
+                            <button type="button" onclick="setActiveSymbol('BTCUSDT')" class="px-2.5 py-1.5 rounded-lg border border-accentYellow/40 bg-accentYellow/10 text-accentYellow text-[11px] font-bold transition">
+                                BTC
+                            </button>
+                        </div>
+                    </div>
+                    <div id="altsActiveBanner" class="mb-2 text-[11px] text-slate-400">
+                        Activo actual: <span class="text-accentYellow font-mono font-bold" id="altsActiveSymbol">BTC/USDT</span>
+                    </div>
+                    <div class="overflow-x-auto min-w-0">
+                        <table class="w-full text-left text-[11px] sm:text-xs min-w-[640px]">
+                            <thead class="text-slate-500 border-b border-borderBg sticky top-0 bg-panelBg">
+                                <tr>
+                                    <th class="p-2 font-medium">#</th>
+                                    <th class="p-2 font-medium">Símbolo</th>
+                                    <th class="p-2 font-medium text-right">Precio</th>
+                                    <th class="p-2 font-medium text-right">24h %</th>
+                                    <th class="p-2 font-medium text-right">Vol. 24h (USDT)</th>
+                                    <th class="p-2 font-medium">Exchanges</th>
+                                </tr>
+                            </thead>
+                            <tbody id="altsTableBody" class="divide-y divide-borderBg/50 text-slate-300">
+                                <tr><td colspan="6" class="p-6 text-center text-slate-500 italic">Abre esta pestaña o pulsa Actualizar…</td></tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="text-[10px] text-slate-600 mt-2">Solo se listan activos cotizados en los tres proveedores de datos del terminal. TOTAL2 ≈ mercado de altcoins (ex-BTC).</p>
                 </div>
             </section>
         </main>
@@ -1328,6 +1377,18 @@
         let currentInterval = '1h';
         /** Siempre 150 velas japonesas para cálculos, indicadores y proyecciones */
         const CANDLE_LIMIT = 150;
+        /** Par activo (debe existir en Binance + Bybit + OKX spot USDT) */
+        let currentSymbol = 'BTCUSDT'; // Binance/Bybit format
+        function okxInstId(sym) {
+            // BTCUSDT → BTC-USDT
+            if (!sym) return 'BTC-USDT';
+            if (sym.includes('-')) return sym;
+            if (sym.endsWith('USDT')) return sym.slice(0, -4) + '-USDT';
+            return sym;
+        }
+        function baseAsset(sym) {
+            return (sym || 'BTCUSDT').replace(/USDT$/i, '').replace(/-/g, '');
+        }
         const CUSTOM_TF_MINUTES = { "9m": 9, "20m": 20 };
         const BYBIT_INTERVAL_MAP = {
             "1m": "1", "3m": "3", "5m": "5", "15m": "15", "30m": "30",
@@ -1424,7 +1485,8 @@
                 journal: { btn: 'tabBtnJournal', content: 'tabContentJournal' },
                 backtest: { btn: 'tabBtnBacktest', content: 'tabContentBacktest' },
                 projection: { btn: 'tabBtnProjection', content: 'tabContentProjection' },
-                calendar: { btn: 'tabBtnCalendar', content: 'tabContentCalendar' }
+                calendar: { btn: 'tabBtnCalendar', content: 'tabContentCalendar' },
+                alts: { btn: 'tabBtnAlts', content: 'tabContentAlts' }
             };
             if (!map[tab]) tab = 'signals';
 
@@ -1475,6 +1537,9 @@
             }
             if (tab === 'calendar') {
                 try { loadEconomicCalendar(false); } catch (e) {}
+            }
+            if (tab === 'alts') {
+                try { loadAltsList(false); } catch (e) {}
             }
         }
         window.switchBottomTab = switchBottomTab;
@@ -1868,7 +1933,7 @@
         async function fetchBtcHourlyForHistory() {
             // ~40 días de velas 1h (máx 1000)
             try {
-                const url = 'https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=1h&limit=1000';
+                const url = `https://api.binance.com/api/v3/klines?symbol=${currentSymbol}&interval=1h&limit=1000`;
                 const res = await fetch(url);
                 if (!res.ok) throw new Error('HTTP ' + res.status);
                 const raw = await res.json();
@@ -2054,6 +2119,201 @@
         window.renderEconomicCalendar = renderEconomicCalendar;
         window.renderEconHistory = renderEconHistory;
 
+        // ========== Altcoins TOTAL2 (Binance ∩ Bybit ∩ OKX) ==========
+        let altsListCache = [];
+        let altsLoadedAt = 0;
+
+        function formatAltPrice(p) {
+            const n = parseFloat(p);
+            if (!Number.isFinite(n)) return '—';
+            if (n >= 1000) return n.toLocaleString('en-US', { maximumFractionDigits: 2 });
+            if (n >= 1) return n.toFixed(4);
+            if (n >= 0.01) return n.toFixed(6);
+            return n.toPrecision(4);
+        }
+
+        function formatVol(v) {
+            const n = parseFloat(v);
+            if (!Number.isFinite(n)) return '—';
+            if (n >= 1e9) return (n / 1e9).toFixed(2) + 'B';
+            if (n >= 1e6) return (n / 1e6).toFixed(2) + 'M';
+            if (n >= 1e3) return (n / 1e3).toFixed(1) + 'K';
+            return n.toFixed(0);
+        }
+
+        async function fetchBinanceUsdtSymbols() {
+            const res = await fetch('https://api.binance.com/api/v3/ticker/24hr');
+            if (!res.ok) throw new Error('Binance tickers');
+            const data = await res.json();
+            const map = new Map();
+            (data || []).forEach(t => {
+                const sym = t.symbol;
+                if (!sym || !sym.endsWith('USDT')) return;
+                if (sym.includes('UP') || sym.includes('DOWN') || sym.includes('BULL') || sym.includes('BEAR')) return;
+                if (/^\d/.test(sym)) return;
+                map.set(sym, {
+                    symbol: sym,
+                    price: parseFloat(t.lastPrice),
+                    changePct: parseFloat(t.priceChangePercent),
+                    quoteVol: parseFloat(t.quoteVolume)
+                });
+            });
+            return map;
+        }
+
+        async function fetchBybitUsdtSet() {
+            const res = await fetch('https://api.bybit.com/v5/market/tickers?category=spot');
+            if (!res.ok) throw new Error('Bybit tickers');
+            const data = await res.json();
+            const list = data?.result?.list || [];
+            const set = new Set();
+            list.forEach(t => {
+                const sym = t.symbol;
+                if (sym && sym.endsWith('USDT')) set.add(sym);
+            });
+            return set;
+        }
+
+        async function fetchOkxUsdtSet() {
+            const res = await fetch('https://www.okx.com/api/v5/market/tickers?instType=SPOT');
+            if (!res.ok) throw new Error('OKX tickers');
+            const data = await res.json();
+            const list = data?.data || [];
+            const set = new Set();
+            list.forEach(t => {
+                const id = t.instId || ''; // BTC-USDT
+                if (id.endsWith('-USDT')) {
+                    set.add(id.replace('-', '')); // BTCUSDT
+                }
+            });
+            return set;
+        }
+
+        async function loadAltsList(force) {
+            const icon = document.getElementById('altsRefreshIcon');
+            if (icon) icon.classList.add('fa-spin');
+            try {
+                if (!force && altsListCache.length && Date.now() - altsLoadedAt < 60 * 1000) {
+                    renderAltsTable();
+                    return;
+                }
+                const [binanceMap, bybitSet, okxSet] = await Promise.all([
+                    fetchBinanceUsdtSymbols(),
+                    fetchBybitUsdtSet(),
+                    fetchOkxUsdtSet()
+                ]);
+                const alts = [];
+                binanceMap.forEach((row, sym) => {
+                    if (sym === 'BTCUSDT') return; // TOTAL2 = excluye BTC
+                    if (!bybitSet.has(sym)) return;
+                    if (!okxSet.has(sym)) return;
+                    if (!Number.isFinite(row.quoteVol) || row.quoteVol < 500000) return; // liquidez mínima
+                    alts.push({
+                        ...row,
+                        exchanges: 'BN · BY · OKX'
+                    });
+                });
+                alts.sort((a, b) => b.quoteVol - a.quoteVol);
+                altsListCache = alts;
+                altsLoadedAt = Date.now();
+                renderAltsTable();
+            } catch (e) {
+                console.warn('loadAltsList', e);
+                const tbody = document.getElementById('altsTableBody');
+                if (tbody) {
+                    tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-accentRed">Error cargando lista: ${e.message || e}</td></tr>`;
+                }
+            } finally {
+                if (icon) icon.classList.remove('fa-spin');
+            }
+        }
+
+        function renderAltsTable() {
+            const tbody = document.getElementById('altsTableBody');
+            if (!tbody) return;
+            const q = (document.getElementById('altsSearch')?.value || '').trim().toUpperCase();
+            let list = altsListCache;
+            if (q) {
+                list = list.filter(a => a.symbol.includes(q) || baseAsset(a.symbol).includes(q));
+            }
+            // Mostrar top 80 por volumen (o filtrados)
+            list = list.slice(0, 80);
+            if (!list.length) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-500 italic">Sin resultados en la intersección de los 3 exchanges.</td></tr>`;
+                return;
+            }
+            tbody.innerHTML = list.map((a, i) => {
+                const base = baseAsset(a.symbol);
+                const active = a.symbol === currentSymbol;
+                const chg = a.changePct;
+                const chgCls = chg >= 0 ? 'text-accentGreen' : 'text-accentRed';
+                const sign = chg >= 0 ? '+' : '';
+                const rowBg = active ? 'bg-accentYellow/10' : 'hover:bg-cardBg/60';
+                return `<tr class="${rowBg} cursor-pointer transition" onclick="setActiveSymbol('${a.symbol}')">
+                    <td class="p-2 text-slate-500">${i + 1}</td>
+                    <td class="p-2">
+                        <span class="font-bold text-white font-mono ${active ? 'text-accentYellow' : ''}">${base}</span>
+                        <span class="text-slate-500 text-[10px]">/USDT</span>
+                        ${active ? '<span class="ml-1 text-[9px] text-accentYellow font-bold">ACTIVO</span>' : ''}
+                    </td>
+                    <td class="p-2 text-right font-mono text-slate-200">$${formatAltPrice(a.price)}</td>
+                    <td class="p-2 text-right font-mono ${chgCls}">${sign}${chg.toFixed(2)}%</td>
+                    <td class="p-2 text-right font-mono text-slate-400">${formatVol(a.quoteVol)}</td>
+                    <td class="p-2 text-[10px] text-slate-500">${a.exchanges}</td>
+                </tr>`;
+            }).join('');
+        }
+
+        function updateSymbolUI() {
+            const base = baseAsset(currentSymbol);
+            const label = base + '/USDT';
+            const h = document.getElementById('headerSymbolLabel');
+            if (h) h.innerText = label;
+            const a = document.getElementById('altsActiveSymbol');
+            if (a) a.innerText = label;
+            const modal = document.getElementById('modalEntryPrice');
+            // modal parent text may still say BTC - update if exists a span
+            document.querySelectorAll('[data-symbol-label]').forEach(el => { el.innerText = label; });
+            try { localStorage.setItem('bitcash_terminalmx_symbol', currentSymbol); } catch (e) {}
+        }
+
+        async function setActiveSymbol(sym) {
+            if (!sym) return;
+            const next = String(sym).toUpperCase().replace('-', '');
+            if (!next.endsWith('USDT')) return;
+            if (next === currentSymbol) {
+                // igual: solo refrescar
+                if (typeof fetchMarketData === 'function') fetchMarketData();
+                return;
+            }
+            currentSymbol = next;
+            chartViewInitialized = false;
+            savedChartLogicalRange = null;
+            lastChartTf = null;
+            updateSymbolUI();
+            renderAltsTable();
+            // Reset entry fields loosely
+            try {
+                const ep = document.getElementById('entryPrice');
+                if (ep) ep.value = '';
+            } catch (e) {}
+            if (typeof fetchMarketData === 'function') {
+                await fetchMarketData();
+            }
+            // Historial calendario usa el activo actual en 1h
+            try {
+                if (typeof fetchBtcHourlyForHistory === 'function') {
+                    await fetchBtcHourlyForHistory();
+                    if (typeof renderEconHistory === 'function') renderEconHistory();
+                }
+            } catch (e) {}
+        }
+
+        window.loadAltsList = loadAltsList;
+        window.renderAltsTable = renderAltsTable;
+        window.setActiveSymbol = setActiveSymbol;
+
+
 
         const LS_LIVE = 'bitcash_terminalmx_live';
         const LIVE_INTERVAL_MS = 35000; // 35 segundos
@@ -2118,6 +2378,11 @@
             requestAnimationFrame(() => forceChartResize());
             setTimeout(() => forceChartResize(), 50);
             setTimeout(() => forceChartResize(), 300);
+            try {
+                const savedSym = localStorage.getItem('bitcash_terminalmx_symbol');
+                if (savedSym && savedSym.endsWith('USDT')) currentSymbol = savedSym;
+            } catch (e) {}
+            updateSymbolUI();
             fetchMarketData();
             setupInputListeners();
             window.addEventListener('resize', function() {
@@ -3402,7 +3667,7 @@
         }
 
         async function fetchBinanceKlines(interval, limit, endTimeMs) {
-            let url = `https://api.binance.com/api/v3/klines?symbol=BTCUSDT&interval=${interval}&limit=${Math.min(limit || 150, 1000)}`;
+            let url = `https://api.binance.com/api/v3/klines?symbol=${currentSymbol}&interval=${interval}&limit=${Math.min(limit || 150, 1000)}`;
             if (endTimeMs) url += `&endTime=${endTimeMs}`;
             const res = await fetch(url);
             if (!res.ok) throw new Error('Binance HTTP ' + res.status);
@@ -3433,7 +3698,7 @@
         }
 
         async function fetchBybitKlines(interval, limit) {
-            const url = `https://api.bybit.com/v5/market/kline?category=spot&symbol=BTCUSDT&interval=${interval}&limit=${limit}`;
+            const url = `https://api.bybit.com/v5/market/kline?category=spot&symbol=${currentSymbol}&interval=${interval}&limit=${limit}`;
             const res = await fetch(url);
             if (!res.ok) throw new Error('Bybit HTTP ' + res.status);
             const json = await res.json();
@@ -3446,7 +3711,7 @@
         async function fetchOkxKlines(okxBar, limit) {
             // OKX max limit 300 for candles endpoint
             const lim = Math.min(limit || 300, 300);
-            const url = `https://www.okx.com/api/v5/market/candles?instId=BTC-USDT&bar=${okxBar}&limit=${lim}`;
+            const url = `https://www.okx.com/api/v5/market/candles?instId=${okxInstId(currentSymbol)}&bar=${okxBar}&limit=${lim}`;
             const res = await fetch(url);
             if (!res.ok) throw new Error('OKX HTTP ' + res.status);
             const json = await res.json();
@@ -4375,7 +4640,7 @@
 
         async function fetchLongShortRatio() {
             try {
-                const res = await fetch('https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=BTCUSDT&period=1h&limit=1');
+                const res = await fetch(`https://fapi.binance.com/futures/data/globalLongShortAccountRatio?symbol=${currentSymbol}&period=1h&limit=1`);
                 const data = await res.json();
                 if (data && data.length > 0) {
                     lsrLatest = parseFloat(data[0].longShortRatio).toFixed(2);
