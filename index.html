@@ -730,8 +730,8 @@
                     <span id="indStochRsi" class="font-mono font-bold text-slate-300">-- / --</span>
                 </div>
                 <div class="flex items-center space-x-1 sm:space-x-2 shrink-0">
-                    <span class="text-slate-400">ADX:</span>
-                    <span id="indADX" class="font-mono font-bold text-slate-300">--</span>
+                    <span class="text-slate-400">DMI:</span>
+                    <span id="indDMI" class="font-mono font-bold text-slate-300">--</span>
                 </div>
                 <div class="flex items-center space-x-1 sm:space-x-2 shrink-0">
                     <span class="text-slate-400">S/R:</span>
@@ -862,6 +862,10 @@
                             <i class="fa-solid fa-clock-rotate-left"></i>
                             <span class="hidden sm:inline">Proyección</span><span class="sm:hidden">Proy.</span>
                         </button>
+                        <button type="button" id="tabBtnCalendar" onclick="switchBottomTab('calendar')" class="font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs">
+                            <i class="fa-solid fa-calendar-days"></i>
+                            <span class="hidden sm:inline">Calendario</span><span class="sm:hidden">Cal.</span>
+                        </button>
                     </div>
 
                     <div id="journalStatsHeader" class="hidden flex items-center space-x-4">
@@ -920,18 +924,18 @@
                                 </td>
                                 <td id="sigStochDesc" class="p-2 text-slate-400">Monitoreando zonas de sobrecompra y sobreventa...</td>
                             </tr>
-                            <!-- ADX Row -->
+                            <!-- DMI Row -->
                             <tr class="hover:bg-cardBg/40 transition">
                                 <td class="p-2 font-bold text-white flex items-center gap-2">
-                                    <i class="fa-solid fa-compass text-cyan-400"></i> ADX + DI
+                                    <i class="fa-solid fa-compass text-cyan-400"></i> DMI
                                 </td>
-                                <td class="p-2 text-slate-400">Average Directional Index (14)</td>
-                                <td id="sigAdxVal" class="p-2 font-bold">--</td>
-                                <td id="sigAdxState" class="p-2">--</td>
+                                <td class="p-2 text-slate-400">Directional Movement Index (14) · +DI / -DI</td>
+                                <td id="sigDmiVal" class="p-2 font-bold">--</td>
+                                <td id="sigDmiState" class="p-2">--</td>
                                 <td class="p-2 text-center">
-                                    <span id="sigAdxBadge" class="px-2 py-1 rounded text-xs font-bold bg-slate-800 text-slate-400">NEUTRAL</span>
+                                    <span id="sigDmiBadge" class="px-2 py-1 rounded text-xs font-bold bg-slate-800 text-slate-400">NEUTRAL</span>
                                 </td>
-                                <td id="sigAdxDesc" class="p-2 text-slate-400">Midiendo la fuerza direccional (+DI / -DI)...</td>
+                                <td id="sigDmiDesc" class="p-2 text-slate-400">Midiendo la fuerza direccional (+DI / -DI)...</td>
                             </tr>
                             <!-- Confluence Summary Row -->
                             <tr class="bg-cardBg/80 font-bold border-t border-borderBg">
@@ -943,7 +947,7 @@
                                 <td class="p-2 text-center">
                                     <span id="sigConfluenceBadge" class="px-2.5 py-1 rounded text-xs font-black bg-slate-800 text-slate-400">ESPERAR</span>
                                 </td>
-                                <td id="sigConfluenceDesc" class="p-2 text-xs font-normal text-slate-300">Evaluando coincidencia entre Trendilo + Stoch RSI + ADX.</td>
+                                <td id="sigConfluenceDesc" class="p-2 text-xs font-normal text-slate-300">Evaluando coincidencia entre Trendilo + Stoch RSI + DMI.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -1059,7 +1063,7 @@
                                 </div>
                             </div>
                             <div class="bg-cardBg p-2 rounded border border-borderBg text-[11px] text-slate-400 leading-relaxed" id="btSummaryText">
-                                Configura los parámetros y pulsa «Ejecutar Backtest». La estrategia usa confluencia Trendilo + StochRSI + ADX sobre las velas cargadas.
+                                Configura los parámetros y pulsa «Ejecutar Backtest». La estrategia usa confluencia Trendilo + StochRSI + DMI sobre las velas cargadas.
                             </div>
                         </div>
 
@@ -1122,14 +1126,70 @@
                             </button>
                             <div class="bg-cardBg/60 border border-borderBg rounded-lg p-2.5 text-[10px] text-slate-500 space-y-1">
                                 <div><span class="text-slate-400">Scalp (1m–9m):</span> más peso en StochRSI y ROC corto</div>
-                                <div><span class="text-slate-400">Intradía (20m–1h):</span> balance Trendilo / ADX / estructura</div>
-                                <div><span class="text-slate-400">Swing (4h–1D):</span> más peso en ADX y Trendilo</div>
+                                <div><span class="text-slate-400">Intradía (20m–1h):</span> balance Trendilo / DMI / estructura</div>
+                                <div><span class="text-slate-400">Swing (4h–1D):</span> más peso en DMI y Trendilo</div>
                             </div>
                         </div>
                         <!-- Resultado proyección -->
                         <div class="md:col-span-8 flex flex-col min-h-0">
                             <div id="bottomNextHourProjection" class="flex-1 bg-cardBg border border-borderBg rounded-lg p-3 sm:p-4 space-y-2 text-xs overflow-auto">
                                 <div class="text-center py-6 text-slate-500 italic">Cargando indicadores… Abre esta pestaña o pulsa Recalcular.</div>
+                            </div>
+                        </div>
+                    </div>
+                </div>
+
+                <!-- Tab Content 5: Calendario económico (impacto BTC) -->
+                <div id="tabContentCalendar" class="flex-1 overflow-auto p-2 sm:p-3 hidden">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                        <div>
+                            <div class="font-semibold text-accentYellow flex items-center gap-1.5 text-sm">
+                                <i class="fa-solid fa-calendar-days"></i> Calendario económico · impacto BTC
+                            </div>
+                            <p class="text-[11px] text-slate-500 mt-0.5">Eventos macro de alto impacto (USD) que suelen mover volatilidad en Bitcoin.</p>
+                        </div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <label class="flex items-center gap-1.5 text-[11px] text-slate-400 cursor-pointer">
+                                <input type="checkbox" id="calHighOnly" checked class="rounded border-borderBg bg-cardBg text-accentYellow focus:ring-accentYellow/40" onchange="renderEconomicCalendar()">
+                                Solo alto impacto
+                            </label>
+                            <button type="button" onclick="loadEconomicCalendar(true)" class="px-2.5 py-1.5 rounded-lg border border-borderBg bg-cardBg hover:bg-borderBg text-[11px] text-slate-300 transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-rotate" id="calRefreshIcon"></i> Actualizar
+                            </button>
+                        </div>
+                    </div>
+                    <div class="grid grid-cols-1 lg:grid-cols-12 gap-3">
+                        <div class="lg:col-span-9 overflow-x-auto min-w-0">
+                            <table class="w-full text-left text-[11px] sm:text-xs min-w-[640px]">
+                                <thead class="text-slate-500 border-b border-borderBg sticky top-0 bg-panelBg">
+                                    <tr>
+                                        <th class="p-2 font-medium">Fecha / hora</th>
+                                        <th class="p-2 font-medium">País</th>
+                                        <th class="p-2 font-medium">Evento</th>
+                                        <th class="p-2 font-medium">Impacto</th>
+                                        <th class="p-2 font-medium">Proyección</th>
+                                        <th class="p-2 font-medium">Efecto típico en BTC</th>
+                                    </tr>
+                                </thead>
+                                <tbody id="econCalendarBody" class="divide-y divide-borderBg/50 text-slate-300">
+                                    <tr><td colspan="6" class="p-6 text-center text-slate-500 italic">Cargando calendario…</td></tr>
+                                </tbody>
+                            </table>
+                        </div>
+                        <div class="lg:col-span-3 space-y-2 text-[11px]">
+                            <div class="bg-cardBg border border-borderBg rounded-lg p-3 space-y-2">
+                                <div class="font-semibold text-slate-200 flex items-center gap-1.5"><i class="fa-solid fa-lightbulb text-accentYellow"></i> Cómo afecta a BTC</div>
+                                <ul class="text-slate-400 space-y-1.5 list-disc list-inside leading-relaxed">
+                                    <li><span class="text-slate-300">CPI / PCE / NFP</span> → fuerte volatilidad; datos más calientes suelen fortalecer USD y presionar BTC a corto plazo.</li>
+                                    <li><span class="text-slate-300">FOMC / tasas</span> → pivote dovish suele ser alcista para riesgo; hawkish, bajista.</li>
+                                    <li><span class="text-slate-300">GDP / PMI</span> → lectura de crecimiento; impacto medio-alto en risk appetite.</li>
+                                </ul>
+                            </div>
+                            <div id="calNextHigh" class="bg-cardBg border border-borderBg rounded-lg p-3 text-slate-400">
+                                Próximo evento alto impacto: —
+                            </div>
+                            <div class="text-[10px] text-slate-600 leading-relaxed">
+                                Fuente: calendario orientativo de eventos macro USD. Las fechas exactas de publicación oficial pueden variar; verifica siempre la agenda de la Fed / BLS.
                             </div>
                         </div>
                     </div>
@@ -1319,7 +1379,7 @@
         let volumeProfileData = { poc: 0, vah: 0, val: 0, profile: [] };
         let trendiloLatest = { value: 0, direction: 'Neutral', zScore: 0 };
         let stochRsiLatest = { k: 0, d: 0 };
-        let adxLatest = { adx: 0, pDI: 0, nDI: 0, trendStrength: 'Neutral' };
+        let dmiLatest = { pDI: 0, nDI: 0, diSpread: 0, direction: 'Neutral', trendStrength: 'Neutral' };
         let lsrLatest = 1.0;
 
         function switchBottomTab(tab) {
@@ -1327,7 +1387,8 @@
                 signals: { btn: 'tabBtnSignals', content: 'tabContentSignals' },
                 journal: { btn: 'tabBtnJournal', content: 'tabContentJournal' },
                 backtest: { btn: 'tabBtnBacktest', content: 'tabContentBacktest' },
-                projection: { btn: 'tabBtnProjection', content: 'tabContentProjection' }
+                projection: { btn: 'tabBtnProjection', content: 'tabContentProjection' },
+                calendar: { btn: 'tabBtnCalendar', content: 'tabContentCalendar' }
             };
             if (!map[tab]) tab = 'signals';
 
@@ -1376,8 +1437,394 @@
             if (tab === 'signals') {
                 try { if (typeof updateSignalsTable === 'function') updateSignalsTable(); } catch (e) {}
             }
+            if (tab === 'calendar') {
+                try { loadEconomicCalendar(false); } catch (e) {}
+            }
         }
         window.switchBottomTab = switchBottomTab;
+
+        // ========== Calendario económico (impacto BTC) ==========
+        let econCalendarCache = [];
+        let econCalendarLoadedAt = 0;
+
+        function btcImpactNote(title, impact) {
+            const t = (title || '').toLowerCase();
+            if (/fomc|interest rate|federal funds|rate decision|fed chair|powell|jackson hole/.test(t))
+                return 'Muy alto · pivote de tasas / liquidez de riesgo';
+            if (/cpi|pce|inflation|core pce|core cpi/.test(t))
+                return 'Alto · inflación vs expectativa USD';
+            if (/nonfarm|non-farm|nfp|unemployment|payroll|jobless/.test(t))
+                return 'Alto · empleo y política Fed';
+            if (/gdp|gross domestic/.test(t))
+                return 'Medio-alto · crecimiento y risk appetite';
+            if (/pmi|ism|manufacturing|services/.test(t))
+                return 'Medio · actividad económica';
+            if (/retail sales|consumer confidence|michigan/.test(t))
+                return 'Medio · consumo EE.UU.';
+            if (/treasury|auction|10-year|2-year|bond/.test(t))
+                return 'Medio · yields y correlación BTC';
+            if (impact === 'High') return 'Alto · posible spike de volatilidad';
+            if (impact === 'Medium') return 'Medio · vigilar contexto USD';
+            return 'Bajo-medio';
+        }
+
+        /**
+         * Proyección direccional típica sobre BTC según el tipo de dato.
+         * Condicional: depende de si el dato sale mejor/peor vs consenso.
+         */
+        function btcBiasProjection(title, impact) {
+            const t = (title || '').toLowerCase();
+
+            // FOMC / tasas
+            if (/fomc|interest rate|federal funds|rate decision/.test(t)) {
+                return {
+                    bias: 'Mixto',
+                    label: 'Mixto',
+                    detail: 'Dovish (recorte/pausa) → Alcista · Hawkish (alza/tono duro) → Bajista'
+                };
+            }
+            if (/fed chair|powell|jackson hole|press conference|fomc press/.test(t)) {
+                return {
+                    bias: 'Mixto',
+                    label: 'Mixto',
+                    detail: 'Tono dovish → Alcista · hawkish / QT → Bajista'
+                };
+            }
+            // Inflación
+            if (/cpi|pce|inflation|core pce|core cpi|ppi/.test(t)) {
+                return {
+                    bias: 'Condicional',
+                    label: 'Condicional',
+                    detail: 'Dato < esperado → Alcista · dato > esperado → Bajista (USD↑)'
+                };
+            }
+            // Empleo
+            if (/nonfarm|non-farm|nfp|payroll/.test(t)) {
+                return {
+                    bias: 'Condicional',
+                    label: 'Condicional',
+                    detail: 'NFP débil → Alcista (Fed dovish) · NFP fuerte → Bajista corto plazo'
+                };
+            }
+            if (/unemployment|jobless/.test(t)) {
+                return {
+                    bias: 'Condicional',
+                    label: 'Condicional',
+                    detail: 'Paro ↑ → Alcista (más liquidez esperada) · paro ↓ → Mixto/Bajista'
+                };
+            }
+            // Crecimiento
+            if (/gdp|gross domestic/.test(t)) {
+                return {
+                    bias: 'Condicional',
+                    label: 'Condicional',
+                    detail: 'GDP sólido + inflación controlada → Alcista riesgo · sobrecalentamiento → Bajista'
+                };
+            }
+            if (/pmi|ism|manufacturing|services/.test(t)) {
+                return {
+                    bias: 'Condicional',
+                    label: 'Condicional',
+                    detail: 'PMI expansión suave → Alcista · contracción profunda → Bajista risk-off'
+                };
+            }
+            if (/retail sales|consumer confidence|michigan/.test(t)) {
+                return {
+                    bias: 'Condicional',
+                    label: 'Condicional',
+                    detail: 'Consumo fuerte sin inflación → Alcista · debilidad extrema → Mixto'
+                };
+            }
+            if (/treasury|auction|10-year|2-year|bond|yield/.test(t)) {
+                return {
+                    bias: 'Condicional',
+                    label: 'Condicional',
+                    detail: 'Yields ↓ → Alcista BTC · yields ↑ fuertes → Bajista'
+                };
+            }
+            if (impact === 'High') {
+                return {
+                    bias: 'Mixto',
+                    label: 'Mixto',
+                    detail: 'Alta volatilidad: dirección según sorpresa vs consenso'
+                };
+            }
+            return {
+                bias: 'Mixto',
+                label: 'Mixto',
+                detail: 'Impacto moderado; depende del dato vs expectativa'
+            };
+        }
+
+        /** Eventos macro USD recurrentes orientativos (próximas semanas) */
+        function buildCuratedEconEvents() {
+            const now = new Date();
+            const events = [];
+
+            // Helpers: next weekday of month (1=Mon..5=Fri), nth occurrence
+            function nthWeekday(year, monthIndex, weekday, n) {
+                // weekday: 0=Sun..6=Sat
+                let count = 0;
+                for (let d = 1; d <= 31; d++) {
+                    const dt = new Date(year, monthIndex, d, 14, 30, 0); // ~14:30 ET ≈ datos BLS
+                    if (dt.getMonth() !== monthIndex) break;
+                    if (dt.getDay() === weekday) {
+                        count++;
+                        if (count === n) return dt;
+                    }
+                }
+                return null;
+            }
+            function lastWeekday(year, monthIndex, weekday) {
+                for (let d = 31; d >= 1; d--) {
+                    const dt = new Date(year, monthIndex, d, 14, 0, 0);
+                    if (dt.getMonth() !== monthIndex) continue;
+                    if (dt.getDay() === weekday) return dt;
+                }
+                return null;
+            }
+
+            const y = now.getFullYear();
+            // Generar para mes actual y siguientes 2 meses
+            for (let mOff = 0; mOff <= 2; mOff++) {
+                const base = new Date(y, now.getMonth() + mOff, 1);
+                const yy = base.getFullYear();
+                const mm = base.getMonth();
+
+                // NFP: primer viernes del mes ~08:30 ET
+                const nfp = nthWeekday(yy, mm, 5, 1);
+                if (nfp) {
+                    nfp.setHours(8, 30, 0, 0);
+                    events.push({ date: nfp, country: 'USD', title: 'Non-Farm Payrolls (NFP)', impact: 'High' });
+                    events.push({ date: new Date(nfp.getTime()), country: 'USD', title: 'Unemployment Rate', impact: 'High' });
+                }
+
+                // CPI: orientativo ~día 10–15 laborable, usamos 2º martes 08:30 ET
+                const cpi = nthWeekday(yy, mm, 2, 2);
+                if (cpi) {
+                    cpi.setHours(8, 30, 0, 0);
+                    events.push({ date: cpi, country: 'USD', title: 'CPI (Consumer Price Index) m/m & y/y', impact: 'High' });
+                    events.push({ date: new Date(cpi.getTime()), country: 'USD', title: 'Core CPI', impact: 'High' });
+                }
+
+                // PPI: suele un día después del CPI → +1 día
+                if (cpi) {
+                    const ppi = new Date(cpi.getTime() + 86400000);
+                    ppi.setHours(8, 30, 0, 0);
+                    events.push({ date: ppi, country: 'USD', title: 'PPI (Producer Price Index)', impact: 'Medium' });
+                }
+
+                // Retail Sales: ~mitad de mes, 3er jueves
+                const retail = nthWeekday(yy, mm, 4, 3);
+                if (retail) {
+                    retail.setHours(8, 30, 0, 0);
+                    events.push({ date: retail, country: 'USD', title: 'Retail Sales m/m', impact: 'Medium' });
+                }
+
+                // ISM Manufacturing: primer día hábil ~ del mes (aprox 1er día laborable 10:00)
+                const ism = nthWeekday(yy, mm, 1, 1);
+                if (ism) {
+                    ism.setHours(10, 0, 0, 0);
+                    events.push({ date: ism, country: 'USD', title: 'ISM Manufacturing PMI', impact: 'Medium' });
+                }
+
+                // ISM Services: ~3er día hábil, 3er lunes orientativo
+                const ismS = nthWeekday(yy, mm, 1, 3);
+                if (ismS) {
+                    ismS.setHours(10, 0, 0, 0);
+                    events.push({ date: ismS, country: 'USD', title: 'ISM Services PMI', impact: 'Medium' });
+                }
+
+                // Michigan Consumer Sentiment: ~fin de mes viernes
+                const mich = lastWeekday(yy, mm, 5);
+                if (mich) {
+                    mich.setHours(10, 0, 0, 0);
+                    events.push({ date: mich, country: 'USD', title: 'Michigan Consumer Sentiment', impact: 'Medium' });
+                }
+
+                // Core PCE: suele fin de mes — último viernes orientativo 08:30
+                const pce = lastWeekday(yy, mm, 5);
+                if (pce) {
+                    const pce2 = new Date(pce.getTime());
+                    pce2.setHours(8, 30, 0, 0);
+                    events.push({ date: pce2, country: 'USD', title: 'Core PCE Price Index', impact: 'High' });
+                }
+            }
+
+            // FOMC 2026 (fechas orientativas típicas del calendario Fed — verificar oficial)
+            const fomc2026 = [
+                [2026, 0, 28], [2026, 2, 18], [2026, 4, 6], [2026, 5, 17],
+                [2026, 6, 29], [2026, 8, 16], [2026, 10, 4], [2026, 11, 16]
+            ];
+            fomc2026.forEach(([yy, mm, dd]) => {
+                const d = new Date(yy, mm, dd, 14, 0, 0); // ~14:00 ET anuncio
+                events.push({ date: d, country: 'USD', title: 'FOMC Interest Rate Decision', impact: 'High' });
+                const press = new Date(yy, mm, dd, 14, 30, 0);
+                events.push({ date: press, country: 'USD', title: 'FOMC Press Conference', impact: 'High' });
+            });
+
+            // GDP avance trimestral orientativo (último día del mes siguiente al trimestre)
+            [[2026, 0, 30, 'GDP Advance q/q (Q4)'], [2026, 3, 30, 'GDP Advance q/q (Q1)'],
+             [2026, 6, 30, 'GDP Advance q/q (Q2)'], [2026, 9, 29, 'GDP Advance q/q (Q3)']].forEach(([yy, mm, dd, title]) => {
+                events.push({ date: new Date(yy, mm, dd, 8, 30, 0), country: 'USD', title, impact: 'High' });
+            });
+
+            // Filtrar desde ayer hacia ~45 días
+            const from = now.getTime() - 86400000;
+            const to = now.getTime() + 45 * 86400000;
+            return events
+                .filter(e => e.date.getTime() >= from && e.date.getTime() <= to)
+                .sort((a, b) => a.date - b.date)
+                .map(e => ({
+                    ...e,
+                    btcNote: btcImpactNote(e.title, e.impact),
+                    btcBias: btcBiasProjection(e.title, e.impact)
+                }));
+        }
+
+        async function tryFetchExternalCalendar() {
+            // Intento best-effort; si CORS/rate-limit falla, se usa el calendario curado
+            try {
+                const res = await fetch('https://nfs.faireconomy.media/ff_calendar_thisweek.json', {
+                    cache: 'no-store',
+                    signal: AbortSignal.timeout(6000)
+                });
+                if (!res.ok) return null;
+                const data = await res.json();
+                if (!Array.isArray(data) || !data.length) return null;
+                const mapped = data
+                    .filter(ev => {
+                        const c = (ev.country || '').toUpperCase();
+                        return c === 'USD' || c === 'United States'.toUpperCase() || (ev.country || '') === 'USD';
+                    })
+                    .map(ev => {
+                        const impactRaw = (ev.impact || '').toString();
+                        let impact = 'Low';
+                        if (/high/i.test(impactRaw) || impactRaw === '3') impact = 'High';
+                        else if (/medium|med/i.test(impactRaw) || impactRaw === '2') impact = 'Medium';
+                        const date = new Date(ev.date);
+                        return {
+                            date,
+                            country: 'USD',
+                            title: ev.title || ev.name || 'Evento',
+                            impact,
+                            btcNote: btcImpactNote(ev.title || '', impact),
+                            btcBias: btcBiasProjection(ev.title || '', impact)
+                        };
+                    })
+                    .filter(e => !isNaN(e.date.getTime()));
+                return mapped.length ? mapped : null;
+            } catch (e) {
+                return null;
+            }
+        }
+
+        async function loadEconomicCalendar(force) {
+            const icon = document.getElementById('calRefreshIcon');
+            if (icon) icon.classList.add('fa-spin');
+            try {
+                if (!force && econCalendarCache.length && (Date.now() - econCalendarLoadedAt < 30 * 60 * 1000)) {
+                    renderEconomicCalendar();
+                    return;
+                }
+                let events = await tryFetchExternalCalendar();
+                if (!events || !events.length) {
+                    events = buildCuratedEconEvents();
+                } else {
+                    // Mezclar con FOMC curado si faltan
+                    const curated = buildCuratedEconEvents().filter(e => /fomc/i.test(e.title));
+                    const titles = new Set(events.map(e => e.title + e.date.toDateString()));
+                    curated.forEach(c => {
+                        const key = c.title + c.date.toDateString();
+                        if (!titles.has(key)) events.push(c);
+                    });
+                    events.sort((a, b) => a.date - b.date);
+                }
+                econCalendarCache = events;
+                econCalendarLoadedAt = Date.now();
+                renderEconomicCalendar();
+            } finally {
+                if (icon) icon.classList.remove('fa-spin');
+            }
+        }
+
+        function renderEconomicCalendar() {
+            const tbody = document.getElementById('econCalendarBody');
+            const nextBox = document.getElementById('calNextHigh');
+            if (!tbody) return;
+            const highOnly = document.getElementById('calHighOnly')?.checked !== false;
+            let list = econCalendarCache.slice();
+            if (highOnly) list = list.filter(e => e.impact === 'High');
+            const now = Date.now();
+
+            if (!list.length) {
+                tbody.innerHTML = `<tr><td colspan="6" class="p-6 text-center text-slate-500 italic">Sin eventos en el rango. Prueba desmarcar «Solo alto impacto» o Actualizar.</td></tr>`;
+                if (nextBox) nextBox.innerHTML = 'Próximo evento alto impacto: —';
+                return;
+            }
+
+            tbody.innerHTML = list.map(e => {
+                const past = e.date.getTime() < now - 3600000;
+                const soon = !past && e.date.getTime() - now < 48 * 3600000;
+                const dateStr = e.date.toLocaleString('es-MX', {
+                    weekday: 'short', month: 'short', day: 'numeric',
+                    hour: '2-digit', minute: '2-digit'
+                });
+                const impactCls = e.impact === 'High'
+                    ? 'bg-accentRed/20 text-accentRed border-accentRed/30'
+                    : e.impact === 'Medium'
+                    ? 'bg-accentYellow/15 text-accentYellow border-accentYellow/30'
+                    : 'bg-slate-800 text-slate-400 border-borderBg';
+                const rowCls = past ? 'opacity-50' : (soon ? 'bg-accentYellow/5' : '');
+                const bias = e.btcBias || btcBiasProjection(e.title, e.impact);
+                let biasCls = 'bg-slate-800 text-slate-300 border-borderBg';
+                let biasIcon = 'fa-arrows-left-right';
+                if (bias.bias === 'Alcista') {
+                    biasCls = 'bg-accentGreen/20 text-accentGreen border-accentGreen/30';
+                    biasIcon = 'fa-arrow-trend-up';
+                } else if (bias.bias === 'Bajista') {
+                    biasCls = 'bg-accentRed/20 text-accentRed border-accentRed/30';
+                    biasIcon = 'fa-arrow-trend-down';
+                } else if (bias.bias === 'Condicional') {
+                    biasCls = 'bg-accentYellow/15 text-accentYellow border-accentYellow/30';
+                    biasIcon = 'fa-code-branch';
+                }
+                return `<tr class="${rowCls}">
+                    <td class="p-2 font-mono whitespace-nowrap ${soon ? 'text-accentYellow font-semibold' : ''}">${dateStr}${soon ? ' · pronto' : ''}${past ? ' · pasado' : ''}</td>
+                    <td class="p-2"><span class="px-1.5 py-0.5 rounded bg-cardBg border border-borderBg text-[10px] font-bold">USD</span></td>
+                    <td class="p-2 font-medium text-slate-200">${e.title}</td>
+                    <td class="p-2"><span class="px-2 py-0.5 rounded text-[10px] font-bold border ${impactCls}">${e.impact}</span></td>
+                    <td class="p-2">
+                        <div class="flex flex-col gap-0.5 min-w-[140px]">
+                            <span class="inline-flex items-center gap-1 px-2 py-0.5 rounded text-[10px] font-bold border w-fit ${biasCls}">
+                                <i class="fa-solid ${biasIcon}"></i> ${bias.label}
+                            </span>
+                            <span class="text-[10px] text-slate-500 leading-snug">${bias.detail}</span>
+                        </div>
+                    </td>
+                    <td class="p-2 text-slate-400">${e.btcNote || '—'}</td>
+                </tr>`;
+            }).join('');
+
+            const nextHigh = econCalendarCache.find(e => e.impact === 'High' && e.date.getTime() >= now - 3600000);
+            if (nextBox) {
+                if (nextHigh) {
+                    const ds = nextHigh.date.toLocaleString('es-MX', { weekday: 'short', month: 'short', day: 'numeric', hour: '2-digit', minute: '2-digit' });
+                    const nb = nextHigh.btcBias || btcBiasProjection(nextHigh.title, nextHigh.impact);
+                    nextBox.innerHTML = `<div class="text-slate-500 text-[10px] mb-1">Próximo alto impacto</div>
+                        <div class="text-accentYellow font-semibold">${nextHigh.title}</div>
+                        <div class="font-mono text-slate-300 mt-1">${ds}</div>
+                        <div class="mt-1.5 text-[11px]"><span class="text-slate-400">Proyección:</span> <span class="text-slate-200 font-semibold">${nb.label}</span></div>
+                        <div class="text-slate-500 mt-1">${nb.detail}</div>
+                        <div class="text-slate-600 mt-1.5 text-[10px]">${nextHigh.btcNote}</div>`;
+                } else {
+                    nextBox.innerHTML = 'Próximo evento alto impacto: sin datos en ventana';
+                }
+            }
+        }
+
+        window.loadEconomicCalendar = loadEconomicCalendar;
+        window.renderEconomicCalendar = renderEconomicCalendar;
 
         const LS_LIVE = 'bitcash_terminalmx_live';
         const LIVE_INTERVAL_MS = 35000; // 35 segundos
@@ -2882,7 +3329,7 @@
                 calculateEMA50();
                 calculateTrendilo();
                 calculateStochRSI();
-                calculateADX();
+                calculateDMI();
                 calculateSupportsResistances();
                 calculateVolumeProfile();
                 fetchLongShortRatio();
@@ -3125,7 +3572,8 @@
             document.getElementById('indStochRsi').innerText = `K: ${stochRsiLatest.k} | D: ${stochRsiLatest.d}`;
         }
 
-        function calculateADX() {
+        function calculateDMI() {
+            // DMI (Directional Movement Index) — +DI y -DI (Wilder, periodo 14)
             const period = 14;
             if (rawKlines.length < period * 2) return;
 
@@ -3156,39 +3604,40 @@
             let smoothedPDM = pdmList.slice(0, period).reduce((a, b) => a + b, 0);
             let smoothedNDM = ndmList.slice(0, period).reduce((a, b) => a + b, 0);
 
-            let dxList = [];
+            let lastPDI = 0, lastNDI = 0, lastSpread = 0;
 
             for (let i = period; i < trList.length; i++) {
                 smoothedTR = smoothedTR - (smoothedTR / period) + trList[i];
                 smoothedPDM = smoothedPDM - (smoothedPDM / period) + pdmList[i];
                 smoothedNDM = smoothedNDM - (smoothedNDM / period) + ndmList[i];
 
-                const pDI = (smoothedPDM / (smoothedTR || 1)) * 100;
-                const nDI = (smoothedNDM / (smoothedTR || 1)) * 100;
-
-                const dx = (Math.abs(pDI - nDI) / ((pDI + nDI) || 1)) * 100;
-                dxList.push({ dx, pDI, nDI });
+                lastPDI = (smoothedPDM / (smoothedTR || 1)) * 100;
+                lastNDI = (smoothedNDM / (smoothedTR || 1)) * 100;
+                lastSpread = Math.abs(lastPDI - lastNDI);
             }
 
-            if (dxList.length < period) return;
+            const bullish = lastPDI > lastNDI;
+            const strong = lastSpread >= 10;
+            let direction = 'Neutral';
+            if (bullish && strong) direction = 'Alcista';
+            else if (!bullish && strong) direction = 'Bajista';
+            else if (bullish) direction = 'Alcista débil';
+            else direction = 'Bajista débil';
 
-            let adx = dxList.slice(0, period).reduce((acc, val) => acc + val.dx, 0) / period;
-            for (let i = period; i < dxList.length; i++) {
-                adx = (adx * (period - 1) + dxList[i].dx) / period;
-            }
-
-            const lastDX = dxList[dxList.length - 1];
-            adxLatest = {
-                adx: adx.toFixed(1),
-                pDI: lastDX.pDI.toFixed(1),
-                nDI: lastDX.nDI.toFixed(1),
-                trendStrength: adx > 25 ? (adx > 40 ? 'Tendencia Muy Fuerte' : 'Tendencia Fuerte') : 'Mercado en Rango / Débil'
+            dmiLatest = {
+                pDI: lastPDI.toFixed(1),
+                nDI: lastNDI.toFixed(1),
+                diSpread: lastSpread.toFixed(1),
+                direction,
+                trendStrength: strong
+                    ? (lastSpread >= 20 ? 'Movimiento Muy Fuerte' : 'Movimiento Fuerte')
+                    : 'Mercado en Rango / Débil'
             };
 
-            const indADX = document.getElementById('indADX');
-            if (indADX) {
-                indADX.innerText = `ADX: ${adxLatest.adx} (+DI: ${adxLatest.pDI} | -DI: ${adxLatest.nDI})`;
-                indADX.className = `font-mono font-bold ${adx > 25 ? (lastDX.pDI > lastDX.nDI ? 'text-accentGreen' : 'text-accentRed') : 'text-slate-400'}`;
+            const indDMI = document.getElementById('indDMI');
+            if (indDMI) {
+                indDMI.innerText = `+DI ${dmiLatest.pDI} | -DI ${dmiLatest.nDI} (Δ${dmiLatest.diSpread})`;
+                indDMI.className = `font-mono font-bold ${strong ? (bullish ? 'text-accentGreen' : 'text-accentRed') : 'text-slate-400'}`;
             }
 
             updateSignalsTable();
@@ -3246,34 +3695,34 @@
             document.getElementById('sigStochBadge').outerHTML = `<span id="sigStochBadge">${stochBadgeHtml}</span>`;
             document.getElementById('sigStochDesc').innerText = stochDesc;
 
-            // 3. ADX Signal Analysis
-            const adxVal = parseFloat(adxLatest.adx);
-            const pDI = parseFloat(adxLatest.pDI);
-            const nDI = parseFloat(adxLatest.nDI);
-            let adxBadgeHtml = '';
-            let adxState = '';
-            let adxDesc = '';
+            // 3. DMI Signal Analysis (+DI / -DI)
+            const pDI = parseFloat(dmiLatest.pDI) || 0;
+            const nDI = parseFloat(dmiLatest.nDI) || 0;
+            const diSpread = parseFloat(dmiLatest.diSpread) || Math.abs(pDI - nDI);
+            let dmiBadgeHtml = '';
+            let dmiState = '';
+            let dmiDesc = '';
 
-            if (adxVal > 25) {
+            if (diSpread >= 10) {
                 if (pDI > nDI) {
-                    adxBadgeHtml = `<span class="px-2.5 py-1 rounded text-xs font-bold bg-accentGreen/20 text-accentGreen border border-accentGreen/30">LONG (+DI > -DI)</span>`;
-                    adxState = `<span class="text-accentGreen font-bold">Tendencia Alcista Fuerte</span>`;
-                    adxDesc = `ADX en ${adxVal} confirma fuerza. Dominio comprador (+DI: ${pDI} > -DI: ${nDI}).`;
+                    dmiBadgeHtml = `<span class="px-2.5 py-1 rounded text-xs font-bold bg-accentGreen/20 text-accentGreen border border-accentGreen/30">LONG (+DI > -DI)</span>`;
+                    dmiState = `<span class="text-accentGreen font-bold">DMI Alcista</span>`;
+                    dmiDesc = `+DI (${pDI}) por encima de -DI (${nDI}). Separación Δ${diSpread.toFixed(1)} → dominio comprador.`;
                 } else {
-                    adxBadgeHtml = `<span class="px-2.5 py-1 rounded text-xs font-bold bg-accentRed/20 text-accentRed border border-accentRed/30">SHORT (-DI > +DI)</span>`;
-                    adxState = `<span class="text-accentRed font-bold">Tendencia Bajista Fuerte</span>`;
-                    adxDesc = `ADX en ${adxVal} confirma fuerza. Dominio vendedor (-DI: ${nDI} > +DI: ${pDI}).`;
+                    dmiBadgeHtml = `<span class="px-2.5 py-1 rounded text-xs font-bold bg-accentRed/20 text-accentRed border border-accentRed/30">SHORT (-DI > +DI)</span>`;
+                    dmiState = `<span class="text-accentRed font-bold">DMI Bajista</span>`;
+                    dmiDesc = `-DI (${nDI}) por encima de +DI (${pDI}). Separación Δ${diSpread.toFixed(1)} → dominio vendedor.`;
                 }
             } else {
-                adxBadgeHtml = `<span class="px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-400 font-mono">NEUTRAL (SIN FUERZA)</span>`;
-                adxState = `<span class="text-slate-400">Mercado Débil / Rango</span>`;
-                adxDesc = `ADX bajo (${adxVal} < 25). Poca fuerza direccional; alta probabilidad de choppiness.`;
+                dmiBadgeHtml = `<span class="px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-400 font-mono">NEUTRAL</span>`;
+                dmiState = `<span class="text-slate-400">Sin dirección clara</span>`;
+                dmiDesc = `+DI y -DI cercanos (Δ${diSpread.toFixed(1)} < 10). Mercado lateral o sin convicción direccional.`;
             }
 
-            document.getElementById('sigAdxVal').innerText = `ADX: ${adxVal} (+DI:${pDI} / -DI:${nDI})`;
-            document.getElementById('sigAdxState').innerHTML = adxState;
-            document.getElementById('sigAdxBadge').outerHTML = `<span id="sigAdxBadge">${adxBadgeHtml}</span>`;
-            document.getElementById('sigAdxDesc').innerText = adxDesc;
+            document.getElementById('sigDmiVal').innerText = `+DI ${pDI} / -DI ${nDI}`;
+            document.getElementById('sigDmiState').innerHTML = dmiState;
+            document.getElementById('sigDmiBadge').outerHTML = `<span id="sigDmiBadge">${dmiBadgeHtml}</span>`;
+            document.getElementById('sigDmiDesc').innerText = dmiDesc;
 
             // 4. Global Confluence Calculation
             let longScore = 0;
@@ -3282,7 +3731,7 @@
             if (zScore > 0.15 || (trendiloLatest.direction || '').includes('Alcista')) longScore++;
             else if (zScore < -0.15 || (trendiloLatest.direction || '').includes('Bajista')) shortScore++;
             if (kVal < 20) longScore++; else if (kVal > 80) shortScore++;
-            if (adxVal > 25) {
+            if (diSpread >= 10) {
                 if (pDI > nDI) longScore++;
                 else shortScore++;
             }
@@ -3294,7 +3743,7 @@
             if (longScore >= 2 && longScore > shortScore) {
                 conflBadge = `<span class="px-3 py-1 rounded text-xs font-black bg-accentGreen text-slate-950 shadow-md">LONG ALTA CONFLUENCIA (${longScore}/3)</span>`;
                 conflStatus = `<span class="text-accentGreen font-bold">Señal Alcista Validada</span>`;
-                conflDesc = 'Coincidencia favorable en Trendilo + StochRSI / ADX. Contexto apto para buscar entradas en Long.';
+                conflDesc = 'Coincidencia favorable en Trendilo + StochRSI / DMI. Contexto apto para buscar entradas en Long.';
             } else if (shortScore >= 2 && shortScore > longScore) {
                 conflBadge = `<span class="px-3 py-1 rounded text-xs font-black bg-accentRed text-white shadow-md">SHORT ALTA CONFLUENCIA (${shortScore}/3)</span>`;
                 conflStatus = `<span class="text-accentRed font-bold">Señal Bajista Validada</span>`;
@@ -3367,18 +3816,18 @@
             const isScalp = ['1m', '3m', '5m', '9m'].includes(horizon);
             const isSwing = ['4h', '1d'].includes(horizon);
 
-            // Pesos por horizonte: scalp → Stoch + micro-ROC; swing → ADX + Trendilo
+            // Pesos por horizonte: scalp → Stoch + micro-ROC; swing → DMI + Trendilo
             const wTrendilo = isScalp ? 0.7 : isSwing ? 1.3 : 1.0;
             const wStoch = isScalp ? 1.4 : isSwing ? 0.7 : 1.0;
-            const wAdx = isScalp ? 0.6 : isSwing ? 1.35 : 1.0;
+            const wDmi = isScalp ? 0.6 : isSwing ? 1.35 : 1.0;
             const wStruct = isScalp ? 0.8 : isSwing ? 1.15 : 1.0;
             const wRoc = isScalp ? 1.5 : isSwing ? 0.85 : 1.1;
 
             const z = parseFloat(trendiloLatest.zScore) || 0;
             const k = parseFloat(stochRsiLatest.k) || 50;
-            const adx = parseFloat(adxLatest.adx) || 0;
-            const pDI = parseFloat(adxLatest.pDI) || 0;
-            const nDI = parseFloat(adxLatest.nDI) || 0;
+            const pDI = parseFloat(dmiLatest.pDI) || 0;
+            const nDI = parseFloat(dmiLatest.nDI) || 0;
+            const diSpread = parseFloat(dmiLatest.diSpread) || Math.abs(pDI - nDI);
             const price = rawKlines[rawKlines.length - 1].close;
             const poc = volumeProfileData.poc || price;
             const nearestSup = calculatedPivots.nearestSup || price * 0.98;
@@ -3432,27 +3881,27 @@
             } else if (k < 40) { longPts += Math.round(6 * wStoch); }
             else if (k > 60) { shortPts += Math.round(6 * wStoch); }
 
-            // 3. ADX + DI
-            if (adx > 25) {
+            // 3. DMI (+DI / -DI)
+            if (diSpread >= 10) {
                 if (pDI > nDI) {
-                    const pts = Math.round(22 * wAdx);
+                    const pts = Math.round(22 * wDmi);
                     longPts += pts;
-                    reasons.push({ side: 'L', txt: `ADX fuerte +DI > -DI (${adx.toFixed(0)})`, pts });
+                    reasons.push({ side: 'L', txt: `DMI alcista +DI > -DI (Δ${diSpread.toFixed(0)})`, pts });
                 } else {
-                    const pts = Math.round(22 * wAdx);
+                    const pts = Math.round(22 * wDmi);
                     shortPts += pts;
-                    reasons.push({ side: 'S', txt: `ADX fuerte -DI > +DI (${adx.toFixed(0)})`, pts });
+                    reasons.push({ side: 'S', txt: `DMI bajista -DI > +DI (Δ${diSpread.toFixed(0)})`, pts });
                 }
-            } else if (adx > 18) {
+            } else if (diSpread >= 5) {
                 if (pDI > nDI) {
-                    longPts += Math.round(8 * wAdx);
-                    reasons.push({ side: 'L', txt: `ADX moderado a favor long`, pts: Math.round(8 * wAdx) });
+                    longPts += Math.round(8 * wDmi);
+                    reasons.push({ side: 'L', txt: `DMI leve a favor long`, pts: Math.round(8 * wDmi) });
                 } else {
-                    shortPts += Math.round(8 * wAdx);
-                    reasons.push({ side: 'S', txt: `ADX moderado a favor short`, pts: Math.round(8 * wAdx) });
+                    shortPts += Math.round(8 * wDmi);
+                    reasons.push({ side: 'S', txt: `DMI leve a favor short`, pts: Math.round(8 * wDmi) });
                 }
             } else {
-                reasons.push({ side: 'N', txt: `ADX bajo (${adx.toFixed(0)}) → mercado sin fuerza`, pts: 0 });
+                reasons.push({ side: 'N', txt: `DMI plano (Δ${diSpread.toFixed(0)}) → sin dirección`, pts: 0 });
             }
 
             // 4. Price vs POC / S-R
@@ -3486,12 +3935,12 @@
             const longPct = Math.round((longPts / total) * 100);
             const shortPct = 100 - longPct;
             const edge = Math.abs(longPts - shortPts);
-            const adxFloor = isScalp ? 12 : isSwing ? 20 : 18;
+            const dmiFloor = isScalp ? 5 : isSwing ? 10 : 8;
             const edgeFloor = isScalp ? 10 : 12;
 
             let recommendation, colorClass, badgeClass, confidence, actionHint;
 
-            if (edge < edgeFloor || adx < adxFloor) {
+            if (edge < edgeFloor || diSpread < dmiFloor) {
                 recommendation = 'ESPERAR';
                 colorClass = 'text-accentYellow';
                 badgeClass = 'bg-accentYellow text-slate-950';
@@ -3727,10 +4176,10 @@
                 document.getElementById('tpTag').innerText = 'Soporte / R:R';
             }
 
-            // Ajustar apalancamiento inteligente según ADX y Trendilo
-            const adxVal = parseFloat(adxLatest.adx || 20);
+            // Ajustar apalancamiento inteligente según DMI y Trendilo
+            const diSpreadLev = parseFloat(dmiLatest.diSpread || 0);
             const levSelect = document.getElementById('leverage');
-            if (adxVal > 30) {
+            if (diSpreadLev >= 15) {
                 levSelect.value = "10"; // Fuerte tendencia, apalancamiento moderado/alto seguro
             } else {
                 levSelect.value = "5"; // Mercado en rango, apalancamiento conservador
@@ -3836,24 +4285,24 @@
             winProb += stochBonus;
             breakdown.push({ name: "StochRSI", bonus: stochBonus, msg: stochMsg, icon: "fa-solid fa-wave-square" });
 
-            // 3. ADX Trend Strength Impact (+/- 10%)
-            let adxBonus = 0;
-            let adxMsg = "";
-            const adxVal = parseFloat(adxLatest.adx);
-            const pDI = parseFloat(adxLatest.pDI);
-            const nDI = parseFloat(adxLatest.nDI);
+            // 3. DMI (+DI / -DI) Impact (+/- 10%)
+            let dmiBonus = 0;
+            let dmiMsg = "";
+            const pDI = parseFloat(dmiLatest.pDI) || 0;
+            const nDI = parseFloat(dmiLatest.nDI) || 0;
+            const diSp = parseFloat(dmiLatest.diSpread) || Math.abs(pDI - nDI);
 
-            if (adxVal > 25) {
+            if (diSp >= 10) {
                 if ((tradeSide === 'LONG' && pDI > nDI) || (tradeSide === 'SHORT' && nDI > pDI)) {
-                    adxBonus = 10; adxMsg = `Tendencia direccional fuerte a favor (ADX: ${adxVal})`;
+                    dmiBonus = 10; dmiMsg = `DMI a favor (+DI ${pDI} / -DI ${nDI}, Δ${diSp.toFixed(1)})`;
                 } else {
-                    adxBonus = -10; adxMsg = `Tendencia opuesta fuerte en contra (ADX: ${adxVal})`;
+                    dmiBonus = -10; dmiMsg = `DMI en contra (+DI ${pDI} / -DI ${nDI}, Δ${diSp.toFixed(1)})`;
                 }
             } else {
-                adxBonus = -3; adxMsg = `Mercado sin fuerza direccional (ADX: ${adxVal} < 25)`;
+                dmiBonus = -3; dmiMsg = `DMI sin dirección clara (Δ${diSp.toFixed(1)} < 10)`;
             }
-            winProb += adxBonus;
-            breakdown.push({ name: "ADX + Directional Index", bonus: adxBonus, msg: adxMsg, icon: "fa-solid fa-compass" });
+            winProb += dmiBonus;
+            breakdown.push({ name: "DMI (+DI / -DI)", bonus: dmiBonus, msg: dmiMsg, icon: "fa-solid fa-compass" });
 
             // 4. Soportes y Resistencias
             let srBonus = 0;
@@ -4646,9 +5095,9 @@
 
             const z = parseFloat(trendiloLatest.zScore) || 0;
             const k = parseFloat(stochRsiLatest.k) || 50;
-            const adx = parseFloat(adxLatest.adx) || 0;
-            const pDI = parseFloat(adxLatest.pDI) || 0;
-            const nDI = parseFloat(adxLatest.nDI) || 0;
+            const pDI = parseFloat(dmiLatest.pDI) || 0;
+            const nDI = parseFloat(dmiLatest.nDI) || 0;
+            const diSpread = parseFloat(dmiLatest.diSpread) || Math.abs(pDI - nDI);
             const price = rawKlines[rawKlines.length - 1].close;
             const sideMode = ctx.sideMode || 'BOTH';
             const targetRR = ctx.targetRR || 2;
@@ -4663,9 +5112,9 @@
             else if (z > 0.05) longPts += 8; else if (z < -0.05) shortPts += 8;
             if (k < 20) longPts += 20; else if (k > 80) shortPts += 20;
             else if (k < 40) longPts += 6; else if (k > 60) shortPts += 6;
-            if (adx > 25) {
+            if (diSpread >= 10) {
                 if (pDI > nDI) longPts += 22; else shortPts += 22;
-            } else if (adx > 18) {
+            } else if (diSpread >= 5) {
                 if (pDI > nDI) longPts += 8; else shortPts += 8;
             }
 
