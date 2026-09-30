@@ -1129,7 +1129,7 @@
                                 </div>
                             </div>
                             <div class="bg-cardBg p-2 rounded border border-borderBg text-[11px] text-slate-400 leading-relaxed" id="btSummaryText">
-                                Configura los parámetros y pulsa «Ejecutar Backtest». La estrategia usa confluencia Trendilo + StochRSI + DMI sobre las velas cargadas.
+                                Configura los parámetros y pulsa «Ejecutar Backtest». La estrategia usa confluencia Trendilo + StochRSI + DMI + Yoshi sobre las velas cargadas.
                             </div>
                         </div>
 
@@ -5429,7 +5429,60 @@
             winProb += dmiBonus;
             breakdown.push({ name: "DMI (+DI / -DI)", bonus: dmiBonus, msg: dmiMsg, icon: "fa-solid fa-compass" });
 
-            // 4. Soportes y Resistencias
+            // 4. Yoshi Scanner Pro (SuperTrend + BOS/CHoCH + OB)
+            let yoshiBonus = 0;
+            let yoshiMsg = "";
+            const y = (typeof yoshiLatest !== 'undefined' && yoshiLatest) ? yoshiLatest : {};
+            const ySig = y.signal || 'NONE';
+            const yTrend = y.trend === 1 ? 1 : (y.trend === -1 ? -1 : 0);
+            const yBos = y.bos || '—';
+            const yStruct = y.structure || '—';
+
+            if (tradeSide === 'LONG') {
+                if (ySig === 'BUY') {
+                    yoshiBonus = 15;
+                    yoshiMsg = `Yoshi COMPRA alineada (${yBos}, ST↑, ${yStruct})`;
+                } else if (ySig === 'SELL') {
+                    yoshiBonus = -15;
+                    yoshiMsg = `Yoshi VENTA en contra del Long (${yBos}, ST↓)`;
+                } else if (yTrend === 1 && (String(yStruct).includes('Alcista') || String(yBos).includes('↑'))) {
+                    yoshiBonus = 10;
+                    yoshiMsg = `Yoshi ST↑ + estructura alcista (${yBos})`;
+                } else if (yTrend === -1) {
+                    yoshiBonus = -8;
+                    yoshiMsg = `Yoshi SuperTrend bajista en contra del Long`;
+                } else if (y.hasBullOB) {
+                    yoshiBonus = 6;
+                    yoshiMsg = `Yoshi zona OB de compra activa`;
+                } else {
+                    yoshiBonus = 0;
+                    yoshiMsg = `Yoshi sin señal clara (WAIT · ${yStruct})`;
+                }
+            } else {
+                if (ySig === 'SELL') {
+                    yoshiBonus = 15;
+                    yoshiMsg = `Yoshi VENTA alineada (${yBos}, ST↓, ${yStruct})`;
+                } else if (ySig === 'BUY') {
+                    yoshiBonus = -15;
+                    yoshiMsg = `Yoshi COMPRA en contra del Short (${yBos}, ST↑)`;
+                } else if (yTrend === -1 && (String(yStruct).includes('Bajista') || String(yBos).includes('↓'))) {
+                    yoshiBonus = 10;
+                    yoshiMsg = `Yoshi ST↓ + estructura bajista (${yBos})`;
+                } else if (yTrend === 1) {
+                    yoshiBonus = -8;
+                    yoshiMsg = `Yoshi SuperTrend alcista en contra del Short`;
+                } else if (y.hasBearOB) {
+                    yoshiBonus = 6;
+                    yoshiMsg = `Yoshi zona OB de venta activa`;
+                } else {
+                    yoshiBonus = 0;
+                    yoshiMsg = `Yoshi sin señal clara (WAIT · ${yStruct})`;
+                }
+            }
+            winProb += yoshiBonus;
+            breakdown.push({ name: "Yoshi Scanner", bonus: yoshiBonus, msg: yoshiMsg, icon: "fa-solid fa-dragon" });
+
+            // 5. Soportes y Resistencias
             let srBonus = 0;
             let srMsg = "";
             if (tradeSide === 'LONG') {
@@ -5444,7 +5497,7 @@
             winProb += srBonus;
             breakdown.push({ name: "Soportes / Resistencias", bonus: srBonus, msg: srMsg, icon: "fa-solid fa-layer-group" });
 
-            // 5. Volume Profile (VPR / POC)
+            // 6. Volume Profile (VPR / POC)
             let vprBonus = 0;
             let vprMsg = "";
             if (tradeSide === 'LONG' && entry >= volumeProfileData.poc) {
