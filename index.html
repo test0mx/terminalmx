@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>BitCash TerminalMX</title>
+    <title>TerminalMX</title>
     <!-- Tailwind CSS -->
     <script src="https://cdn.tailwindcss.com"></script>
     <script>
@@ -224,6 +224,48 @@
         body.is-resizing canvas {
             pointer-events: none !important;
         }
+
+        /* Yoshi Order Block zones — sombreado tipo TradingView */
+        #yoshiObOverlay {
+            position: absolute;
+            inset: 0;
+            pointer-events: none;
+            z-index: 5;
+            overflow: hidden;
+        }
+        .yoshi-ob-zone {
+            position: absolute;
+            left: 0;
+            right: 48px; /* deja espacio escala de precios */
+            border-left: 2px solid;
+            box-sizing: border-box;
+            display: flex;
+            align-items: flex-start;
+            padding: 2px 0 0 8px;
+        }
+        .yoshi-ob-zone.bull {
+            background: linear-gradient(180deg, rgba(49, 121, 245, 0.28), rgba(49, 121, 245, 0.12));
+            border-color: rgba(49, 121, 245, 0.7);
+            border-top: 1px solid rgba(49, 121, 245, 0.45);
+            border-bottom: 1px solid rgba(49, 121, 245, 0.45);
+        }
+        .yoshi-ob-zone.bear {
+            background: linear-gradient(180deg, rgba(246, 70, 93, 0.28), rgba(246, 70, 93, 0.12));
+            border-color: rgba(246, 70, 93, 0.7);
+            border-top: 1px solid rgba(246, 70, 93, 0.45);
+            border-bottom: 1px solid rgba(246, 70, 93, 0.45);
+        }
+        .yoshi-ob-label {
+            font-size: 10px;
+            font-weight: 700;
+            letter-spacing: 0.02em;
+            text-shadow: 0 1px 2px rgba(0,0,0,0.85);
+            white-space: nowrap;
+            opacity: 0.95;
+        }
+        .yoshi-ob-zone.bull .yoshi-ob-label { color: #7eb6ff; }
+        .yoshi-ob-zone.bear .yoshi-ob-label { color: #ff9aa2; }
+
         /* Chart fullscreen mode (solo velas) */
         #mainChartContainer.chart-fs {
             position: fixed !important;
@@ -403,7 +445,7 @@
 
     <!-- Barra flotante al salir de modo Solo gráficos -->
     <div id="chartsOnlyExitBar" class="bg-panelBg/95 border border-borderBg rounded-xl px-3 py-2 shadow-xl backdrop-blur">
-        <span class="text-[11px] text-slate-400 font-mono mr-2 hidden sm:inline">BitCash TerminalMX · Solo gráficos</span>
+        <span class="text-[11px] text-slate-400 font-mono mr-2 hidden sm:inline">TerminalMX · Solo gráficos</span>
         <button type="button" onclick="toggleChartsOnlyMode(false)"
             class="bg-accentYellow hover:bg-yellow-500 text-slate-950 text-xs font-bold px-3 py-1.5 rounded-lg transition flex items-center gap-1.5">
             <i class="fa-solid fa-arrow-left"></i> Regresar
@@ -423,8 +465,8 @@
             </button>
             <div class="flex items-center space-x-2 font-bold text-base sm:text-lg text-accentYellow shrink-0">
                 <i class="fa-brands fa-bitcoin text-xl sm:text-2xl"></i>
-                <span class="hidden sm:inline">BitCash TerminalMX</span>
-                <span class="sm:hidden">BitCash MX</span>
+                <span class="hidden sm:inline">TerminalMX</span>
+                <span class="sm:hidden">TerminalMX</span>
             </div>
             <div class="hidden md:block h-5 w-[1px] bg-borderBg"></div>
             <div class="flex items-center space-x-1.5 sm:space-x-2 min-w-0">
@@ -437,13 +479,15 @@
         <!-- Controls / Timeframe Selector -->
         <div class="flex items-center space-x-1.5 sm:space-x-3 w-full sm:w-auto justify-end">
             <div class="bg-cardBg p-0.5 sm:p-1 rounded-lg border border-borderBg flex space-x-0.5 sm:space-x-1 text-[10px] sm:text-xs flex-wrap justify-end">
-                <button type="button" data-tf="1m" onclick="window.changeTimeframe && window.changeTimeframe('1m')" id="tf-1m" class="tf-btn px-1.5 sm:px-2 py-1 rounded font-medium text-slate-400 hover:text-white">1m</button>
-                <button type="button" data-tf="9m" onclick="window.changeTimeframe && window.changeTimeframe('9m')" id="tf-9m" class="tf-btn px-1.5 sm:px-2 py-1 rounded font-medium text-slate-400 hover:text-white">9m</button>
-                <button type="button" data-tf="20m" onclick="window.changeTimeframe && window.changeTimeframe('20m')" id="tf-20m" class="tf-btn px-1.5 sm:px-2 py-1 rounded font-medium text-slate-400 hover:text-white">20m</button>
-                <button type="button" data-tf="1h" onclick="window.changeTimeframe && window.changeTimeframe('1h')" id="tf-1h" class="tf-btn px-1.5 sm:px-2 py-1 rounded font-medium bg-borderBg text-white">1h</button>
-                <button type="button" data-tf="4h" onclick="window.changeTimeframe && window.changeTimeframe('4h')" id="tf-4h" class="tf-btn px-1.5 sm:px-2 py-1 rounded font-medium text-slate-400 hover:text-white">4h</button>
+                <button type="button" data-tf="1m" onclick="window.changeTimeframe && window.changeTimeframe('1m')" id="tf-1m" class="tf-btn px-1.5 sm:px-2 py-1 rounded font-medium text-slate-400 hover:text-white">1</button>
+                <button type="button" data-tf="5m" onclick="window.changeTimeframe && window.changeTimeframe('5m')" id="tf-5m" class="tf-btn px-1.5 sm:px-2 py-1 rounded font-medium text-slate-400 hover:text-white">5</button>
+                <button type="button" data-tf="9m" onclick="window.changeTimeframe && window.changeTimeframe('9m')" id="tf-9m" class="tf-btn px-1.5 sm:px-2 py-1 rounded font-medium text-slate-400 hover:text-white">9</button>
+                <button type="button" data-tf="15m" onclick="window.changeTimeframe && window.changeTimeframe('15m')" id="tf-15m" class="tf-btn px-1.5 sm:px-2 py-1 rounded font-medium text-slate-400 hover:text-white">15</button>
+                <button type="button" data-tf="20m" onclick="window.changeTimeframe && window.changeTimeframe('20m')" id="tf-20m" class="tf-btn px-1.5 sm:px-2 py-1 rounded font-medium text-slate-400 hover:text-white">20</button>
+                <button type="button" data-tf="1h" onclick="window.changeTimeframe && window.changeTimeframe('1h')" id="tf-1h" class="tf-btn px-1.5 sm:px-2 py-1 rounded font-medium bg-borderBg text-white">1H</button>
+                <button type="button" data-tf="4h" onclick="window.changeTimeframe && window.changeTimeframe('4h')" id="tf-4h" class="tf-btn px-1.5 sm:px-2 py-1 rounded font-medium text-slate-400 hover:text-white">4H</button>
                 <button type="button" data-tf="1d" onclick="window.changeTimeframe && window.changeTimeframe('1d')" id="tf-1d" class="tf-btn px-1.5 sm:px-2 py-1 rounded font-medium text-slate-400 hover:text-white">1D</button>
-                <button type="button" data-tf="1w" onclick="window.changeTimeframe && window.changeTimeframe('1w')" id="tf-1w" class="tf-btn px-1.5 sm:px-2 py-1 rounded font-medium text-slate-400 hover:text-white">1W</button>
+                <button type="button" data-tf="1w" onclick="window.changeTimeframe && window.changeTimeframe('1w')" id="tf-1w" class="tf-btn px-1.5 sm:px-2 py-1 rounded font-medium text-slate-400 hover:text-white">1S</button>
             </div>
             
             <button type="button" id="btnLiveToggle" onclick="toggleLiveUpdates()"
@@ -733,6 +777,10 @@
                     <span class="text-slate-400">DMI:</span>
                     <span id="indDMI" class="font-mono font-bold text-slate-300">--</span>
                 </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <span class="text-slate-400">Yoshi:</span>
+                    <span id="indYoshi" class="font-mono font-bold text-slate-300">--</span>
+                </div>
                 <div class="flex items-center space-x-1 sm:space-x-2 shrink-0">
                     <span class="text-slate-400">S/R:</span>
                     <span id="indSR" class="font-mono font-bold text-slate-300">--</span>
@@ -790,8 +838,9 @@
             <div id="chartsSplitContainer" class="flex flex-col gap-0 relative overflow-hidden resizing-layout" style="height: 40vh; min-height: 40vh; max-height: 60vh;">
                 <div id="mainChartContainer" class="w-full relative overflow-hidden" style="flex: 6.5 1 0; min-height: 100px;">
                     <div id="candlestickChart" class="w-full h-full cursor-grab active:cursor-grabbing"></div>
+                    <div id="yoshiObOverlay" aria-hidden="true"></div>
                     <div id="chartWatermark" class="absolute bottom-8 left-3 pointer-events-none text-slate-700/40 font-bold text-lg sm:text-2xl select-none z-[1]">
-                        BitCash TerminalMX
+                        TerminalMX
                     </div>
                     <!-- Controles de navegación (estilo TradingView) -->
                     <div id="chartNavControls" class="absolute bottom-3 left-3 z-20 flex items-center gap-1 pointer-events-auto">
@@ -941,6 +990,19 @@
                                 </td>
                                 <td id="sigDmiDesc" class="p-2 text-slate-400">Midiendo la fuerza direccional (+DI / -DI)...</td>
                             </tr>
+                            <!-- Yoshi Scanner Pro Row -->
+                            <tr class="hover:bg-cardBg/40 transition">
+                                <td class="p-2 font-bold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-dragon text-purple-400"></i> Yoshi Scanner
+                                </td>
+                                <td class="p-2 text-slate-400">SuperTrend + BOS + liquidez (EQH/EQL)</td>
+                                <td id="sigYoshiVal" class="p-2 font-bold">--</td>
+                                <td id="sigYoshiState" class="p-2">--</td>
+                                <td class="p-2 text-center">
+                                    <span id="sigYoshiBadge" class="px-2 py-1 rounded text-xs font-bold bg-slate-800 text-slate-400">NEUTRAL</span>
+                                </td>
+                                <td id="sigYoshiDesc" class="p-2 text-slate-400">Analizando SuperTrend, estructura y barridos de liquidez...</td>
+                            </tr>
                             <!-- Confluence Summary Row -->
                             <tr class="bg-cardBg/80 font-bold border-t border-borderBg">
                                 <td class="p-2.5 text-accentYellow flex items-center gap-2" colspan="2">
@@ -951,7 +1013,7 @@
                                 <td class="p-2 text-center">
                                     <span id="sigConfluenceBadge" class="px-2.5 py-1 rounded text-xs font-black bg-slate-800 text-slate-400">ESPERAR</span>
                                 </td>
-                                <td id="sigConfluenceDesc" class="p-2 text-xs font-normal text-slate-300">Evaluando coincidencia entre Trendilo + Stoch RSI + DMI.</td>
+                                <td id="sigConfluenceDesc" class="p-2 text-xs font-normal text-slate-300">Evaluando coincidencia entre Trendilo + Stoch RSI + DMI + Yoshi.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -1403,6 +1465,15 @@
         let volumeSeries = null;
         let ema50Series = null; // SMMA 50
         let smma20Series = null; // SMMA 20
+        let supertrendSeries = null; // Yoshi SuperTrend (compat)
+        let supertrendUpSeries = null;
+        let supertrendDnSeries = null;
+        let yoshiObPriceLines = []; // price lines for OB zones
+        let yoshiLatest = {
+            trend: 0, stValue: 0, structure: 'Neutral',
+            bos: 'none', eq: 'none', state: 0, signal: 'NONE',
+            entry: null, sl: null, tp1: null, tp2: null, tp3: null
+        };
         let mainChart = null;
         let trendiloChart = null;
         let trendiloHistSeries = null;
@@ -1422,9 +1493,9 @@
         let currentPendingTrade = null;
         let lastConfirmedTrade = null;
         let chartPriceLines = [];
-        const LS_JOURNAL = 'bitcash_terminalmx_journal';
-        const LS_LAST_TRADE = 'bitcash_terminalmx_last_trade';
-        const LS_CHART_PREFS = 'bitcash_terminalmx_chart_prefs';
+        const LS_JOURNAL = 'terminalmx_journal';
+        const LS_LAST_TRADE = 'terminalmx_last_trade';
+        const LS_CHART_PREFS = 'terminalmx_chart_prefs';
 
         function loadJournalFromStorage() {
             try {
@@ -2274,7 +2345,7 @@
             const modal = document.getElementById('modalEntryPrice');
             // modal parent text may still say BTC - update if exists a span
             document.querySelectorAll('[data-symbol-label]').forEach(el => { el.innerText = label; });
-            try { localStorage.setItem('bitcash_terminalmx_symbol', currentSymbol); } catch (e) {}
+            try { localStorage.setItem('terminalmx_symbol', currentSymbol); } catch (e) {}
         }
 
         async function setActiveSymbol(sym) {
@@ -2315,7 +2386,7 @@
 
 
 
-        const LS_LIVE = 'bitcash_terminalmx_live';
+        const LS_LIVE = 'terminalmx_live';
         const LIVE_INTERVAL_MS = 35000; // 35 segundos
         let liveEnabled = false;
         let liveTimerId = null;
@@ -2379,7 +2450,7 @@
             setTimeout(() => forceChartResize(), 50);
             setTimeout(() => forceChartResize(), 300);
             try {
-                const savedSym = localStorage.getItem('bitcash_terminalmx_symbol');
+                const savedSym = localStorage.getItem('terminalmx_symbol');
                 if (savedSym && savedSym.endsWith('USDT')) currentSymbol = savedSym;
             } catch (e) {}
             updateSymbolUI();
@@ -2425,7 +2496,7 @@
             try { projectNextHourBias(); } catch (e) {}
             // Pestaña inferior inicial: Señales
             try {
-                if (localStorage.getItem('bitcash_terminalmx_charts_hidden') === '1') toggleHideCharts(true);
+                if (localStorage.getItem('terminalmx_charts_hidden') === '1') toggleHideCharts(true);
             } catch (e) {}
             try { switchBottomTab('signals'); } catch (e) {}
 
@@ -2589,7 +2660,7 @@
         }
 
         // ——— Resize panel operaciones vs gráficos ———
-        const LS_PANEL_H = 'bitcash_terminalmx_panel_h';
+        const LS_PANEL_H = 'terminalmx_panel_h';
 
         function applyDefaultVerticalSplit() {
             // Gráficos 40% (velas + Trendilo) · resto ~60%
@@ -2759,6 +2830,7 @@
                     try { trendiloChart.applyOptions({ width: w2, height: h2 }); } catch (e) {}
                 }
             }
+            scheduleYoshiObRender();
         }
 
         function handleResize() {
@@ -2768,7 +2840,7 @@
         window.applyDefaultVerticalSplit = applyDefaultVerticalSplit;
 
 
-        const LS_PANEL_VISIBLE = 'bitcash_terminalmx_panel_visible';
+        const LS_PANEL_VISIBLE = 'terminalmx_panel_visible';
 
         function updateHamburgerUI(open) {
             const btn = document.getElementById('btnHamburgerPanel');
@@ -2910,6 +2982,25 @@
                 crosshairMarkerVisible: true
             });
 
+            // Yoshi SuperTrend (línea rota up/down como TradingView)
+            supertrendUpSeries = addChartSeries(mainChart, 'Line', {
+                color: '#0ecb81',
+                lineWidth: 2,
+                priceLineVisible: false,
+                lastValueVisible: false,
+                title: 'ST Up',
+                crosshairMarkerVisible: false
+            });
+            supertrendDnSeries = addChartSeries(mainChart, 'Line', {
+                color: '#f6465d',
+                lineWidth: 2,
+                priceLineVisible: false,
+                lastValueVisible: false,
+                title: 'ST Down',
+                crosshairMarkerVisible: false
+            });
+            supertrendSeries = supertrendUpSeries;
+
             // OHLC legend + click H-Line
             mainChart.subscribeCrosshairMove((param) => {
                 updateOhlcLegend(param);
@@ -2931,11 +3022,15 @@
                 if (!syncingTimeScale && Number.isFinite(range.from) && Number.isFinite(range.to)) {
                     savedChartLogicalRange = { from: range.from, to: range.to };
                 }
+                scheduleYoshiObRender();
                 if (syncingTimeScale || !trendiloChart) return;
                 syncingTimeScale = true;
                 try { trendiloChart.timeScale().setVisibleLogicalRange(range); } catch (e) {}
                 syncingTimeScale = false;
             });
+            try {
+                mainChart.subscribeCrosshairMove(() => scheduleYoshiObRender());
+            } catch (e) {}
 
             const subContainer = document.getElementById('trendiloChart');
             const subBox = document.getElementById('subChartContainer');
@@ -3318,7 +3413,7 @@
                 }
                 const canvas = mainChart.takeScreenshot();
                 const a = document.createElement('a');
-                a.download = `BitCash_TerminalMX_${Date.now()}.png`;
+                a.download = `TerminalMX_${Date.now()}.png`;
                 a.href = canvas.toDataURL('image/png');
                 a.click();
             } catch (e) {
@@ -3355,7 +3450,7 @@
             if (btn) btn.classList.toggle('active', on);
             if (icon) icon.className = on ? 'fa-solid fa-eye' : 'fa-solid fa-eye-slash';
             if (label) label.innerText = on ? 'Ver gráficos' : 'Ocultar gráficos';
-            try { localStorage.setItem('bitcash_terminalmx_charts_hidden', on ? '1' : '0'); } catch (e) {}
+            try { localStorage.setItem('terminalmx_charts_hidden', on ? '1' : '0'); } catch (e) {}
             setTimeout(function() { if (typeof forceChartResize === 'function') forceChartResize(); }, 80);
             setTimeout(function() { if (typeof forceChartResize === 'function') forceChartResize(); }, 250);
         }
@@ -3887,6 +3982,7 @@
                 calculateTrendilo();
                 calculateStochRSI();
                 calculateDMI();
+                calculateYoshiScanner();
                 calculateSupportsResistances();
                 calculateVolumeProfile();
                 fetchLongShortRatio();
@@ -4200,6 +4296,394 @@
             updateSignalsTable();
         }
 
+
+        function atrWilder(klines, period) {
+            if (!klines || klines.length < period + 1) return [];
+            const trs = [];
+            for (let i = 1; i < klines.length; i++) {
+                const h = klines[i].high, l = klines[i].low, pc = klines[i - 1].close;
+                trs.push(Math.max(h - l, Math.abs(h - pc), Math.abs(l - pc)));
+            }
+            const out = new Array(klines.length).fill(null);
+            let atr = 0;
+            for (let i = 0; i < period; i++) atr += trs[i];
+            atr /= period;
+            out[period] = atr;
+            for (let i = period; i < trs.length; i++) {
+                atr = (atr * (period - 1) + trs[i]) / period;
+                out[i + 1] = atr;
+            }
+            return out;
+        }
+
+        function pivotHigh(klines, left, right, i) {
+            const h = klines[i].high;
+            for (let j = i - left; j <= i + right; j++) {
+                if (j < 0 || j >= klines.length || j === i) continue;
+                if (klines[j].high >= h) return false;
+            }
+            return true;
+        }
+        function pivotLow(klines, left, right, i) {
+            const l = klines[i].low;
+            for (let j = i - left; j <= i + right; j++) {
+                if (j < 0 || j >= klines.length || j === i) continue;
+                if (klines[j].low <= l) return false;
+            }
+            return true;
+        }
+
+        /**
+         * Yoshi Scanner Pro (núcleo portado a JS):
+         * SuperTrend + pivots/estructura + BOS + EQH/EQL + estados liquidez→BOS→retest
+         * + señal alineada con SuperTrend. Niveles ENTRY/SL/TP1-3 estimados.
+         */
+
+        let yoshiActiveOBs = []; // {top, bottom, bias}
+
+        function clearYoshiObLines() {
+            if (!candlestickSeries) return;
+            yoshiObPriceLines.forEach(pl => {
+                try { candlestickSeries.removePriceLine(pl); } catch (e) {}
+            });
+            yoshiObPriceLines = [];
+            const ov = document.getElementById('yoshiObOverlay');
+            if (ov) ov.innerHTML = '';
+        }
+
+        function priceToY(price) {
+            if (!candlestickSeries || price == null) return null;
+            try {
+                return candlestickSeries.priceToCoordinate(price);
+            } catch (e) {
+                return null;
+            }
+        }
+
+        /** Sombreado horizontal tipo TradingView para Order Blocks */
+        function renderYoshiObOverlay() {
+            const ov = document.getElementById('yoshiObOverlay');
+            if (!ov || !candlestickSeries) return;
+            ov.innerHTML = '';
+            if (!yoshiActiveOBs.length) return;
+
+            yoshiActiveOBs.forEach(ob => {
+                const yTop = priceToY(ob.top);
+                const yBot = priceToY(ob.bottom);
+                if (yTop == null || yBot == null) return;
+                const top = Math.min(yTop, yBot);
+                const height = Math.max(4, Math.abs(yBot - yTop));
+                const isBull = ob.bias === 1;
+                const div = document.createElement('div');
+                div.className = 'yoshi-ob-zone ' + (isBull ? 'bull' : 'bear');
+                div.style.top = top + 'px';
+                div.style.height = height + 'px';
+                const label = document.createElement('span');
+                label.className = 'yoshi-ob-label';
+                label.textContent = isBull ? 'ZONA DE COMPRA (OB)' : 'ZONA DE VENTA (OB)';
+                div.appendChild(label);
+                ov.appendChild(div);
+            });
+        }
+
+        function addYoshiObZone(top, bottom, bias) {
+            if (top == null || bottom == null) return;
+            yoshiActiveOBs.push({ top, bottom, bias });
+            // Price lines finas en el eje (como niveles de la imagen)
+            if (!candlestickSeries) return;
+            const isBull = bias === 1;
+            const color = isBull ? 'rgba(49, 121, 245, 0.9)' : 'rgba(246, 70, 93, 0.9)';
+            try {
+                const topLine = candlestickSeries.createPriceLine({
+                    price: top,
+                    color: color,
+                    lineWidth: 1,
+                    lineStyle: 0,
+                    axisLabelVisible: true,
+                    title: isBull ? 'OB Buy' : 'OB Sell'
+                });
+                const botLine = candlestickSeries.createPriceLine({
+                    price: bottom,
+                    color: color,
+                    lineWidth: 1,
+                    lineStyle: 2,
+                    axisLabelVisible: false,
+                    title: ''
+                });
+                yoshiObPriceLines.push(topLine, botLine);
+            } catch (e) {}
+        }
+
+        function scheduleYoshiObRender() {
+            requestAnimationFrame(() => {
+                renderYoshiObOverlay();
+            });
+        }
+
+        /**
+         * Yoshi Scanner Pro — visualización tipo TradingView:
+         * SuperTrend up/down, BOS/CHoCH, Order Blocks (zonas compra/venta), señales Sell/Buy
+         */
+        function calculateYoshiScanner() {
+            const klines = rawKlines;
+            if (!klines || klines.length < 40) return;
+
+            const stPeriod = 10;
+            const stMult = 3.0;
+            const pivotLeft = 2, pivotRight = 2;
+            const intLeft = 5, intRight = 5; // estructura interna
+            const liqTolPct = 0.0015;
+            const atrArr = atrWilder(klines, stPeriod);
+
+            // --- SuperTrend ---
+            let upFinal = null, dnFinal = null, trend = 1;
+            const stUpData = [];
+            const stDnData = [];
+            const trends = [];
+            let prevTrend = 1;
+            for (let i = 0; i < klines.length; i++) {
+                const atr = atrArr[i];
+                const c = klines[i].close;
+                const src = (klines[i].high + klines[i].low) / 2;
+                const t = klines[i].time;
+                if (atr == null) {
+                    trends.push(trend);
+                    continue;
+                }
+                let up = src - stMult * atr;
+                let dn = src + stMult * atr;
+                if (upFinal == null) upFinal = up;
+                else upFinal = (klines[i - 1].close > upFinal) ? Math.max(up, upFinal) : up;
+                if (dnFinal == null) dnFinal = dn;
+                else dnFinal = (klines[i - 1].close < dnFinal) ? Math.min(dn, dnFinal) : dn;
+
+                prevTrend = trend;
+                if (trend === -1 && c > dnFinal) trend = 1;
+                else if (trend === 1 && c < upFinal) trend = -1;
+                trends.push(trend);
+
+                // Solo puntos del lado activo → línea rota verde/roja (estilo TV)
+                if (trend === 1) {
+                    stUpData.push({ time: t, value: upFinal });
+                } else {
+                    stDnData.push({ time: t, value: dnFinal });
+                }
+            }
+
+            // --- Swings (estructura) ---
+            const swingHighs = [], swingLows = [];
+            for (let i = pivotLeft; i < klines.length - pivotRight; i++) {
+                if (pivotHigh(klines, pivotLeft, pivotRight, i))
+                    swingHighs.push({ i, price: klines[i].high, time: klines[i].time });
+                if (pivotLow(klines, pivotLeft, pivotRight, i))
+                    swingLows.push({ i, price: klines[i].low, time: klines[i].time });
+            }
+
+            // Internal pivots (CHoCH/BOS más reactivos)
+            const intHighs = [], intLows = [];
+            for (let i = intLeft; i < klines.length - intRight; i++) {
+                if (pivotHigh(klines, intLeft, intRight, i))
+                    intHighs.push({ i, price: klines[i].high, time: klines[i].time });
+                if (pivotLow(klines, intLeft, intRight, i))
+                    intLows.push({ i, price: klines[i].low, time: klines[i].time });
+            }
+
+            // Recorrer barras: detectar BOS/CHoCH + Order Blocks
+            let structBias = 0; // +1 bull, -1 bear
+            let lastIntHigh = null, lastIntLow = null;
+            const structureEvents = []; // {i, type:'BOS'|'CHoCH', bias, price, time}
+            const orderBlocks = []; // {top, bottom, bias, startI, active}
+
+            function findObCandle(fromI, biasBull) {
+                // última vela opuesta en las 8 anteriores
+                for (let j = fromI - 1; j >= Math.max(0, fromI - 12); j--) {
+                    const k = klines[j];
+                    if (biasBull && k.close < k.open) return { top: k.high, bottom: k.low, i: j };
+                    if (!biasBull && k.close > k.open) return { top: k.high, bottom: k.low, i: j };
+                }
+                const k = klines[Math.max(0, fromI - 1)];
+                return { top: k.high, bottom: k.low, i: Math.max(0, fromI - 1) };
+            }
+
+            for (let i = 0; i < klines.length; i++) {
+                const ih = intHighs.find(p => p.i === i);
+                const il = intLows.find(p => p.i === i);
+                if (ih) lastIntHigh = ih;
+                if (il) lastIntLow = il;
+
+                if (i < 10) continue;
+                const c = klines[i].close;
+                // Break de high interno
+                if (lastIntHigh && i > lastIntHigh.i && c > lastIntHigh.price && klines[i - 1].close <= lastIntHigh.price) {
+                    const type = structBias === -1 ? 'CHoCH' : 'BOS';
+                    structureEvents.push({ i, type, bias: 1, price: lastIntHigh.price, time: klines[i].time });
+                    const ob = findObCandle(i, true);
+                    orderBlocks.push({ top: ob.top, bottom: ob.bottom, bias: 1, startI: ob.i, broken: false });
+                    structBias = 1;
+                    lastIntHigh = null; // consumido
+                }
+                // Break de low interno
+                if (lastIntLow && i > lastIntLow.i && c < lastIntLow.price && klines[i - 1].close >= lastIntLow.price) {
+                    const type = structBias === 1 ? 'CHoCH' : 'BOS';
+                    structureEvents.push({ i, type, bias: -1, price: lastIntLow.price, time: klines[i].time });
+                    const ob = findObCandle(i, false);
+                    orderBlocks.push({ top: ob.top, bottom: ob.bottom, bias: -1, startI: ob.i, broken: false });
+                    structBias = -1;
+                    lastIntLow = null;
+                }
+            }
+
+            // Mitigar OBs tocados
+            orderBlocks.forEach(ob => {
+                for (let i = ob.startI + 1; i < klines.length; i++) {
+                    if (ob.bias === 1 && klines[i].low < ob.bottom) { ob.broken = true; break; }
+                    if (ob.bias === -1 && klines[i].high > ob.top) { ob.broken = true; break; }
+                }
+            });
+
+            const activeBullOB = [...orderBlocks].reverse().find(o => o.bias === 1 && !o.broken);
+            const activeBearOB = [...orderBlocks].reverse().find(o => o.bias === -1 && !o.broken);
+
+            let lastSH = swingHighs.length ? swingHighs[swingHighs.length - 1].price : null;
+            let prevSH = swingHighs.length >= 2 ? swingHighs[swingHighs.length - 2].price : null;
+            let lastSL = swingLows.length ? swingLows[swingLows.length - 1].price : null;
+            let prevSL = swingLows.length >= 2 ? swingLows[swingLows.length - 2].price : null;
+
+            const bullStructure = lastSH != null && prevSH != null && lastSL != null && prevSL != null
+                && lastSH > prevSH && lastSL > prevSL;
+            const bearStructure = lastSH != null && prevSH != null && lastSL != null && prevSL != null
+                && lastSH < prevSH && lastSL < prevSL;
+
+            const n = klines.length - 1;
+            const last = klines[n];
+            const atrLast = atrArr[n] || (last.high - last.low);
+            const stTrend = trends[n] || 1;
+            const stFlipBuy = n > 0 && trends[n] === 1 && trends[n - 1] === -1;
+            const stFlipSell = n > 0 && trends[n] === -1 && trends[n - 1] === 1;
+
+            const lastEvt = structureEvents.length ? structureEvents[structureEvents.length - 1] : null;
+            const bos = lastEvt ? `${lastEvt.type}${lastEvt.bias === 1 ? '↑' : '↓'}` : '—';
+
+            // EQH/EQL
+            let eq = 'none';
+            if (lastSL != null && prevSL != null && Math.abs(lastSL - prevSL) / last.close <= liqTolPct) eq = 'EQL';
+            if (lastSH != null && prevSH != null && Math.abs(lastSH - prevSH) / last.close <= liqTolPct)
+                eq = eq === 'EQL' ? 'EQH+EQL' : 'EQH';
+
+            let signal = 'NONE';
+            if (stFlipBuy || (stTrend === 1 && lastEvt && lastEvt.bias === 1 && lastEvt.type === 'CHoCH')) signal = 'BUY';
+            if (stFlipSell || (stTrend === -1 && lastEvt && lastEvt.bias === -1 && lastEvt.type === 'CHoCH')) signal = 'SELL';
+            if (stFlipBuy) signal = 'BUY';
+            if (stFlipSell) signal = 'SELL';
+
+            let entry = last.close, sl = null, tp1 = null, tp2 = null, tp3 = null;
+            if (signal === 'BUY') {
+                sl = activeBullOB ? activeBullOB.bottom - atrLast * 0.1 : (lastSL != null ? lastSL : entry - atrLast * 1.2);
+                const risk = Math.abs(entry - sl) || atrLast;
+                tp1 = entry + risk * 1.5; tp2 = entry + risk * 2.5; tp3 = entry + risk * 3.5;
+            } else if (signal === 'SELL') {
+                sl = activeBearOB ? activeBearOB.top + atrLast * 0.1 : (lastSH != null ? lastSH : entry + atrLast * 1.2);
+                const risk = Math.abs(entry - sl) || atrLast;
+                tp1 = entry - risk * 1.5; tp2 = entry - risk * 2.5; tp3 = entry - risk * 3.5;
+            }
+
+            const structure = bullStructure ? 'Alcista' : (bearStructure ? 'Bajista' : (structBias === 1 ? 'Alcista' : structBias === -1 ? 'Bajista' : 'Lateral'));
+
+            yoshiLatest = {
+                trend: stTrend,
+                stValue: stTrend === 1 ? (stUpData.filter(d => d.value).pop() || {}).value : (stDnData.filter(d => d.value).pop() || {}).value,
+                structure, bos, eq, state: lastEvt ? 2 : 0,
+                signal, entry: signal !== 'NONE' ? entry : null, sl, tp1, tp2, tp3,
+                bullStructure, bearStructure,
+                hasBullOB: !!activeBullOB, hasBearOB: !!activeBearOB
+            };
+
+            // --- Dibujar SuperTrend up/down ---
+            try {
+                if (supertrendUpSeries) supertrendUpSeries.setData(stUpData);
+                if (supertrendDnSeries) supertrendDnSeries.setData(stDnData);
+            } catch (e) { console.warn('ST plot', e); }
+
+            // --- Order Blocks: sombreado + price lines ---
+            yoshiActiveOBs = [];
+            clearYoshiObLines();
+            if (activeBullOB) addYoshiObZone(activeBullOB.top, activeBullOB.bottom, 1);
+            if (activeBearOB) addYoshiObZone(activeBearOB.top, activeBearOB.bottom, -1);
+            scheduleYoshiObRender();
+            setTimeout(scheduleYoshiObRender, 80);
+            setTimeout(scheduleYoshiObRender, 250);
+
+            // Weak High / Strong Low labels via markers on last swings
+            const markers = [];
+            structureEvents.slice(-25).forEach(ev => {
+                markers.push({
+                    time: ev.time,
+                    position: ev.bias === 1 ? 'belowBar' : 'aboveBar',
+                    color: ev.bias === 1 ? '#0ecb81' : '#f6465d',
+                    shape: ev.bias === 1 ? 'arrowUp' : 'arrowDown',
+                    text: ev.type
+                });
+            });
+            // SuperTrend flips con etiqueta Sell/Buy
+            for (let i = 1; i < trends.length; i++) {
+                if (trends[i] === 1 && trends[i - 1] === -1) {
+                    markers.push({
+                        time: klines[i].time,
+                        position: 'belowBar',
+                        color: '#9b46ff',
+                        shape: 'arrowUp',
+                        text: 'Buy'
+                    });
+                } else if (trends[i] === -1 && trends[i - 1] === 1) {
+                    markers.push({
+                        time: klines[i].time,
+                        position: 'aboveBar',
+                        color: '#f6465d',
+                        shape: 'arrowDown',
+                        text: 'Sell'
+                    });
+                }
+            }
+            if (swingHighs.length) {
+                const sh = swingHighs[swingHighs.length - 1];
+                markers.push({
+                    time: sh.time,
+                    position: 'aboveBar',
+                    color: '#878b94',
+                    shape: 'circle',
+                    text: 'Weak High'
+                });
+            }
+            if (swingLows.length) {
+                const slp = swingLows[swingLows.length - 1];
+                markers.push({
+                    time: slp.time,
+                    position: 'belowBar',
+                    color: '#878b94',
+                    shape: 'circle',
+                    text: structBias === 1 ? 'Strong Low' : 'Weak Low'
+                });
+            }
+
+            // Sort markers by time and unique-ish
+            markers.sort((a, b) => (a.time < b.time ? -1 : a.time > b.time ? 1 : 0));
+            const slim = markers.slice(-50);
+
+            if (candlestickSeries && candlestickSeries.setMarkers) {
+                try { candlestickSeries.setMarkers(slim); } catch (e) { console.warn('markers', e); }
+            }
+
+            const ind = document.getElementById('indYoshi');
+            if (ind) {
+                const sigTxt = signal === 'BUY' ? 'COMPRA' : (signal === 'SELL' ? 'VENTA' : 'WAIT');
+                ind.innerText = `${stTrend === 1 ? 'ST↑' : 'ST↓'} · ${structure} · ${bos} · ${sigTxt}`;
+                ind.className = `font-mono font-bold ${
+                    signal === 'BUY' ? 'text-accentGreen' : signal === 'SELL' ? 'text-accentRed' : (stTrend === 1 ? 'text-accentGreen' : 'text-accentRed')
+                }`;
+            }
+        }
+
+
         function updateSignalsTable() {
             // 1. Trendilo Signal Analysis (ALMA %chg vs RMS — dudeowns OS)
             const zScore = parseFloat(trendiloLatest.zScore);
@@ -4281,7 +4765,37 @@
             document.getElementById('sigDmiBadge').outerHTML = `<span id="sigDmiBadge">${dmiBadgeHtml}</span>`;
             document.getElementById('sigDmiDesc').innerText = dmiDesc;
 
-            // 4. Global Confluence Calculation
+            // 4. Yoshi Scanner Signal
+            try {
+                const y = yoshiLatest || {};
+                const ySig = y.signal || 'NONE';
+                const stTxt = y.trend === 1 ? 'SuperTrend alcista' : 'SuperTrend bajista';
+                let yBadge = '', yState = '', yDesc = '';
+                const yVal = `${y.trend === 1 ? 'ST↑' : 'ST↓'} | ${y.structure || '—'} | ${y.bos || '—'} | ${y.eq || '—'}`;
+                if (ySig === 'BUY') {
+                    yBadge = `<span class="px-2.5 py-1 rounded text-xs font-bold bg-purple-500/20 text-purple-300 border border-purple-400/40">COMPRA (Yoshi)</span>`;
+                    yState = `<span class="text-accentGreen font-bold">Setup alcista</span>`;
+                    yDesc = `${stTxt}. Estructura ${y.structure}. ${y.bos !== '—' ? 'BOS alcista. ' : ''}${y.eq && y.eq !== 'none' ? 'Liquidez ' + y.eq + '. ' : ''}ENTRY≈${y.entry ? y.entry.toFixed(2) : '—'} SL≈${y.sl ? y.sl.toFixed(2) : '—'} TP1≈${y.tp1 ? y.tp1.toFixed(2) : '—'}.`;
+                } else if (ySig === 'SELL') {
+                    yBadge = `<span class="px-2.5 py-1 rounded text-xs font-bold bg-accentRed/20 text-accentRed border border-accentRed/30">VENTA (Yoshi)</span>`;
+                    yState = `<span class="text-accentRed font-bold">Setup bajista</span>`;
+                    yDesc = `${stTxt}. Estructura ${y.structure}. ${y.bos !== '—' ? 'BOS bajista. ' : ''}${y.eq && y.eq !== 'none' ? 'Liquidez ' + y.eq + '. ' : ''}ENTRY≈${y.entry ? y.entry.toFixed(2) : '—'} SL≈${y.sl ? y.sl.toFixed(2) : '—'} TP1≈${y.tp1 ? y.tp1.toFixed(2) : '—'}.`;
+                } else {
+                    yBadge = `<span class="px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-400">ESPERAR</span>`;
+                    yState = `<span class="text-slate-400">Sin confirmación completa</span>`;
+                    yDesc = `${stTxt}. Estructura ${y.structure || 'lateral'}. Estado setup: ${y.state || 0}/3 (liq→BOS→retest). Esperar alineación SuperTrend + estructura.`;
+                }
+                const elV = document.getElementById('sigYoshiVal');
+                const elS = document.getElementById('sigYoshiState');
+                const elB = document.getElementById('sigYoshiBadge');
+                const elD = document.getElementById('sigYoshiDesc');
+                if (elV) elV.innerText = yVal;
+                if (elS) elS.innerHTML = yState;
+                if (elB) elB.outerHTML = `<span id="sigYoshiBadge">${yBadge}</span>`;
+                if (elD) elD.innerText = yDesc;
+            } catch (e) { console.warn('yoshi signal row', e); }
+
+            // 5. Global Confluence Calculation
             let longScore = 0;
             let shortScore = 0;
 
@@ -4292,17 +4806,19 @@
                 if (pDI > nDI) longScore++;
                 else shortScore++;
             }
+            if (yoshiLatest && yoshiLatest.signal === 'BUY') longScore++;
+            else if (yoshiLatest && yoshiLatest.signal === 'SELL') shortScore++;
 
             let conflBadge = '';
             let conflStatus = '';
             let conflDesc = '';
 
             if (longScore >= 2 && longScore > shortScore) {
-                conflBadge = `<span class="px-3 py-1 rounded text-xs font-black bg-accentGreen text-slate-950 shadow-md">LONG ALTA CONFLUENCIA (${longScore}/3)</span>`;
+                conflBadge = `<span class="px-3 py-1 rounded text-xs font-black bg-accentGreen text-slate-950 shadow-md">LONG ALTA CONFLUENCIA (${longScore}/4)</span>`;
                 conflStatus = `<span class="text-accentGreen font-bold">Señal Alcista Validada</span>`;
-                conflDesc = 'Coincidencia favorable en Trendilo + StochRSI / DMI. Contexto apto para buscar entradas en Long.';
+                conflDesc = 'Coincidencia favorable en Trendilo + StochRSI / DMI / Yoshi. Contexto apto para buscar entradas en Long.';
             } else if (shortScore >= 2 && shortScore > longScore) {
-                conflBadge = `<span class="px-3 py-1 rounded text-xs font-black bg-accentRed text-white shadow-md">SHORT ALTA CONFLUENCIA (${shortScore}/3)</span>`;
+                conflBadge = `<span class="px-3 py-1 rounded text-xs font-black bg-accentRed text-white shadow-md">SHORT ALTA CONFLUENCIA (${shortScore}/4)</span>`;
                 conflStatus = `<span class="text-accentRed font-bold">Señal Bajista Validada</span>`;
                 conflDesc = 'Coincidencia alineada en indicadores bajistas. Contexto apto para buscar entradas en Short.';
             } else {
