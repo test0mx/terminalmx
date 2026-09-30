@@ -1191,9 +1191,9 @@
                                 <i class="fa-solid fa-rotate"></i> Recalcular proyección
                             </button>
                             <div class="bg-cardBg/60 border border-borderBg rounded-lg p-2.5 text-[10px] text-slate-500 space-y-1">
-                                <div><span class="text-slate-400">Scalp (1m–9m):</span> más peso en StochRSI y ROC corto</div>
-                                <div><span class="text-slate-400">Intradía (20m–1h):</span> balance Trendilo / DMI / estructura</div>
-                                <div><span class="text-slate-400">Swing (4h–1D):</span> más peso en DMI y Trendilo</div>
+                                <div><span class="text-slate-400">Scalp (1m–9m):</span> más peso en StochRSI, ROC y Yoshi ST</div>
+                                <div><span class="text-slate-400">Intradía (15m–1h):</span> balance Trendilo / DMI / Yoshi / estructura</div>
+                                <div><span class="text-slate-400">Swing (4h–1D):</span> más peso en Yoshi (BOS/CHoCH) + DMI + Trendilo</div>
                             </div>
                         </div>
                         <!-- Resultado proyección -->
@@ -4889,10 +4889,11 @@
             const isScalp = ['1m', '3m', '5m', '9m'].includes(horizon);
             const isSwing = ['4h', '1d'].includes(horizon);
 
-            // Pesos por horizonte: scalp → Stoch + micro-ROC; swing → DMI + Trendilo
+            // Pesos por horizonte: scalp → Stoch + ROC; swing → DMI + Trendilo + Yoshi
             const wTrendilo = isScalp ? 0.7 : isSwing ? 1.3 : 1.0;
             const wStoch = isScalp ? 1.4 : isSwing ? 0.7 : 1.0;
             const wDmi = isScalp ? 0.6 : isSwing ? 1.35 : 1.0;
+            const wYoshi = isScalp ? 0.85 : isSwing ? 1.4 : 1.15;
             const wStruct = isScalp ? 0.8 : isSwing ? 1.15 : 1.0;
             const wRoc = isScalp ? 1.5 : isSwing ? 0.85 : 1.1;
 
@@ -4977,7 +4978,54 @@
                 reasons.push({ side: 'N', txt: `DMI plano (Δ${diSpread.toFixed(0)}) → sin dirección`, pts: 0 });
             }
 
-            // 4. Price vs POC / S-R
+            // 4. Yoshi Scanner Pro (SuperTrend + BOS/CHoCH + estructura + OB)
+            const y = (typeof yoshiLatest !== 'undefined' && yoshiLatest) ? yoshiLatest : {};
+            const ySig = y.signal || 'NONE';
+            const yTrend = y.trend === 1 ? 1 : (y.trend === -1 ? -1 : 0);
+            const yStruct = (y.structure || '');
+            const yBos = (y.bos || '—');
+
+            if (ySig === 'BUY') {
+                const pts = Math.round(28 * wYoshi);
+                longPts += pts;
+                reasons.push({ side: 'L', txt: `Yoshi COMPRA · ${yBos} · ST↑`, pts });
+            } else if (ySig === 'SELL') {
+                const pts = Math.round(28 * wYoshi);
+                shortPts += pts;
+                reasons.push({ side: 'S', txt: `Yoshi VENTA · ${yBos} · ST↓`, pts });
+            } else if (yTrend === 1 && (yStruct.includes('Alcista') || (yBos && yBos.includes('↑')))) {
+                const pts = Math.round(16 * wYoshi);
+                longPts += pts;
+                reasons.push({ side: 'L', txt: `Yoshi ST↑ + estructura alcista (${yBos})`, pts });
+            } else if (yTrend === -1 && (yStruct.includes('Bajista') || (yBos && yBos.includes('↓')))) {
+                const pts = Math.round(16 * wYoshi);
+                shortPts += pts;
+                reasons.push({ side: 'S', txt: `Yoshi ST↓ + estructura bajista (${yBos})`, pts });
+            } else if (yTrend === 1) {
+                const pts = Math.round(10 * wYoshi);
+                longPts += pts;
+                reasons.push({ side: 'L', txt: `Yoshi SuperTrend alcista`, pts });
+            } else if (yTrend === -1) {
+                const pts = Math.round(10 * wYoshi);
+                shortPts += pts;
+                reasons.push({ side: 'S', txt: `Yoshi SuperTrend bajista`, pts });
+            } else {
+                reasons.push({ side: 'N', txt: `Yoshi sin señal clara (WAIT)`, pts: 0 });
+            }
+
+            // OB: precio en zona de compra/venta refuerza sesgo
+            if (y.hasBullOB && ySig !== 'SELL') {
+                const pts = Math.round(8 * wYoshi);
+                longPts += pts;
+                reasons.push({ side: 'L', txt: `Yoshi OB compra activo`, pts });
+            }
+            if (y.hasBearOB && ySig !== 'BUY') {
+                const pts = Math.round(8 * wYoshi);
+                shortPts += pts;
+                reasons.push({ side: 'S', txt: `Yoshi OB venta activo`, pts });
+            }
+
+            // 5. Price vs POC / S-R
             const distSup = ((price - nearestSup) / price) * 100;
             const distRes = ((nearestRes - price) / price) * 100;
             if (distSup < 1.2) {
@@ -4992,7 +5040,7 @@
             }
             if (price >= poc) { longPts += Math.round(6 * wStruct); } else { shortPts += Math.round(6 * wStruct); }
 
-            // 5. LSR (menos peso en scalp ultra-corto)
+            // 6. LSR (menos peso en scalp ultra-corto)
             const lsrW = isScalp ? 0.5 : 1;
             if (lsr > 1.3) {
                 const pts = Math.round(8 * lsrW);
@@ -5034,7 +5082,7 @@
             }
 
             reasons.sort((a, b) => b.pts - a.pts);
-            const topReasons = reasons.slice(0, 4);
+            const topReasons = reasons.slice(0, 5);
 
             const html = `
                 <div class="text-center space-y-1.5">
