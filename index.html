@@ -526,6 +526,95 @@
                 <button id="btnSideShort" onclick="setTradeSide('SHORT')" class="py-2 text-xs font-bold rounded text-slate-400 hover:text-white transition">SHORT</button>
             </div>
 
+            <!-- Filtros de indicadores por temporalidad -->
+            <div class="bg-cardBg rounded-lg border border-borderBg p-2.5 space-y-2 text-xs">
+                <div class="flex items-center justify-between border-b border-borderBg pb-1.5">
+                    <span class="font-semibold text-slate-200 flex items-center gap-1.5">
+                        <i class="fa-solid fa-filter text-accentYellow"></i> Filtros indicadores
+                    </span>
+                    <span id="filterModeLabel" class="text-[10px] font-mono text-accentYellow">Personalizado</span>
+                </div>
+                <p class="text-[10px] text-slate-500 leading-relaxed">
+                    Activa solo los indicadores que mejor funcionan en cada rango de temporalidad. Tras cambiar, se recalculan señales y confluencia.
+                </p>
+                <!-- Presets -->
+                <div class="grid grid-cols-3 gap-1">
+                    <button type="button" id="presetScalp" onclick="applyIndicatorPreset('scalp')"
+                        class="preset-btn py-1.5 px-1 rounded border border-borderBg bg-panelBg text-[10px] font-bold text-slate-300 hover:border-accentYellow/50 hover:text-accentYellow transition"
+                        title="1m–15m: StochRSI, ROC, Yoshi ST, Wyckoff OB">
+                        <i class="fa-solid fa-bolt mr-0.5"></i> Scalp
+                    </button>
+                    <button type="button" id="presetIntraday" onclick="applyIndicatorPreset('intraday')"
+                        class="preset-btn py-1.5 px-1 rounded border border-borderBg bg-panelBg text-[10px] font-bold text-slate-300 hover:border-accentYellow/50 hover:text-accentYellow transition"
+                        title="15m–1h: balance de todos">
+                        <i class="fa-solid fa-clock mr-0.5"></i> Intradía
+                    </button>
+                    <button type="button" id="presetSwing" onclick="applyIndicatorPreset('swing')"
+                        class="preset-btn py-1.5 px-1 rounded border border-borderBg bg-panelBg text-[10px] font-bold text-slate-300 hover:border-accentYellow/50 hover:text-accentYellow transition"
+                        title="4h–1D: Yoshi BOS, DMI, Trendilo, Wyckoff">
+                        <i class="fa-solid fa-chart-line mr-0.5"></i> Swing
+                    </button>
+                </div>
+                <!-- Toggles individuales -->
+                <div class="space-y-1 pt-1" id="indicatorFilterToggles">
+                    <label class="flex items-center justify-between gap-2 cursor-pointer group py-0.5">
+                        <span class="text-slate-300 group-hover:text-white flex items-center gap-1.5">
+                            <i class="fa-solid fa-chart-line text-accentGreen text-[10px]"></i> Trendilo
+                            <span class="text-[9px] text-slate-500 hidden sm:inline">(medio–alto TF)</span>
+                        </span>
+                        <input type="checkbox" id="filtTrendilo" checked class="ind-filter rounded border-borderBg bg-panelBg text-accentYellow focus:ring-accentYellow/40" data-ind="trendilo" onchange="onIndicatorFilterChange()">
+                    </label>
+                    <label class="flex items-center justify-between gap-2 cursor-pointer group py-0.5">
+                        <span class="text-slate-300 group-hover:text-white flex items-center gap-1.5">
+                            <i class="fa-solid fa-wave-square text-accentYellow text-[10px]"></i> StochRSI
+                            <span class="text-[9px] text-slate-500 hidden sm:inline">(bajo TF)</span>
+                        </span>
+                        <input type="checkbox" id="filtStoch" checked class="ind-filter rounded border-borderBg bg-panelBg text-accentYellow focus:ring-accentYellow/40" data-ind="stoch" onchange="onIndicatorFilterChange()">
+                    </label>
+                    <label class="flex items-center justify-between gap-2 cursor-pointer group py-0.5">
+                        <span class="text-slate-300 group-hover:text-white flex items-center gap-1.5">
+                            <i class="fa-solid fa-compass text-cyan-400 text-[10px]"></i> DMI
+                            <span class="text-[9px] text-slate-500 hidden sm:inline">(medio–alto TF)</span>
+                        </span>
+                        <input type="checkbox" id="filtDmi" checked class="ind-filter rounded border-borderBg bg-panelBg text-accentYellow focus:ring-accentYellow/40" data-ind="dmi" onchange="onIndicatorFilterChange()">
+                    </label>
+                    <label class="flex items-center justify-between gap-2 cursor-pointer group py-0.5">
+                        <span class="text-slate-300 group-hover:text-white flex items-center gap-1.5">
+                            <i class="fa-solid fa-dragon text-purple-400 text-[10px]"></i> Yoshi
+                            <span class="text-[9px] text-slate-500 hidden sm:inline">(todos TF)</span>
+                        </span>
+                        <input type="checkbox" id="filtYoshi" checked class="ind-filter rounded border-borderBg bg-panelBg text-accentYellow focus:ring-accentYellow/40" data-ind="yoshi" onchange="onIndicatorFilterChange()">
+                    </label>
+                    <label class="flex items-center justify-between gap-2 cursor-pointer group py-0.5">
+                        <span class="text-slate-300 group-hover:text-white flex items-center gap-1.5">
+                            <i class="fa-solid fa-book-open text-amber-400 text-[10px]"></i> Wyckoff OB
+                            <span class="text-[9px] text-slate-500 hidden sm:inline">(todos TF)</span>
+                        </span>
+                        <input type="checkbox" id="filtWyckoff" checked class="ind-filter rounded border-borderBg bg-panelBg text-accentYellow focus:ring-accentYellow/40" data-ind="wyckoff" onchange="onIndicatorFilterChange()">
+                    </label>
+                    <label class="flex items-center justify-between gap-2 cursor-pointer group py-0.5">
+                        <span class="text-slate-300 group-hover:text-white flex items-center gap-1.5">
+                            <i class="fa-solid fa-layer-group text-slate-400 text-[10px]"></i> S/R + POC
+                            <span class="text-[9px] text-slate-500 hidden sm:inline">(estructura)</span>
+                        </span>
+                        <input type="checkbox" id="filtSR" checked class="ind-filter rounded border-borderBg bg-panelBg text-accentYellow focus:ring-accentYellow/40" data-ind="sr" onchange="onIndicatorFilterChange()">
+                    </label>
+                </div>
+                <div class="flex gap-1.5 pt-1">
+                    <button type="button" onclick="recalculateWithFilters()"
+                        class="flex-1 py-1.5 rounded-lg bg-accentYellow/15 hover:bg-accentYellow/25 border border-accentYellow/40 text-accentYellow font-bold text-[11px] transition flex items-center justify-center gap-1.5">
+                        <i class="fa-solid fa-rotate"></i> Recalcular señales
+                    </button>
+                    <button type="button" onclick="applyIndicatorPreset('all')"
+                        class="px-2 py-1.5 rounded-lg border border-borderBg bg-panelBg text-slate-400 hover:text-white text-[10px] transition" title="Activar todos">
+                        Todos
+                    </button>
+                </div>
+                <div id="filterHint" class="text-[10px] text-slate-500 leading-relaxed italic">
+                    Preset activo: todos los indicadores. Elige Scalp / Intradía / Swing para optimización automática.
+                </div>
+            </div>
+
             <!-- Smart Auto-Suggest & Current Price Buttons -->
             <div class="flex gap-2">
                 <button onclick="setCurrentPriceAsEntry()" class="flex-1 py-1.5 px-2 bg-cardBg hover:bg-borderBg border border-borderBg rounded text-[11px] font-medium text-accentYellow transition flex items-center justify-center gap-1.5">
@@ -781,6 +870,10 @@
                     <span class="text-slate-400">Yoshi:</span>
                     <span id="indYoshi" class="font-mono font-bold text-slate-300">--</span>
                 </div>
+                <div class="flex items-center gap-1.5 shrink-0">
+                    <span class="text-slate-400">Wyckoff:</span>
+                    <span id="indWyckoff" class="font-mono font-bold text-slate-300">--</span>
+                </div>
                 <div class="flex items-center space-x-1 sm:space-x-2 shrink-0">
                     <span class="text-slate-400">S/R:</span>
                     <span id="indSR" class="font-mono font-bold text-slate-300">--</span>
@@ -1003,6 +1096,19 @@
                                 </td>
                                 <td id="sigYoshiDesc" class="p-2 text-slate-400">Analizando SuperTrend, estructura y barridos de liquidez...</td>
                             </tr>
+                            <!-- Wyckoff + Order Book Row -->
+                            <tr class="hover:bg-cardBg/40 transition">
+                                <td class="p-2 font-bold text-white flex items-center gap-2">
+                                    <i class="fa-solid fa-book-open text-amber-400"></i> Wyckoff OB
+                                </td>
+                                <td class="p-2 text-slate-400">Teoría Wyckoff · Order Book Binance/Bybit/OKX</td>
+                                <td id="sigWyckoffVal" class="p-2 font-bold">--</td>
+                                <td id="sigWyckoffState" class="p-2">--</td>
+                                <td class="p-2 text-center">
+                                    <span id="sigWyckoffBadge" class="px-2 py-1 rounded text-xs font-bold bg-slate-800 text-slate-400">NEUTRAL</span>
+                                </td>
+                                <td id="sigWyckoffDesc" class="p-2 text-slate-400">Analizando imbalance de libro de órdenes y fases Wyckoff...</td>
+                            </tr>
                             <!-- Confluence Summary Row -->
                             <tr class="bg-cardBg/80 font-bold border-t border-borderBg">
                                 <td class="p-2.5 text-accentYellow flex items-center gap-2" colspan="2">
@@ -1013,7 +1119,7 @@
                                 <td class="p-2 text-center">
                                     <span id="sigConfluenceBadge" class="px-2.5 py-1 rounded text-xs font-black bg-slate-800 text-slate-400">ESPERAR</span>
                                 </td>
-                                <td id="sigConfluenceDesc" class="p-2 text-xs font-normal text-slate-300">Evaluando coincidencia entre Trendilo + Stoch RSI + DMI + Yoshi.</td>
+                                <td id="sigConfluenceDesc" class="p-2 text-xs font-normal text-slate-300">Evaluando coincidencia entre Trendilo + Stoch RSI + DMI + Yoshi + Wyckoff OB.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -1168,7 +1274,7 @@
 
                 <!-- Tab Content 4: Proyección por horizonte -->
                 <div id="tabContentProjection" class="flex-1 overflow-auto p-2 sm:p-3 hidden">
-                    <div class="grid grid-cols-1 md:grid-cols-12 gap-3 h-full min-h-0">
+                    <div class="grid grid-cols-1 md:grid-cols-12 gap-3 min-h-0">
                         <!-- Controles horizonte -->
                         <div class="md:col-span-4 space-y-3 text-xs">
                             <div class="font-semibold text-accentYellow flex items-center gap-1.5">
@@ -1187,7 +1293,7 @@
                                 <button type="button" data-ph="4h" class="ph-btn px-2.5 py-1.5 rounded text-[11px] font-mono border border-borderBg text-slate-400 hover:text-white cursor-pointer">4h</button>
                                 <button type="button" data-ph="1d" class="ph-btn px-2.5 py-1.5 rounded text-[11px] font-mono border border-borderBg text-slate-400 hover:text-white cursor-pointer">1D</button>
                             </div>
-                            <button type="button" onclick="projectNextHourBias()" class="w-full py-2 rounded-lg border border-borderBg bg-cardBg hover:bg-borderBg text-slate-200 text-xs font-semibold transition flex items-center justify-center gap-2">
+                            <button type="button" onclick="projectNextHourBias(); projectWyckoffOrderBook();" class="w-full py-2 rounded-lg border border-borderBg bg-cardBg hover:bg-borderBg text-slate-200 text-xs font-semibold transition flex items-center justify-center gap-2">
                                 <i class="fa-solid fa-rotate"></i> Recalcular proyección
                             </button>
                             <div class="bg-cardBg/60 border border-borderBg rounded-lg p-2.5 text-[10px] text-slate-500 space-y-1">
@@ -1196,10 +1302,46 @@
                                 <div><span class="text-slate-400">Swing (4h–1D):</span> más peso en Yoshi (BOS/CHoCH) + DMI + Trendilo</div>
                             </div>
                         </div>
-                        <!-- Resultado proyección -->
+                        <!-- Resultado proyección indicadores -->
                         <div class="md:col-span-8 flex flex-col min-h-0">
-                            <div id="bottomNextHourProjection" class="flex-1 bg-cardBg border border-borderBg rounded-lg p-3 sm:p-4 space-y-2 text-xs overflow-auto">
+                            <div class="text-[11px] font-semibold text-slate-300 mb-1.5 flex items-center gap-1.5">
+                                <i class="fa-solid fa-chart-line text-accentYellow"></i> Proyección por indicadores
+                            </div>
+                            <div id="bottomNextHourProjection" class="flex-1 bg-cardBg border border-borderBg rounded-lg p-3 sm:p-4 space-y-2 text-xs overflow-auto min-h-[140px]">
                                 <div class="text-center py-6 text-slate-500 italic">Cargando indicadores… Abre esta pestaña o pulsa Recalcular.</div>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Proyección con Order Book (Wyckoff) -->
+                    <div class="mt-4 border-t border-borderBg pt-3">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                            <div class="font-semibold text-amber-400 flex items-center gap-1.5 text-sm">
+                                <i class="fa-solid fa-book-open"></i> Proyección con Order Book
+                            </div>
+                            <button type="button" onclick="projectWyckoffOrderBook()" class="px-2.5 py-1.5 rounded-lg border border-borderBg bg-cardBg hover:bg-borderBg text-[11px] text-slate-300 transition flex items-center gap-1.5 self-start">
+                                <i class="fa-solid fa-rotate"></i> Actualizar OB
+                            </button>
+                        </div>
+                        <p class="text-[11px] text-slate-500 mb-2 leading-relaxed">
+                            Combina imbalance del libro de órdenes (Binance · Bybit · OKX) con fases Wyckoff (acumulación / distribución, Spring, UTAD) para proyectar sesgo Long o Short.
+                        </p>
+                        <div class="grid grid-cols-1 lg:grid-cols-12 gap-3">
+                            <!-- Resumen Wyckoff OB -->
+                            <div class="lg:col-span-5 space-y-2 text-xs">
+                                <div id="wyckoffObSummary" class="bg-cardBg border border-borderBg rounded-lg p-3 space-y-2 min-h-[120px]">
+                                    <div class="text-center py-4 text-slate-500 italic">Cargando order books…</div>
+                                </div>
+                                <div id="wyckoffExchDepth" class="bg-cardBg border border-borderBg rounded-lg p-3 text-[11px] space-y-1.5">
+                                    <div class="font-semibold text-slate-300 border-b border-borderBg pb-1 mb-1">Profundidad por exchange</div>
+                                    <div class="text-slate-500 italic">Esperando datos…</div>
+                                </div>
+                            </div>
+                            <!-- Proyección / señal operativa -->
+                            <div class="lg:col-span-7 flex flex-col min-h-0">
+                                <div id="wyckoffObProjection" class="flex-1 bg-cardBg border border-amber-500/20 rounded-lg p-3 sm:p-4 space-y-2 text-xs overflow-auto min-h-[160px]">
+                                    <div class="text-center py-6 text-slate-500 italic">Pulsa «Actualizar OB» o abre esta pestaña tras cargar el mercado.</div>
+                                </div>
                             </div>
                         </div>
                     </div>
@@ -1549,6 +1691,145 @@
         let stochRsiLatest = { k: 0, d: 0 };
         let dmiLatest = { pDI: 0, nDI: 0, diSpread: 0, direction: 'Neutral', trendStrength: 'Neutral' };
         let lsrLatest = 1.0;
+        let wyckoffLatest = {
+            phase: 'Neutral', signal: 'NONE', imbalance: 0,
+            bidVol: 0, askVol: 0, bias: 'Neutral',
+            walls: { bid: null, ask: null },
+            exchanges: {}, desc: 'Cargando order books...', count: 0
+        };
+
+        // ========== FILTROS DE INDICADORES POR TEMPORALIDAD ==========
+        // Scalp (1m-15m): StochRSI, Yoshi ST, Wyckoff OB — menos Trendilo/DMI (más ruido)
+        // Intradía (15m-1h): balance
+        // Swing (4h-1D): Trendilo, DMI, Yoshi estructura, Wyckoff, S/R — menos Stoch extremo
+        const INDICATOR_PRESETS = {
+            scalp: {
+                trendilo: false, stoch: true, dmi: false, yoshi: true, wyckoff: true, sr: true,
+                label: 'Scalp (1m–15m)',
+                hint: 'Optimizado scalp: StochRSI + Yoshi + Wyckoff OB + S/R. Trendilo/DMI desactivados (más ruido en TF bajos).'
+            },
+            intradaily: {
+                trendilo: true, stoch: true, dmi: true, yoshi: true, wyckoff: true, sr: true,
+                label: 'Intradía (15m–1h)',
+                hint: 'Balance completo: todos los indicadores activos para confluencia intradía.'
+            },
+            intraday: {
+                trendilo: true, stoch: true, dmi: true, yoshi: true, wyckoff: true, sr: true,
+                label: 'Intradía (15m–1h)',
+                hint: 'Balance completo: todos los indicadores activos para confluencia intradía.'
+            },
+            swing: {
+                trendilo: true, stoch: false, dmi: true, yoshi: true, wyckoff: true, sr: true,
+                label: 'Swing (4h–1D)',
+                hint: 'Optimizado swing: Trendilo + DMI + Yoshi + Wyckoff + S/R. StochRSI desactivado (sobrecompra/sobreventa menos fiable en TF altos).'
+            },
+            all: {
+                trendilo: true, stoch: true, dmi: true, yoshi: true, wyckoff: true, sr: true,
+                label: 'Todos',
+                hint: 'Todos los indicadores activos. Confluencia máxima sin filtro de temporalidad.'
+            }
+        };
+        let activeIndicatorFilters = {
+            trendilo: true, stoch: true, dmi: true, yoshi: true, wyckoff: true, sr: true
+        };
+        let currentFilterPreset = 'all';
+
+        function isIndActive(key) {
+            return activeIndicatorFilters[key] !== false;
+        }
+
+        function applyIndicatorPreset(name) {
+            const p = INDICATOR_PRESETS[name] || INDICATOR_PRESETS.all;
+            currentFilterPreset = name;
+            activeIndicatorFilters = {
+                trendilo: !!p.trendilo,
+                stoch: !!p.stoch,
+                dmi: !!p.dmi,
+                yoshi: !!p.yoshi,
+                wyckoff: !!p.wyckoff,
+                sr: !!p.sr
+            };
+            // Sync checkboxes
+            const map = {
+                trendilo: 'filtTrendilo', stoch: 'filtStoch', dmi: 'filtDmi',
+                yoshi: 'filtYoshi', wyckoff: 'filtWyckoff', sr: 'filtSR'
+            };
+            Object.keys(map).forEach(k => {
+                const el = document.getElementById(map[k]);
+                if (el) el.checked = !!activeIndicatorFilters[k];
+            });
+            // Highlight preset buttons
+            document.querySelectorAll('.preset-btn').forEach(btn => {
+                btn.classList.remove('border-accentYellow/50', 'bg-accentYellow/15', 'text-accentYellow');
+                btn.classList.add('border-borderBg', 'bg-panelBg', 'text-slate-300');
+            });
+            const presetBtn = document.getElementById(
+                name === 'scalp' ? 'presetScalp' : name === 'swing' ? 'presetSwing' : name === 'all' ? null : 'presetIntraday'
+            );
+            if (presetBtn) {
+                presetBtn.classList.remove('border-borderBg', 'bg-panelBg', 'text-slate-300');
+                presetBtn.classList.add('border-accentYellow/50', 'bg-accentYellow/15', 'text-accentYellow');
+            }
+            const modeEl = document.getElementById('filterModeLabel');
+            if (modeEl) modeEl.innerText = p.label || name;
+            const hintEl = document.getElementById('filterHint');
+            if (hintEl) hintEl.innerText = p.hint || '';
+            recalculateWithFilters();
+        }
+        window.applyIndicatorPreset = applyIndicatorPreset;
+
+        function onIndicatorFilterChange() {
+            currentFilterPreset = 'custom';
+            activeIndicatorFilters = {
+                trendilo: !!(document.getElementById('filtTrendilo') || {}).checked,
+                stoch: !!(document.getElementById('filtStoch') || {}).checked,
+                dmi: !!(document.getElementById('filtDmi') || {}).checked,
+                yoshi: !!(document.getElementById('filtYoshi') || {}).checked,
+                wyckoff: !!(document.getElementById('filtWyckoff') || {}).checked,
+                sr: !!(document.getElementById('filtSR') || {}).checked
+            };
+            document.querySelectorAll('.preset-btn').forEach(btn => {
+                btn.classList.remove('border-accentYellow/50', 'bg-accentYellow/15', 'text-accentYellow');
+                btn.classList.add('border-borderBg', 'bg-panelBg', 'text-slate-300');
+            });
+            const modeEl = document.getElementById('filterModeLabel');
+            if (modeEl) modeEl.innerText = 'Personalizado';
+            const active = Object.keys(activeIndicatorFilters).filter(k => activeIndicatorFilters[k]);
+            const hintEl = document.getElementById('filterHint');
+            if (hintEl) hintEl.innerText = `Filtro manual: ${active.length}/6 indicadores activos. Pulsa «Recalcular señales» o se aplica al instante.`;
+            recalculateWithFilters();
+        }
+        window.onIndicatorFilterChange = onIndicatorFilterChange;
+
+        function recalculateWithFilters() {
+            try {
+                if (typeof updateSignalsTable === 'function') updateSignalsTable();
+            } catch (e) { console.warn('recalc signals', e); }
+            try {
+                if (typeof projectNextHourBias === 'function') projectNextHourBias();
+            } catch (e) {}
+            try {
+                if (typeof projectWyckoffOrderBook === 'function' && isIndActive('wyckoff')) {
+                    // no forzar fetch de nuevo; solo UI si ya hay datos
+                }
+            } catch (e) {}
+            // Visual pulse on filter box
+            const box = document.getElementById('indicatorFilterToggles');
+            if (box) {
+                box.classList.add('ring-1', 'ring-accentYellow/40');
+                setTimeout(() => box.classList.remove('ring-1', 'ring-accentYellow/40'), 600);
+            }
+        }
+        window.recalculateWithFilters = recalculateWithFilters;
+
+        // Auto-sugerir preset según TF del gráfico
+        function suggestFilterPresetForTf(tf) {
+            const t = String(tf || currentInterval || '1h');
+            if (['1m', '3m', '5m', '9m', '15m'].includes(t)) return 'scalp';
+            if (['20m', '1h', '2h'].includes(t)) return 'intraday';
+            if (['4h', '1d', '1w', '1D', '1S'].includes(t)) return 'swing';
+            return 'intraday';
+        }
 
         function switchBottomTab(tab) {
             const map = {
@@ -1602,6 +1883,7 @@
             }
             if (tab === 'projection') {
                 try { projectNextHourBias(); } catch (e) {}
+                try { projectWyckoffOrderBook(); } catch (e) {}
             }
             if (tab === 'signals') {
                 try { if (typeof updateSignalsTable === 'function') updateSignalsTable(); } catch (e) {}
@@ -3986,6 +4268,7 @@
                 calculateSupportsResistances();
                 calculateVolumeProfile();
                 fetchLongShortRatio();
+                try { analyzeWyckoffOrderBook().then(() => { try { updateSignalsTable(); } catch(e){} }); } catch (e) { console.warn('Wyckoff OB', e); }
 
                 if (!document.getElementById('entryPrice').value) {
                     document.getElementById('entryPrice').value = lastCandle.close.toFixed(2);
@@ -4683,6 +4966,317 @@
             }
         }
 
+        // ========== WYCKOFF + ORDER BOOK (Binance / Bybit / OKX) ==========
+        async function fetchOrderBookDepth(symbol) {
+            const results = { binance: null, bybit: null, okx: null };
+            const sym = symbol || currentSymbol || 'BTCUSDT';
+            const okxSym = (typeof okxInstId === 'function') ? okxInstId(sym) : (sym.endsWith('USDT') ? sym.slice(0, -4) + '-USDT' : 'BTC-USDT');
+            const fetchWithTimeout = (url, ms = 4500) => {
+                const ctrl = new AbortController();
+                const t = setTimeout(() => ctrl.abort(), ms);
+                return fetch(url, { signal: ctrl.signal })
+                    .then(r => r.ok ? r.json() : null)
+                    .catch(() => null)
+                    .finally(() => clearTimeout(t));
+            };
+            const [binData, bybData, okxData] = await Promise.all([
+                fetchWithTimeout(`https://api.binance.com/api/v3/depth?symbol=${sym}&limit=20`),
+                fetchWithTimeout(`https://api.bybit.com/v5/market/orderbook?category=spot&symbol=${sym}&limit=20`),
+                fetchWithTimeout(`https://www.okx.com/api/v5/market/books?instId=${okxSym}&sz=20`)
+            ]);
+            if (binData && binData.bids && binData.asks) results.binance = parseDepthLevels(binData.bids, binData.asks);
+            if (bybData && bybData.result && bybData.result.b && bybData.result.a)
+                results.bybit = parseDepthLevels(bybData.result.b, bybData.result.a);
+            if (okxData && okxData.data && okxData.data[0] && okxData.data[0].bids && okxData.data[0].asks)
+                results.okx = parseDepthLevels(okxData.data[0].bids, okxData.data[0].asks);
+            return results;
+        }
+
+        function parseDepthLevels(bids, asks) {
+            let bidVol = 0, askVol = 0;
+            let maxBid = { price: 0, qty: 0 }, maxAsk = { price: 0, qty: 0 };
+            (bids || []).slice(0, 15).forEach(l => {
+                const p = parseFloat(l[0]), q = parseFloat(l[1]);
+                bidVol += q;
+                if (q > maxBid.qty) maxBid = { price: p, qty: q };
+            });
+            (asks || []).slice(0, 15).forEach(l => {
+                const p = parseFloat(l[0]), q = parseFloat(l[1]);
+                askVol += q;
+                if (q > maxAsk.qty) maxAsk = { price: p, qty: q };
+            });
+            const total = bidVol + askVol || 1;
+            return { bidVol, askVol, imbalance: (bidVol - askVol) / total, maxBid, maxAsk };
+        }
+
+        async function analyzeWyckoffOrderBook() {
+            try {
+                const books = await fetchOrderBookDepth(currentSymbol);
+                let totalBid = 0, totalAsk = 0, count = 0;
+                const exchSummary = {};
+                let strongestBidWall = null, strongestAskWall = null;
+                ['binance', 'bybit', 'okx'].forEach(ex => {
+                    const b = books[ex];
+                    if (!b) return;
+                    count++;
+                    totalBid += b.bidVol;
+                    totalAsk += b.askVol;
+                    exchSummary[ex] = { imbalance: b.imbalance, bidVol: b.bidVol, askVol: b.askVol, maxBid: b.maxBid, maxAsk: b.maxAsk };
+                    if (!strongestBidWall || b.maxBid.qty > strongestBidWall.qty)
+                        strongestBidWall = { ...b.maxBid, exchange: ex };
+                    if (!strongestAskWall || b.maxAsk.qty > strongestAskWall.qty)
+                        strongestAskWall = { ...b.maxAsk, exchange: ex };
+                });
+                if (count === 0) {
+                    wyckoffLatest = { phase: 'Sin datos', signal: 'NONE', imbalance: 0, bidVol: 0, askVol: 0, bias: 'Neutral', walls: { bid: null, ask: null }, exchanges: {}, desc: 'No se pudo obtener order book (CORS/API).', count: 0 };
+                    updateWyckoffUI();
+                    return wyckoffLatest;
+                }
+                const avgImb = (totalBid - totalAsk) / (totalBid + totalAsk || 1);
+                const price = rawKlines && rawKlines.length ? rawKlines[rawKlines.length - 1].close : 0;
+                let phase = 'Phase B (rango)', signal = 'NONE', bias = 'Neutral', desc = '';
+                if (avgImb > 0.18) {
+                    bias = 'Acumulación'; phase = 'Phase C/D · Soporte (bids dominan)'; signal = 'BUY';
+                    desc = `Imbalance bid +${(avgImb * 100).toFixed(0)}%. Paredes de compra absorbiendo oferta → sesgo acumulativo (long).`;
+                } else if (avgImb < -0.18) {
+                    bias = 'Distribución'; phase = 'Phase C/D · Resistencia (asks dominan)'; signal = 'SELL';
+                    desc = `Imbalance ask ${(avgImb * 100).toFixed(0)}%. Paredes de venta absorbiendo demanda → sesgo distributivo (short).`;
+                } else if (avgImb > 0.06) {
+                    bias = 'Leve acumulación'; phase = 'Phase B · Bias comprador';
+                    desc = `Imbalance leve bid. Posible construcción de causa alcista. Esperar Spring o SOS.`;
+                } else if (avgImb < -0.06) {
+                    bias = 'Leve distribución'; phase = 'Phase B · Bias vendedor';
+                    desc = `Imbalance leve ask. Posible construcción de causa bajista. Esperar UTAD o SOW.`;
+                } else {
+                    bias = 'Equilibrado'; phase = 'Phase B (equilibrio)';
+                    desc = `Libro equilibrado. Sin absorption clara. Esperar evento Wyckoff (Spring / UTAD).`;
+                }
+                if (rawKlines && rawKlines.length > 20 && signal !== 'SELL') {
+                    const minLow = Math.min(...rawKlines.slice(-20).map(k => k.low));
+                    if (price <= minLow * 1.008 && avgImb > 0.1) {
+                        phase = 'Spring candidate (test de soporte)'; signal = 'BUY'; bias = 'Acumulación (Spring)';
+                        desc = `Precio cerca de mínimo reciente + bids dominantes → posible Spring Wyckoff. Favorable long.`;
+                    }
+                }
+                if (rawKlines && rawKlines.length > 20 && signal !== 'BUY') {
+                    const maxHigh = Math.max(...rawKlines.slice(-20).map(k => k.high));
+                    if (price >= maxHigh * 0.992 && avgImb < -0.1) {
+                        phase = 'UTAD candidate (test de resistencia)'; signal = 'SELL'; bias = 'Distribución (UTAD)';
+                        desc = `Precio cerca de máximo reciente + asks dominantes → posible UTAD Wyckoff. Favorable short.`;
+                    }
+                }
+                wyckoffLatest = { phase, signal, imbalance: avgImb, bidVol: totalBid, askVol: totalAsk, bias, walls: { bid: strongestBidWall, ask: strongestAskWall }, exchanges: exchSummary, desc, count };
+                updateWyckoffUI();
+                return wyckoffLatest;
+            } catch (e) {
+                console.warn('Wyckoff OB analysis', e);
+                wyckoffLatest.desc = 'Error: ' + (e.message || e);
+                updateWyckoffUI();
+                return wyckoffLatest;
+            }
+        }
+
+        function updateWyckoffUI() {
+            const w = wyckoffLatest || {};
+            const ind = document.getElementById('indWyckoff');
+            if (ind) {
+                const sigTxt = w.signal === 'BUY' ? 'LONG' : (w.signal === 'SELL' ? 'SHORT' : 'WAIT');
+                const imbPct = ((w.imbalance || 0) * 100).toFixed(0);
+                ind.innerText = `${w.bias || '—'} · ${sigTxt} (${imbPct}%)`;
+                ind.className = `font-mono font-bold ${w.signal === 'BUY' ? 'text-accentGreen' : w.signal === 'SELL' ? 'text-accentRed' : 'text-slate-300'}`;
+            }
+        }
+
+        /** Proyección dedicada Order Book + Wyckoff (pestaña Proyección) */
+        async function projectWyckoffOrderBook() {
+            const sumEl = document.getElementById('wyckoffObSummary');
+            const depthEl = document.getElementById('wyckoffExchDepth');
+            const projEl = document.getElementById('wyckoffObProjection');
+            if (sumEl) sumEl.innerHTML = '<div class="text-center py-3 text-slate-500 italic">Consultando libros Binance · Bybit · OKX…</div>';
+            try {
+                await analyzeWyckoffOrderBook();
+            } catch (e) {}
+            const w = wyckoffLatest || {};
+            const imbPct = ((w.imbalance || 0) * 100).toFixed(1);
+            const price = rawKlines && rawKlines.length ? rawKlines[rawKlines.length - 1].close : 0;
+
+            // Summary card
+            if (sumEl) {
+                const signalColor = w.signal === 'BUY' ? 'text-accentGreen' : w.signal === 'SELL' ? 'text-accentRed' : 'text-accentYellow';
+                const badgeBg = w.signal === 'BUY' ? 'bg-accentGreen text-slate-950' : w.signal === 'SELL' ? 'bg-accentRed text-white' : 'bg-accentYellow text-slate-950';
+                const sigLabel = w.signal === 'BUY' ? 'LONG' : w.signal === 'SELL' ? 'SHORT' : 'ESPERAR';
+                sumEl.innerHTML = `
+                    <div class="flex items-center justify-between gap-2">
+                        <span class="text-slate-400 text-[10px] uppercase tracking-wider">Sesgo Wyckoff OB</span>
+                        <span class="px-2 py-0.5 rounded font-black text-[11px] ${badgeBg}">${sigLabel}</span>
+                    </div>
+                    <div class="font-semibold ${signalColor} text-sm">${w.bias || '—'} · ${w.phase || '—'}</div>
+                    <div class="grid grid-cols-2 gap-2 text-[11px] font-mono mt-1">
+                        <div class="bg-panelBg rounded p-1.5 border border-borderBg">
+                            <div class="text-slate-500 text-[9px]">IMBALANCE</div>
+                            <div class="${parseFloat(imbPct) >= 0 ? 'text-accentGreen' : 'text-accentRed'} font-bold">${imbPct > 0 ? '+' : ''}${imbPct}%</div>
+                        </div>
+                        <div class="bg-panelBg rounded p-1.5 border border-borderBg">
+                            <div class="text-slate-500 text-[9px]">EXCHANGES</div>
+                            <div class="text-white font-bold">${w.count || 0} / 3</div>
+                        </div>
+                        <div class="bg-panelBg rounded p-1.5 border border-borderBg">
+                            <div class="text-slate-500 text-[9px]">BID VOL (top)</div>
+                            <div class="text-accentGreen font-bold">${(w.bidVol || 0).toFixed(2)} BTC</div>
+                        </div>
+                        <div class="bg-panelBg rounded p-1.5 border border-borderBg">
+                            <div class="text-slate-500 text-[9px]">ASK VOL (top)</div>
+                            <div class="text-accentRed font-bold">${(w.askVol || 0).toFixed(2)} BTC</div>
+                        </div>
+                    </div>
+                    <p class="text-[11px] text-slate-400 leading-relaxed mt-1">${w.desc || '—'}</p>
+                `;
+            }
+
+            // Per-exchange depth
+            if (depthEl) {
+                const ex = w.exchanges || {};
+                const rows = ['binance', 'bybit', 'okx'].map(name => {
+                    const e = ex[name];
+                    if (!e) return `<div class="flex justify-between text-slate-500"><span class="uppercase">${name}</span><span>sin datos</span></div>`;
+                    const i = (e.imbalance * 100).toFixed(0);
+                    const col = e.imbalance > 0.05 ? 'text-accentGreen' : e.imbalance < -0.05 ? 'text-accentRed' : 'text-slate-300';
+                    return `<div class="flex justify-between items-center gap-2">
+                        <span class="uppercase text-slate-400 font-semibold">${name}</span>
+                        <span class="font-mono ${col}">imb ${i > 0 ? '+' : ''}${i}% · B ${(e.bidVol||0).toFixed(1)} / A ${(e.askVol||0).toFixed(1)}</span>
+                    </div>`;
+                }).join('');
+                let wallsHtml = '';
+                if (w.walls && w.walls.bid) {
+                    wallsHtml += `<div class="mt-1.5 pt-1.5 border-t border-borderBg text-accentGreen">Pared BID @ $${(w.walls.bid.price||0).toFixed(0)} · ${(w.walls.bid.qty||0).toFixed(3)} BTC <span class="text-slate-500">(${w.walls.bid.exchange})</span></div>`;
+                }
+                if (w.walls && w.walls.ask) {
+                    wallsHtml += `<div class="text-accentRed">Pared ASK @ $${(w.walls.ask.price||0).toFixed(0)} · ${(w.walls.ask.qty||0).toFixed(3)} BTC <span class="text-slate-500">(${w.walls.ask.exchange})</span></div>`;
+                }
+                depthEl.innerHTML = `<div class="font-semibold text-slate-300 border-b border-borderBg pb-1 mb-1">Profundidad por exchange</div>${rows}${wallsHtml}`;
+            }
+
+            // Projection / operative recommendation
+            if (projEl) {
+                const horizon = (typeof projectionHorizon !== 'undefined' && projectionHorizon) ? projectionHorizon : '1h';
+                const horizonLabel = (typeof PROJECTION_HORIZON_LABELS !== 'undefined' && PROJECTION_HORIZON_LABELS[horizon]) ? PROJECTION_HORIZON_LABELS[horizon] : horizon;
+                let recommendation = 'ESPERAR', conf = 45, colorClass = 'text-accentYellow', badgeClass = 'bg-accentYellow text-slate-950', actionHint = '';
+                const reasons = [];
+
+                if (w.signal === 'BUY') {
+                    recommendation = 'LONG'; conf = Math.min(90, 60 + Math.abs(w.imbalance || 0) * 80);
+                    colorClass = 'text-accentGreen'; badgeClass = 'bg-accentGreen text-slate-950';
+                    actionHint = `Sesgo acumulativo Wyckoff para el ${horizonLabel}. Busca entrada en retest de soporte / Spring confirmado.`;
+                    reasons.push({ side: 'L', txt: w.phase || 'Acumulación', pts: 25 });
+                    if (w.imbalance > 0.1) reasons.push({ side: 'L', txt: `Imbalance bid +${imbPct}%`, pts: 18 });
+                } else if (w.signal === 'SELL') {
+                    recommendation = 'SHORT'; conf = Math.min(90, 60 + Math.abs(w.imbalance || 0) * 80);
+                    colorClass = 'text-accentRed'; badgeClass = 'bg-accentRed text-white';
+                    actionHint = `Sesgo distributivo Wyckoff para el ${horizonLabel}. Busca entrada en rechazo de resistencia / UTAD confirmado.`;
+                    reasons.push({ side: 'S', txt: w.phase || 'Distribución', pts: 25 });
+                    if (w.imbalance < -0.1) reasons.push({ side: 'S', txt: `Imbalance ask ${imbPct}%`, pts: 18 });
+                } else {
+                    actionHint = `Sin evento Wyckoff claro (Spring/UTAD). Libro ${(w.bias || 'equilibrado').toLowerCase()}. Mejor esperar confirmación de precio + volumen.`;
+                    if (Math.abs(w.imbalance || 0) > 0.06) {
+                        const side = w.imbalance > 0 ? 'L' : 'S';
+                        reasons.push({ side, txt: `Bias leve ${w.bias}`, pts: 8 });
+                    }
+                }
+
+                // Cross with Yoshi / structure if available
+                const y = (typeof yoshiLatest !== 'undefined' && yoshiLatest) ? yoshiLatest : {};
+                if (y.signal === 'BUY' && recommendation === 'LONG') {
+                    conf = Math.min(95, conf + 8);
+                    reasons.push({ side: 'L', txt: 'Yoshi alineado COMPRA', pts: 12 });
+                } else if (y.signal === 'SELL' && recommendation === 'SHORT') {
+                    conf = Math.min(95, conf + 8);
+                    reasons.push({ side: 'S', txt: 'Yoshi alineado VENTA', pts: 12 });
+                } else if (y.signal === 'BUY' && recommendation === 'SHORT') {
+                    conf = Math.max(35, conf - 10);
+                    reasons.push({ side: 'L', txt: 'Yoshi en contra (COMPRA)', pts: -8 });
+                } else if (y.signal === 'SELL' && recommendation === 'LONG') {
+                    conf = Math.max(35, conf - 10);
+                    reasons.push({ side: 'S', txt: 'Yoshi en contra (VENTA)', pts: -8 });
+                }
+
+                // Suggested levels from walls + ATR-ish
+                let entry = price, sl = 0, tp = 0;
+                if (recommendation === 'LONG') {
+                    entry = price;
+                    sl = (w.walls && w.walls.bid && w.walls.bid.price) ? w.walls.bid.price * 0.998 : price * 0.988;
+                    tp = price + (price - sl) * 2;
+                } else if (recommendation === 'SHORT') {
+                    entry = price;
+                    sl = (w.walls && w.walls.ask && w.walls.ask.price) ? w.walls.ask.price * 1.002 : price * 1.012;
+                    tp = price - (sl - price) * 2;
+                }
+
+                const longPct = recommendation === 'LONG' ? conf : (recommendation === 'SHORT' ? 100 - conf : 50);
+                const shortPct = 100 - longPct;
+
+                projEl.innerHTML = `
+                    <div class="text-center space-y-1.5">
+                        <div class="text-[10px] text-slate-400 uppercase tracking-wider">Proyección Order Book · ${horizonLabel}</div>
+                        <div class="flex items-center justify-center gap-2">
+                            <span class="px-3 py-1 rounded-lg font-black text-sm ${badgeClass}">${recommendation}</span>
+                            <span class="font-mono font-bold text-lg ${colorClass}">${Math.round(conf)}%</span>
+                        </div>
+                        <div class="w-full bg-borderBg h-2 rounded-full overflow-hidden flex">
+                            <div class="bg-accentGreen h-full" style="width:${longPct}%"></div>
+                            <div class="bg-accentRed h-full" style="width:${shortPct}%"></div>
+                        </div>
+                        <div class="flex justify-between text-[10px] font-mono">
+                            <span class="text-accentGreen">Long ${longPct}%</span>
+                            <span class="text-accentRed">Short ${shortPct}%</span>
+                        </div>
+                    </div>
+                    <p class="text-[11px] text-slate-300 leading-relaxed mt-1">${actionHint}</p>
+                    <div class="space-y-1 mt-1">
+                        ${reasons.map(r => `
+                            <div class="flex justify-between items-center text-[10px]">
+                                <span class="${r.side === 'L' ? 'text-accentGreen' : r.side === 'S' ? 'text-accentRed' : 'text-slate-400'}">• ${r.txt}</span>
+                                <span class="font-mono text-slate-500">${r.pts > 0 ? '+' + r.pts : r.pts}</span>
+                            </div>
+                        `).join('')}
+                    </div>
+                    ${recommendation !== 'ESPERAR' ? `
+                    <div class="grid grid-cols-3 gap-1.5 mt-2 text-[11px] font-mono">
+                        <div class="bg-panelBg rounded p-1.5 border border-borderBg">
+                            <div class="text-slate-500 text-[9px]">ENTRADA</div>
+                            <div class="text-white font-bold">$${entry.toFixed(1)}</div>
+                        </div>
+                        <div class="bg-panelBg rounded p-1.5 border border-borderBg">
+                            <div class="text-accentRed text-[9px]">SL (pared)</div>
+                            <div class="text-accentRed font-bold">$${sl.toFixed(1)}</div>
+                        </div>
+                        <div class="bg-panelBg rounded p-1.5 border border-borderBg">
+                            <div class="text-accentGreen text-[9px]">TP ~2R</div>
+                            <div class="text-accentGreen font-bold">$${tp.toFixed(1)}</div>
+                        </div>
+                    </div>
+                    <button type="button" onclick="window.applyWyckoffProjection && window.applyWyckoffProjection('${recommendation}', ${entry.toFixed(2)}, ${sl.toFixed(2)}, ${tp.toFixed(2)})"
+                        class="w-full mt-2 py-1.5 rounded border border-borderBg bg-panelBg hover:bg-borderBg text-[11px] font-semibold transition">
+                        <i class="fa-solid fa-bolt mr-1"></i> Aplicar ${recommendation} a la orden
+                    </button>
+                    ` : ''}
+                `;
+            }
+            try { if (typeof updateSignalsTable === 'function') updateSignalsTable(); } catch (e) {}
+        }
+        window.projectWyckoffOrderBook = projectWyckoffOrderBook;
+
+        function applyWyckoffProjection(side, entry, sl, tp) {
+            if (side === 'ESPERAR') return;
+            if (typeof setTradeSide === 'function') setTradeSide(side);
+            const ep = document.getElementById('entryPrice');
+            const slEl = document.getElementById('stopLoss');
+            const tpEl = document.getElementById('takeProfit');
+            if (ep) ep.value = entry;
+            if (slEl) slEl.value = sl;
+            if (tpEl) tpEl.value = tp;
+            if (typeof calculateTradeMetrics === 'function') calculateTradeMetrics();
+        }
+        window.applyWyckoffProjection = applyWyckoffProjection;
 
         function updateSignalsTable() {
             // 1. Trendilo Signal Analysis (ALMA %chg vs RMS — dudeowns OS)
@@ -4795,39 +5389,91 @@
                 if (elD) elD.innerText = yDesc;
             } catch (e) { console.warn('yoshi signal row', e); }
 
-            // 5. Global Confluence Calculation
+            // 5. Wyckoff + Order Book Signal
+            try {
+                const w = wyckoffLatest || {};
+                const wSig = w.signal || 'NONE';
+                const imbPctW = ((w.imbalance || 0) * 100).toFixed(0);
+                let wBadge = '', wState = '', wDesc = '';
+                const wVal = `${w.phase || '—'} | Imb ${imbPctW}% | ${(w.count || 0)} exch`;
+                if (wSig === 'BUY') {
+                    wBadge = `<span class="px-2.5 py-1 rounded text-xs font-bold bg-amber-500/20 text-amber-300 border border-amber-400/40">LONG (Wyckoff)</span>`;
+                    wState = `<span class="text-accentGreen font-bold">${w.bias || 'Acumulación'}</span>`;
+                    wDesc = w.desc || 'Bids dominan · posible acumulación / Spring.';
+                } else if (wSig === 'SELL') {
+                    wBadge = `<span class="px-2.5 py-1 rounded text-xs font-bold bg-accentRed/20 text-accentRed border border-accentRed/30">SHORT (Wyckoff)</span>`;
+                    wState = `<span class="text-accentRed font-bold">${w.bias || 'Distribución'}</span>`;
+                    wDesc = w.desc || 'Asks dominan · posible distribución / UTAD.';
+                } else {
+                    wBadge = `<span class="px-2.5 py-1 rounded text-xs font-bold bg-slate-800 text-slate-400">ESPERAR</span>`;
+                    wState = `<span class="text-slate-400">${w.bias || 'Equilibrado'}</span>`;
+                    wDesc = w.desc || 'Libro equilibrado. Sin absorption clara.';
+                }
+                const elWV = document.getElementById('sigWyckoffVal');
+                const elWS = document.getElementById('sigWyckoffState');
+                const elWB = document.getElementById('sigWyckoffBadge');
+                const elWD = document.getElementById('sigWyckoffDesc');
+                if (elWV) elWV.innerText = wVal;
+                if (elWS) elWS.innerHTML = wState;
+                if (elWB) elWB.outerHTML = `<span id="sigWyckoffBadge">${wBadge}</span>`;
+                if (elWD) elWD.innerText = wDesc;
+            } catch (e) { console.warn('wyckoff signal row', e); }
+
+            // 6. Global Confluence Calculation (respeta filtros de temporalidad)
             let longScore = 0;
             let shortScore = 0;
+            let activeCount = 0;
+            const filtOn = (k) => (typeof isIndActive === 'function' ? isIndActive(k) : true);
 
-            if (zScore > 0.15 || (trendiloLatest.direction || '').includes('Alcista')) longScore++;
-            else if (zScore < -0.15 || (trendiloLatest.direction || '').includes('Bajista')) shortScore++;
-            if (kVal < 20) longScore++; else if (kVal > 80) shortScore++;
-            if (diSpread >= 10) {
-                if (pDI > nDI) longScore++;
-                else shortScore++;
+            if (filtOn('trendilo')) {
+                activeCount++;
+                if (zScore > 0.15 || (trendiloLatest.direction || '').includes('Alcista')) longScore++;
+                else if (zScore < -0.15 || (trendiloLatest.direction || '').includes('Bajista')) shortScore++;
             }
-            if (yoshiLatest && yoshiLatest.signal === 'BUY') longScore++;
-            else if (yoshiLatest && yoshiLatest.signal === 'SELL') shortScore++;
+            if (filtOn('stoch')) {
+                activeCount++;
+                if (kVal < 20) longScore++; else if (kVal > 80) shortScore++;
+            }
+            if (filtOn('dmi')) {
+                activeCount++;
+                if (diSpread >= 10) {
+                    if (pDI > nDI) longScore++;
+                    else shortScore++;
+                }
+            }
+            if (filtOn('yoshi')) {
+                activeCount++;
+                if (yoshiLatest && yoshiLatest.signal === 'BUY') longScore++;
+                else if (yoshiLatest && yoshiLatest.signal === 'SELL') shortScore++;
+            }
+            if (filtOn('wyckoff')) {
+                activeCount++;
+                if (wyckoffLatest && wyckoffLatest.signal === 'BUY') longScore++;
+                else if (wyckoffLatest && wyckoffLatest.signal === 'SELL') shortScore++;
+            }
+            // S/R no suma punto de dirección por sí solo en confluencia de señales; se usa en modal
 
+            const maxN = Math.max(1, activeCount);
             let conflBadge = '';
             let conflStatus = '';
             let conflDesc = '';
+            const need = Math.max(2, Math.ceil(maxN * 0.4));
 
-            if (longScore >= 2 && longScore > shortScore) {
-                conflBadge = `<span class="px-3 py-1 rounded text-xs font-black bg-accentGreen text-slate-950 shadow-md">LONG ALTA CONFLUENCIA (${longScore}/4)</span>`;
+            if (longScore >= need && longScore > shortScore) {
+                conflBadge = `<span class="px-3 py-1 rounded text-xs font-black bg-accentGreen text-slate-950 shadow-md">LONG ALTA CONFLUENCIA (${longScore}/${maxN})</span>`;
                 conflStatus = `<span class="text-accentGreen font-bold">Señal Alcista Validada</span>`;
-                conflDesc = 'Coincidencia favorable en Trendilo + StochRSI / DMI / Yoshi. Contexto apto para buscar entradas en Long.';
-            } else if (shortScore >= 2 && shortScore > longScore) {
-                conflBadge = `<span class="px-3 py-1 rounded text-xs font-black bg-accentRed text-white shadow-md">SHORT ALTA CONFLUENCIA (${shortScore}/4)</span>`;
+                conflDesc = `Filtros activos: ${maxN}. Coincidencia alcista en indicadores habilitados. Contexto apto para Long.`;
+            } else if (shortScore >= need && shortScore > longScore) {
+                conflBadge = `<span class="px-3 py-1 rounded text-xs font-black bg-accentRed text-white shadow-md">SHORT ALTA CONFLUENCIA (${shortScore}/${maxN})</span>`;
                 conflStatus = `<span class="text-accentRed font-bold">Señal Bajista Validada</span>`;
-                conflDesc = 'Coincidencia alineada en indicadores bajistas. Contexto apto para buscar entradas en Short.';
+                conflDesc = `Filtros activos: ${maxN}. Coincidencia bajista en indicadores habilitados. Contexto apto para Short.`;
             } else {
                 conflBadge = `<span class="px-3 py-1 rounded text-xs font-black bg-accentYellow text-slate-950">NEUTRAL / CONFUSO</span>`;
                 conflStatus = `<span class="text-accentYellow font-bold">Sin Confluencia Clara</span>`;
-                conflDesc = 'Señales encontradas entre indicadores. Se recomienda esperar mejor confirmación técnica.';
+                conflDesc = `Filtros activos: ${maxN}. Sin mayoría clara. Ajusta preset (Scalp/Intradía/Swing) o espera confirmación.`;
             }
 
-            document.getElementById('sigConfluenceScore').innerText = `Long: ${longScore} | Short: ${shortScore}`;
+            document.getElementById('sigConfluenceScore').innerText = `Long: ${longScore} | Short: ${shortScore} · filt ${maxN}`;
             document.getElementById('sigConfluenceStatus').innerHTML = conflStatus;
             document.getElementById('sigConfluenceBadge').outerHTML = `<span id="sigConfluenceBadge">${conflBadge}</span>`;
             document.getElementById('sigConfluenceDesc').innerText = conflDesc;
@@ -5233,6 +5879,19 @@
                         : 'tf-btn px-1.5 sm:px-2 py-1 rounded font-medium text-slate-400 hover:text-white';
                 });
                 console.log('[TF]', currentInterval, '→ fetchMarketData');
+                // Sugerir filtro de indicadores según TF (usuario puede cambiar después)
+                try {
+                    if (typeof suggestFilterPresetForTf === 'function' && typeof applyIndicatorPreset === 'function') {
+                        const suggested = suggestFilterPresetForTf(currentInterval);
+                        // Solo auto-aplicar si el usuario no tiene un preset personalizado forzado
+                        if (currentFilterPreset !== 'custom') {
+                            applyIndicatorPreset(suggested);
+                        } else {
+                            const hintEl = document.getElementById('filterHint');
+                            if (hintEl) hintEl.innerText = `TF ${currentInterval}: se sugiere preset «${suggested}». Tienes filtros personalizados; pulsa Scalp/Intradía/Swing para aplicar.`;
+                        }
+                    }
+                } catch (e) {}
                 if (typeof window.fetchMarketData === 'function') {
                     window.fetchMarketData();
                 } else if (typeof fetchMarketData === 'function') {
@@ -5372,6 +6031,7 @@
 
             let winProb = 50;
             let breakdown = [];
+            const fOn = (k) => (typeof isIndActive === 'function' ? isIndActive(k) : true);
 
             // 1. Trendilo Impact (ALMA %chg vs RMS — dudeowns OS)
             let trendiloBonus = 0;
@@ -5391,6 +6051,7 @@
                     trendiloBonus = -15; trendiloMsg = `Trendilo alcista en contra del Short (ALMA: ${trendiloLatest.value})`;
                 } else { trendiloBonus = 0; trendiloMsg = `Trendilo lateral/consolidación`; }
             }
+            if (!fOn('trendilo')) { trendiloBonus = 0; trendiloMsg = 'Filtro desactivado (preset temporalidad)'; }
             winProb += trendiloBonus;
             breakdown.push({ name: "Trendilo (ALMA+RMS)", bonus: trendiloBonus, msg: trendiloMsg, icon: "fa-solid fa-chart-line" });
 
@@ -5407,6 +6068,7 @@
                 else if (k < 20) { stochBonus = -10; stochMsg = `Sobreventa arriesgada para Short (%K: ${k})`; }
                 else { stochBonus = 2; stochMsg = `Rango medio (%K: ${k})`; }
             }
+            if (!fOn('stoch')) { stochBonus = 0; stochMsg = 'Filtro desactivado (preset temporalidad)'; }
             winProb += stochBonus;
             breakdown.push({ name: "StochRSI", bonus: stochBonus, msg: stochMsg, icon: "fa-solid fa-wave-square" });
 
@@ -5426,6 +6088,7 @@
             } else {
                 dmiBonus = -3; dmiMsg = `DMI sin dirección clara (Δ${diSp.toFixed(1)} < 10)`;
             }
+            if (!fOn('dmi')) { dmiBonus = 0; dmiMsg = 'Filtro desactivado (preset temporalidad)'; }
             winProb += dmiBonus;
             breakdown.push({ name: "DMI (+DI / -DI)", bonus: dmiBonus, msg: dmiMsg, icon: "fa-solid fa-compass" });
 
@@ -5479,8 +6142,54 @@
                     yoshiMsg = `Yoshi sin señal clara (WAIT · ${yStruct})`;
                 }
             }
+            if (!fOn('yoshi')) { yoshiBonus = 0; yoshiMsg = 'Filtro desactivado (preset temporalidad)'; }
             winProb += yoshiBonus;
             breakdown.push({ name: "Yoshi Scanner", bonus: yoshiBonus, msg: yoshiMsg, icon: "fa-solid fa-dragon" });
+
+            // 4b. Wyckoff + Order Book
+            let wyckoffBonus = 0;
+            let wyckoffMsg = "";
+            const wk = (typeof wyckoffLatest !== 'undefined' && wyckoffLatest) ? wyckoffLatest : {};
+            const wkSig = wk.signal || 'NONE';
+            const wkImb = parseFloat(wk.imbalance) || 0;
+            if (tradeSide === 'LONG') {
+                if (wkSig === 'BUY') {
+                    wyckoffBonus = 14;
+                    wyckoffMsg = `Wyckoff ${wk.bias || 'acumulación'} a favor (imb +${(wkImb*100).toFixed(0)}%)`;
+                } else if (wkSig === 'SELL') {
+                    wyckoffBonus = -12;
+                    wyckoffMsg = `Wyckoff ${wk.bias || 'distribución'} en contra del Long`;
+                } else if (wkImb > 0.1) {
+                    wyckoffBonus = 6;
+                    wyckoffMsg = `OB bids dominan (+${(wkImb*100).toFixed(0)}%) · soporte`;
+                } else if (wkImb < -0.1) {
+                    wyckoffBonus = -6;
+                    wyckoffMsg = `OB asks dominan · presión vendedora`;
+                } else {
+                    wyckoffBonus = 0;
+                    wyckoffMsg = `Wyckoff neutro (${wk.phase || 'Phase B'})`;
+                }
+            } else {
+                if (wkSig === 'SELL') {
+                    wyckoffBonus = 14;
+                    wyckoffMsg = `Wyckoff ${wk.bias || 'distribución'} a favor (imb ${(wkImb*100).toFixed(0)}%)`;
+                } else if (wkSig === 'BUY') {
+                    wyckoffBonus = -12;
+                    wyckoffMsg = `Wyckoff ${wk.bias || 'acumulación'} en contra del Short`;
+                } else if (wkImb < -0.1) {
+                    wyckoffBonus = 6;
+                    wyckoffMsg = `OB asks dominan (${(wkImb*100).toFixed(0)}%) · resistencia`;
+                } else if (wkImb > 0.1) {
+                    wyckoffBonus = -6;
+                    wyckoffMsg = `OB bids dominan · presión compradora`;
+                } else {
+                    wyckoffBonus = 0;
+                    wyckoffMsg = `Wyckoff neutro (${wk.phase || 'Phase B'})`;
+                }
+            }
+            if (!fOn('wyckoff')) { wyckoffBonus = 0; wyckoffMsg = 'Filtro desactivado (preset temporalidad)'; }
+            winProb += wyckoffBonus;
+            breakdown.push({ name: "Wyckoff Order Book", bonus: wyckoffBonus, msg: wyckoffMsg, icon: "fa-solid fa-book-open" });
 
             // 5. Soportes y Resistencias
             let srBonus = 0;
@@ -5494,6 +6203,7 @@
                 else if (Math.abs(supDist) < 1.5) { srBonus = -10; srMsg = `Peligro: Entrada cerca de Soporte ($${calculatedPivots.nearestSup.toFixed(1)})`; }
                 else { srBonus = 3; srMsg = `Resistencia a ${resDist.toFixed(1)}%`; }
             }
+            if (!fOn('sr')) { srBonus = 0; srMsg = 'Filtro desactivado (preset temporalidad)'; }
             winProb += srBonus;
             breakdown.push({ name: "Soportes / Resistencias", bonus: srBonus, msg: srMsg, icon: "fa-solid fa-layer-group" });
 
@@ -5507,6 +6217,7 @@
             } else {
                 vprBonus = -5; vprMsg = `Movimiento contra el perfil de alto volumen`;
             }
+            if (!fOn('sr')) { vprBonus = 0; vprMsg = 'Filtro S/R+POC desactivado (preset temporalidad)'; }
             winProb += vprBonus;
             breakdown.push({ name: "Volume Profile POC", bonus: vprBonus, msg: vprMsg, icon: "fa-solid fa-chart-column" });
 
