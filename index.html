@@ -4992,18 +4992,40 @@
             return results;
         }
 
+        // Historial corto de imbalance para suavizar ruido del order book
+        let wyckoffImbHistory = [];
+        const WYCKOFF_IMB_SMOOTH = 3; // media de últimas N lecturas
+
         function parseDepthLevels(bids, asks) {
+            // Solo top 8 niveles (más cerca del mid = menos ruido de paredes lejanas)
+            // Cap por nivel para reducir spoofing de paredes absurdas
             let bidVol = 0, askVol = 0;
             let maxBid = { price: 0, qty: 0 }, maxAsk = { price: 0, qty: 0 };
-            (bids || []).slice(0, 15).forEach(l => {
-                const p = parseFloat(l[0]), q = parseFloat(l[1]);
-                bidVol += q;
-                if (q > maxBid.qty) maxBid = { price: p, qty: q };
+            const levels = 8;
+            const rawBids = (bids || []).slice(0, levels).map(l => ({ p: parseFloat(l[0]), q: parseFloat(l[1]) || 0 }));
+            const rawAsks = (asks || []).slice(0, levels).map(l => ({ p: parseFloat(l[0]), q: parseFloat(l[1]) || 0 }));
+            // Cap: ningún nivel > 3× mediana de su lado
+            const med = (arr) => {
+                if (!arr.length) return 0;
+                const s = arr.map(x => x.q).sort((a, b) => a - b);
+                return s[Math.floor(s.length / 2)] || 0;
+            };
+            const bidMed = med(rawBids) || 0.01;
+            const askMed = med(rawAsks) || 0.01;
+            const bidCap = Math.max(bidMed * 3, bidMed + 0.5);
+            const askCap = Math.max(askMed * 3, askMed + 0.5);
+            // Peso mayor a niveles más cercanos al mid (índice 0)
+            rawBids.forEach((l, i) => {
+                const q = Math.min(l.q, bidCap);
+                const w = 1 - (i * 0.08); // 1.0, 0.92, 0.84...
+                bidVol += q * Math.max(0.4, w);
+                if (q > maxBid.qty) maxBid = { price: l.p, qty: q };
             });
-            (asks || []).slice(0, 15).forEach(l => {
-                const p = parseFloat(l[0]), q = parseFloat(l[1]);
-                askVol += q;
-                if (q > maxAsk.qty) maxAsk = { price: p, qty: q };
+            rawAsks.forEach((l, i) => {
+                const q = Math.min(l.q, askCap);
+                const w = 1 - (i * 0.08);
+                askVol += q * Math.max(0.4, w);
+                if (q > maxAsk.qty) maxAsk = { price: l.p, qty: q };
             });
             const total = bidVol + askVol || 1;
             return { bidVol, askVol, imbalance: (bidVol - askVol) / total, maxBid, maxAsk };
@@ -5015,6 +5037,8 @@
                 let totalBid = 0, totalAsk = 0, count = 0;
                 const exchSummary = {};
                 let strongestBidWall = null, strongestAskWall = null;
+                let bullEx = 0, bearEx = 0; // cuántos exchanges coinciden en sesgo
+
                 ['binance', 'bybit', 'okx'].forEach(ex => {
                     const b = books[ex];
                     if (!b) return;
@@ -5022,6 +5046,9 @@
                     totalBid += b.bidVol;
                     totalAsk += b.askVol;
                     exchSummary[ex] = { imbalance: b.imbalance, bidVol: b.bidVol, askVol: b.askVol, maxBid: b.maxBid, maxAsk: b.maxAsk };
+                    // Umbral por exchange más estricto para consenso
+                    if (b.imbalance > 0.12) bullEx++;
+                    else if (b.imbalance < -0.12) bearEx++;
                     if (!strongestBidWall || b.maxBid.qty > strongestBidWall.qty)
                         strongestBidWall = { ...b.maxBid, exchange: ex };
                     if (!strongestAskWall || b.maxAsk.qty > strongestAskWall.qty)
@@ -5032,40 +5059,67 @@
                     updateWyckoffUI();
                     return wyckoffLatest;
                 }
-                const avgImb = (totalBid - totalAsk) / (totalBid + totalAsk || 1);
+
+                let rawImb = (totalBid - totalAsk) / (totalBid + totalAsk || 1);
+                // Suavizado: media de últimas lecturas (reduce ruido tick a tick)
+                wyckoffImbHistory.push(rawImb);
+                if (wyckoffImbHistory.length > WYCKOFF_IMB_SMOOTH) wyckoffImbHistory.shift();
+                const avgImb = wyckoffImbHistory.reduce((a, b) => a + b, 0) / wyckoffImbHistory.length;
+
+                // Consenso multi-exchange: preferir señal solo si ≥2 venues alineados (o 1 si solo hay 1)
+                const needConsensus = count >= 2 ? 2 : 1;
+                const consensusBull = bullEx >= needConsensus;
+                const consensusBear = bearEx >= needConsensus;
+
                 const price = rawKlines && rawKlines.length ? rawKlines[rawKlines.length - 1].close : 0;
+                // Lookback de estructura alineado al TF del gráfico
+                const tf = currentInterval || '1h';
+                const structBars = ({ '1m': 12, '3m': 14, '5m': 16, '9m': 18, '15m': 20, '20m': 20, '1h': 24, '4h': 28, '1d': 30 })[tf] || 20;
+                const bars = Math.min(structBars, (rawKlines && rawKlines.length) ? rawKlines.length - 1 : 20);
+
                 let phase = 'Phase B (rango)', signal = 'NONE', bias = 'Neutral', desc = '';
-                if (avgImb > 0.18) {
+
+                // Umbrales más estrictos: BUY/SELL solo con imbalance fuerte + consenso
+                if (avgImb > 0.22 && consensusBull) {
                     bias = 'Acumulación'; phase = 'Phase C/D · Soporte (bids dominan)'; signal = 'BUY';
-                    desc = `Imbalance bid +${(avgImb * 100).toFixed(0)}%. Paredes de compra absorbiendo oferta → sesgo acumulativo (long).`;
-                } else if (avgImb < -0.18) {
+                    desc = `Imbalance suavizado +${(avgImb * 100).toFixed(0)}% · consenso ${bullEx}/${count} exch. Absorption de oferta → long.`;
+                } else if (avgImb < -0.22 && consensusBear) {
                     bias = 'Distribución'; phase = 'Phase C/D · Resistencia (asks dominan)'; signal = 'SELL';
-                    desc = `Imbalance ask ${(avgImb * 100).toFixed(0)}%. Paredes de venta absorbiendo demanda → sesgo distributivo (short).`;
-                } else if (avgImb > 0.06) {
+                    desc = `Imbalance suavizado ${(avgImb * 100).toFixed(0)}% · consenso ${bearEx}/${count} exch. Absorption de demanda → short.`;
+                } else if (avgImb > 0.10) {
                     bias = 'Leve acumulación'; phase = 'Phase B · Bias comprador';
-                    desc = `Imbalance leve bid. Posible construcción de causa alcista. Esperar Spring o SOS.`;
-                } else if (avgImb < -0.06) {
+                    desc = `Imbalance leve +${(avgImb * 100).toFixed(0)}% (sin consenso fuerte). Esperar Spring o SOS.`;
+                } else if (avgImb < -0.10) {
                     bias = 'Leve distribución'; phase = 'Phase B · Bias vendedor';
-                    desc = `Imbalance leve ask. Posible construcción de causa bajista. Esperar UTAD o SOW.`;
+                    desc = `Imbalance leve ${(avgImb * 100).toFixed(0)}% (sin consenso fuerte). Esperar UTAD o SOW.`;
                 } else {
                     bias = 'Equilibrado'; phase = 'Phase B (equilibrio)';
-                    desc = `Libro equilibrado. Sin absorption clara. Esperar evento Wyckoff (Spring / UTAD).`;
+                    desc = `Libro equilibrado (imb ${(avgImb * 100).toFixed(0)}%). Sin absorption clara.`;
                 }
-                if (rawKlines && rawKlines.length > 20 && signal !== 'SELL') {
-                    const minLow = Math.min(...rawKlines.slice(-20).map(k => k.low));
-                    if (price <= minLow * 1.008 && avgImb > 0.1) {
+
+                // Spring / UTAD: umbrales más estrictos + lookback según TF
+                if (rawKlines && rawKlines.length > bars && consensusBull && avgImb > 0.14) {
+                    const minLow = Math.min(...rawKlines.slice(-bars).map(k => k.low));
+                    if (price <= minLow * 1.005) {
                         phase = 'Spring candidate (test de soporte)'; signal = 'BUY'; bias = 'Acumulación (Spring)';
-                        desc = `Precio cerca de mínimo reciente + bids dominantes → posible Spring Wyckoff. Favorable long.`;
+                        desc = `Precio en mínimo de ${bars} velas (${tf}) + bids con consenso → Spring Wyckoff. Long.`;
                     }
                 }
-                if (rawKlines && rawKlines.length > 20 && signal !== 'BUY') {
-                    const maxHigh = Math.max(...rawKlines.slice(-20).map(k => k.high));
-                    if (price >= maxHigh * 0.992 && avgImb < -0.1) {
+                if (rawKlines && rawKlines.length > bars && consensusBear && avgImb < -0.14) {
+                    const maxHigh = Math.max(...rawKlines.slice(-bars).map(k => k.high));
+                    if (price >= maxHigh * 0.995) {
                         phase = 'UTAD candidate (test de resistencia)'; signal = 'SELL'; bias = 'Distribución (UTAD)';
-                        desc = `Precio cerca de máximo reciente + asks dominantes → posible UTAD Wyckoff. Favorable short.`;
+                        desc = `Precio en máximo de ${bars} velas (${tf}) + asks con consenso → UTAD Wyckoff. Short.`;
                     }
                 }
-                wyckoffLatest = { phase, signal, imbalance: avgImb, bidVol: totalBid, askVol: totalAsk, bias, walls: { bid: strongestBidWall, ask: strongestAskWall }, exchanges: exchSummary, desc, count };
+
+                wyckoffLatest = {
+                    phase, signal, imbalance: avgImb, rawImbalance: rawImb,
+                    bidVol: totalBid, askVol: totalAsk, bias,
+                    walls: { bid: strongestBidWall, ask: strongestAskWall },
+                    exchanges: exchSummary, desc, count,
+                    consensus: { bull: bullEx, bear: bearEx }
+                };
                 updateWyckoffUI();
                 return wyckoffLatest;
             } catch (e) {
@@ -5163,23 +5217,31 @@
                 let recommendation = 'ESPERAR', conf = 45, colorClass = 'text-accentYellow', badgeClass = 'bg-accentYellow text-slate-950', actionHint = '';
                 const reasons = [];
 
+                const cons = w.consensus || {};
+                const consTxt = cons.bull || cons.bear
+                    ? ` · consenso ${w.signal === 'BUY' ? (cons.bull || 0) : (cons.bear || 0)}/${w.count || 0}`
+                    : '';
                 if (w.signal === 'BUY') {
-                    recommendation = 'LONG'; conf = Math.min(90, 60 + Math.abs(w.imbalance || 0) * 80);
+                    recommendation = 'LONG';
+                    conf = Math.min(88, 55 + Math.abs(w.imbalance || 0) * 70 + (cons.bull >= 2 ? 8 : 0));
                     colorClass = 'text-accentGreen'; badgeClass = 'bg-accentGreen text-slate-950';
-                    actionHint = `Sesgo acumulativo Wyckoff para el ${horizonLabel}. Busca entrada en retest de soporte / Spring confirmado.`;
+                    actionHint = `Sesgo acumulativo Wyckoff (${horizonLabel}${consTxt}). Entrada en retest de soporte / Spring.`;
                     reasons.push({ side: 'L', txt: w.phase || 'Acumulación', pts: 25 });
-                    if (w.imbalance > 0.1) reasons.push({ side: 'L', txt: `Imbalance bid +${imbPct}%`, pts: 18 });
+                    if (w.imbalance > 0.14) reasons.push({ side: 'L', txt: `Imbalance suavizado +${imbPct}%`, pts: 18 });
+                    if (cons.bull >= 2) reasons.push({ side: 'L', txt: `Consenso ${cons.bull} exchanges`, pts: 10 });
                 } else if (w.signal === 'SELL') {
-                    recommendation = 'SHORT'; conf = Math.min(90, 60 + Math.abs(w.imbalance || 0) * 80);
+                    recommendation = 'SHORT';
+                    conf = Math.min(88, 55 + Math.abs(w.imbalance || 0) * 70 + (cons.bear >= 2 ? 8 : 0));
                     colorClass = 'text-accentRed'; badgeClass = 'bg-accentRed text-white';
-                    actionHint = `Sesgo distributivo Wyckoff para el ${horizonLabel}. Busca entrada en rechazo de resistencia / UTAD confirmado.`;
+                    actionHint = `Sesgo distributivo Wyckoff (${horizonLabel}${consTxt}). Entrada en rechazo de resistencia / UTAD.`;
                     reasons.push({ side: 'S', txt: w.phase || 'Distribución', pts: 25 });
-                    if (w.imbalance < -0.1) reasons.push({ side: 'S', txt: `Imbalance ask ${imbPct}%`, pts: 18 });
+                    if (w.imbalance < -0.14) reasons.push({ side: 'S', txt: `Imbalance suavizado ${imbPct}%`, pts: 18 });
+                    if (cons.bear >= 2) reasons.push({ side: 'S', txt: `Consenso ${cons.bear} exchanges`, pts: 10 });
                 } else {
-                    actionHint = `Sin evento Wyckoff claro (Spring/UTAD). Libro ${(w.bias || 'equilibrado').toLowerCase()}. Mejor esperar confirmación de precio + volumen.`;
-                    if (Math.abs(w.imbalance || 0) > 0.06) {
+                    actionHint = `Sin señal fuerte (${horizonLabel}). Libro ${(w.bias || 'equilibrado').toLowerCase()}. Imbalance suavizado ${(w.imbalance*100||0).toFixed(0)}% — esperar confirmación precio + volumen.`;
+                    if (Math.abs(w.imbalance || 0) > 0.10) {
                         const side = w.imbalance > 0 ? 'L' : 'S';
-                        reasons.push({ side, txt: `Bias leve ${w.bias}`, pts: 8 });
+                        reasons.push({ side, txt: `Bias leve ${w.bias} (sin consenso)`, pts: 6 });
                     }
                 }
 
@@ -5494,9 +5556,9 @@
             '4h': 'próx. 4 horas',
             '1d': 'próx. 1 día'
         };
-        // Barras recientes a mirar para ROC según horizonte (aprox. sobre el TF del gráfico)
+        // Barras recientes a mirar para ROC — alineado al TF elegido (9m, 20m, etc.)
         const PROJECTION_LOOKBACK = {
-            '1m': 1, '3m': 2, '5m': 3, '9m': 4, '20m': 5, '1h': 6, '4h': 12, '1d': 24
+            '1m': 2, '3m': 3, '5m': 4, '9m': 5, '15m': 6, '20m': 6, '1h': 8, '4h': 12, '1d': 24
         };
 
         function setProjectionHorizon(h) {
@@ -5505,11 +5567,20 @@
                 projectionHorizon = String(h);
                 document.querySelectorAll('.ph-btn, [data-ph]').forEach(btn => {
                     const on = btn.getAttribute('data-ph') === projectionHorizon;
-                    btn.className = on
-                        ? 'ph-btn px-1.5 py-0.5 rounded text-[10px] font-mono border border-accentYellow/50 bg-accentYellow/15 text-accentYellow'
-                        : 'ph-btn px-1.5 py-0.5 rounded text-[10px] font-mono border border-borderBg text-slate-400 hover:text-white';
+                    // Mantener tamaño según si es botón grande (bottom) o compacto (sidebar)
+                    const isBig = (btn.className || '').includes('px-2.5') || btn.closest('#projectionHorizonFiltersBottom');
+                    if (isBig) {
+                        btn.className = on
+                            ? 'ph-btn px-2.5 py-1.5 rounded text-[11px] font-mono border border-accentYellow/50 bg-accentYellow/15 text-accentYellow cursor-pointer'
+                            : 'ph-btn px-2.5 py-1.5 rounded text-[11px] font-mono border border-borderBg text-slate-400 hover:text-white cursor-pointer';
+                    } else {
+                        btn.className = on
+                            ? 'ph-btn px-1.5 py-0.5 rounded text-[10px] font-mono border border-accentYellow/50 bg-accentYellow/15 text-accentYellow'
+                            : 'ph-btn px-1.5 py-0.5 rounded text-[10px] font-mono border border-borderBg text-slate-400 hover:text-white';
+                    }
                 });
                 projectNextHourBias();
+                try { if (typeof projectWyckoffOrderBook === 'function') projectWyckoffOrderBook(); } catch (e) {}
             } catch (err) {
                 console.error('setProjectionHorizon', err);
             }
@@ -5879,11 +5950,21 @@
                         : 'tf-btn px-1.5 sm:px-2 py-1 rounded font-medium text-slate-400 hover:text-white';
                 });
                 console.log('[TF]', currentInterval, '→ fetchMarketData');
+                // Alinear horizonte de proyección al TF del gráfico (9m→9m, 20m→20m, etc.)
+                try {
+                    const tfToHorizon = {
+                        '1m': '1m', '3m': '3m', '5m': '5m', '9m': '9m', '15m': '20m',
+                        '20m': '20m', '1h': '1h', '4h': '4h', '1d': '1d', '1w': '1d'
+                    };
+                    const h = tfToHorizon[currentInterval] || currentInterval;
+                    if (typeof setProjectionHorizon === 'function' && ['1m','3m','5m','9m','20m','1h','4h','1d'].includes(h)) {
+                        setProjectionHorizon(h);
+                    }
+                } catch (e) {}
                 // Sugerir filtro de indicadores según TF (usuario puede cambiar después)
                 try {
                     if (typeof suggestFilterPresetForTf === 'function' && typeof applyIndicatorPreset === 'function') {
                         const suggested = suggestFilterPresetForTf(currentInterval);
-                        // Solo auto-aplicar si el usuario no tiene un preset personalizado forzado
                         if (currentFilterPreset !== 'custom') {
                             applyIndicatorPreset(suggested);
                         } else {
@@ -5892,6 +5973,8 @@
                         }
                     }
                 } catch (e) {}
+                // Reset suavizado OB al cambiar TF (nuevo contexto)
+                try { wyckoffImbHistory = []; } catch (e) {}
                 if (typeof window.fetchMarketData === 'function') {
                     window.fetchMarketData();
                 } else if (typeof fetchMarketData === 'function') {
