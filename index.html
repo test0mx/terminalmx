@@ -538,22 +538,32 @@
                     Activa solo los indicadores que mejor funcionan en cada rango de temporalidad. Tras cambiar, se recalculan señales y confluencia.
                 </p>
                 <!-- Presets -->
+                <div class="grid grid-cols-2 gap-1 mb-1">
+                    <button type="button" id="presetOptimal" onclick="applyIndicatorPreset('optimal')"
+                        class="preset-btn py-1.5 px-1 rounded border border-accentYellow/50 bg-accentYellow/15 text-[10px] font-bold text-accentYellow transition col-span-2"
+                        title="Setup óptimo según TF del gráfico (mayor P de acierto)">
+                        <i class="fa-solid fa-star mr-0.5"></i> Óptimo por TF (recomendado)
+                    </button>
+                </div>
                 <div class="grid grid-cols-3 gap-1">
                     <button type="button" id="presetScalp" onclick="applyIndicatorPreset('scalp')"
                         class="preset-btn py-1.5 px-1 rounded border border-borderBg bg-panelBg text-[10px] font-bold text-slate-300 hover:border-accentYellow/50 hover:text-accentYellow transition"
-                        title="1m–15m: StochRSI, ROC, Yoshi ST, Wyckoff OB">
+                        title="1m–9m: StochRSI, Yoshi, Wyckoff">
                         <i class="fa-solid fa-bolt mr-0.5"></i> Scalp
                     </button>
                     <button type="button" id="presetIntraday" onclick="applyIndicatorPreset('intraday')"
                         class="preset-btn py-1.5 px-1 rounded border border-borderBg bg-panelBg text-[10px] font-bold text-slate-300 hover:border-accentYellow/50 hover:text-accentYellow transition"
-                        title="15m–1h: balance de todos">
+                        title="15m–1h: balance">
                         <i class="fa-solid fa-clock mr-0.5"></i> Intradía
                     </button>
                     <button type="button" id="presetSwing" onclick="applyIndicatorPreset('swing')"
                         class="preset-btn py-1.5 px-1 rounded border border-borderBg bg-panelBg text-[10px] font-bold text-slate-300 hover:border-accentYellow/50 hover:text-accentYellow transition"
-                        title="4h–1D: Yoshi BOS, DMI, Trendilo, Wyckoff">
+                        title="4h–1D: Trendilo, DMI, Yoshi">
                         <i class="fa-solid fa-chart-line mr-0.5"></i> Swing
                     </button>
+                </div>
+                <div id="optimalRankList" class="bg-panelBg/80 rounded border border-borderBg p-1.5 space-y-0.5 max-h-28 overflow-y-auto">
+                    <div class="text-[10px] text-slate-500 italic">Orden P(acierto) según TF…</div>
                 </div>
                 <!-- Toggles individuales -->
                 <div class="space-y-1 pt-1" id="indicatorFilterToggles">
@@ -1756,48 +1766,159 @@
             exchanges: {}, desc: 'Cargando order books...', count: 0
         };
 
-        // ========== FILTROS DE INDICADORES POR TEMPORALIDAD ==========
-        // Scalp (1m-15m): StochRSI, Yoshi ST, Wyckoff OB — menos Trendilo/DMI (más ruido)
-        // Intradía (15m-1h): balance
-        // Swing (4h-1D): Trendilo, DMI, Yoshi estructura, Wyckoff, S/R — menos Stoch extremo
+        // ========== SETUP ÓPTIMO: TF superior guía todo (proyección + indicadores por P(acierto)) ==========
+        // Orden = mayor probabilidad de acierto relativa por temporalidad (pesos normalizados ~100)
+        // El TF del header es la fuente de verdad: proyección, filtros, confluencia y modal usan este mapa.
+        const OPTIMAL_SETUP_BY_TF = {
+            '1m':  { profile: 'scalp',    horizon: '1m',  order: [['stoch',28],['yoshi',24],['wyckoff',22],['sr',16],['trendilo',6],['dmi',4]] },
+            '3m':  { profile: 'scalp',    horizon: '3m',  order: [['stoch',26],['yoshi',24],['wyckoff',22],['sr',16],['trendilo',7],['dmi',5]] },
+            '5m':  { profile: 'scalp',    horizon: '5m',  order: [['stoch',24],['yoshi',24],['wyckoff',22],['sr',16],['trendilo',8],['dmi',6]] },
+            '9m':  { profile: 'scalp',    horizon: '9m',  order: [['yoshi',24],['stoch',22],['wyckoff',22],['sr',16],['trendilo',10],['dmi',6]] },
+            '15m': { profile: 'intraday', horizon: '20m', order: [['yoshi',22],['wyckoff',20],['stoch',18],['trendilo',16],['dmi',12],['sr',12]] },
+            '20m': { profile: 'intraday', horizon: '20m', order: [['yoshi',22],['wyckoff',20],['trendilo',18],['stoch',16],['dmi',12],['sr',12]] },
+            '1h':  { profile: 'intraday', horizon: '1h',  order: [['yoshi',22],['trendilo',20],['dmi',18],['wyckoff',16],['sr',14],['stoch',10]] },
+            '4h':  { profile: 'swing',    horizon: '4h',  order: [['yoshi',24],['trendilo',22],['dmi',20],['wyckoff',14],['sr',14],['stoch',6]] },
+            '1d':  { profile: 'swing',    horizon: '1d',  order: [['trendilo',24],['yoshi',22],['dmi',20],['sr',16],['wyckoff',12],['stoch',6]] },
+            '1w':  { profile: 'swing',    horizon: '1d',  order: [['trendilo',26],['yoshi',22],['dmi',20],['sr',16],['wyckoff',10],['stoch',6]] }
+        };
+        // Activos por defecto: top indicadores con peso >= 12 (resto opcionales)
+        const OPTIMAL_ACTIVE_WEIGHT_MIN = 12;
+
         const INDICATOR_PRESETS = {
             scalp: {
                 trendilo: false, stoch: true, dmi: false, yoshi: true, wyckoff: true, sr: true,
-                label: 'Scalp (1m–15m)',
-                hint: 'Optimizado scalp: StochRSI + Yoshi + Wyckoff OB + S/R. Trendilo/DMI desactivados (más ruido en TF bajos).'
+                label: 'Scalp (óptimo TF bajos)',
+                hint: 'Setup óptimo scalp: StochRSI + Yoshi + Wyckoff + S/R (mayor P(acierto) en 1m–9m).'
             },
             intradaily: {
                 trendilo: true, stoch: true, dmi: true, yoshi: true, wyckoff: true, sr: true,
-                label: 'Intradía (15m–1h)',
-                hint: 'Balance completo: todos los indicadores activos para confluencia intradía.'
+                label: 'Intradía (óptimo 15m–1h)',
+                hint: 'Setup óptimo intradía: Yoshi + Wyckoff + Trendilo + Stoch + DMI + S/R.'
             },
             intraday: {
                 trendilo: true, stoch: true, dmi: true, yoshi: true, wyckoff: true, sr: true,
-                label: 'Intradía (15m–1h)',
-                hint: 'Balance completo: todos los indicadores activos para confluencia intradía.'
+                label: 'Intradía (óptimo 15m–1h)',
+                hint: 'Setup óptimo intradía: Yoshi + Wyckoff + Trendilo + Stoch + DMI + S/R.'
             },
             swing: {
                 trendilo: true, stoch: false, dmi: true, yoshi: true, wyckoff: true, sr: true,
-                label: 'Swing (4h–1D)',
-                hint: 'Optimizado swing: Trendilo + DMI + Yoshi + Wyckoff + S/R. StochRSI desactivado (sobrecompra/sobreventa menos fiable en TF altos).'
+                label: 'Swing (óptimo 4h–1D)',
+                hint: 'Setup óptimo swing: Trendilo + Yoshi + DMI + S/R + Wyckoff (Stoch menos fiable en TF altos).'
             },
             all: {
                 trendilo: true, stoch: true, dmi: true, yoshi: true, wyckoff: true, sr: true,
                 label: 'Todos',
-                hint: 'Todos los indicadores activos. Confluencia máxima sin filtro de temporalidad.'
+                hint: 'Todos activos (sin priorizar por P(acierto)).'
+            },
+            optimal: {
+                // se rellena dinámicamente desde OPTIMAL_SETUP_BY_TF
+                trendilo: true, stoch: true, dmi: true, yoshi: true, wyckoff: true, sr: true,
+                label: 'Óptimo (TF actual)',
+                hint: 'Indicadores ordenados por mayor probabilidad de acierto según el TF del gráfico.'
             }
         };
         let activeIndicatorFilters = {
             trendilo: true, stoch: true, dmi: true, yoshi: true, wyckoff: true, sr: true
         };
-        let currentFilterPreset = 'all';
+        let currentFilterPreset = 'optimal';
+        let indicatorWeightMap = { trendilo: 1, stoch: 1, dmi: 1, yoshi: 1, wyckoff: 1, sr: 1 };
+        let userLockedFilters = false; // true si el usuario tocó toggles manualmente
+
+        function getOptimalSetup(tf) {
+            const t = String(tf || currentInterval || '1h');
+            return OPTIMAL_SETUP_BY_TF[t] || OPTIMAL_SETUP_BY_TF['1h'];
+        }
+
+        function getIndicatorWeight(key) {
+            return indicatorWeightMap[key] != null ? indicatorWeightMap[key] : 1;
+        }
 
         function isIndActive(key) {
             return activeIndicatorFilters[key] !== false;
         }
 
+        /** Aplica setup óptimo del TF del header: pesos, filtros, horizonte de proyección */
+        function applyOptimalSetupForTf(tf, opts) {
+            opts = opts || {};
+            const setup = getOptimalSetup(tf);
+            const force = !!opts.force; // ignorar lock de usuario
+            // Pesos siempre se actualizan (guían proyección/confluencia)
+            indicatorWeightMap = {};
+            (setup.order || []).forEach(([k, w]) => { indicatorWeightMap[k] = w / 100; });
+
+            // Horizonte de proyección = TF superior (o mapeo del setup)
+            try {
+                if (typeof setProjectionHorizon === 'function' && setup.horizon) {
+                    setProjectionHorizon(setup.horizon);
+                }
+            } catch (e) {}
+
+            // Filtros: solo si no hay lock personalizado o force
+            if (!userLockedFilters || force) {
+                const filters = { trendilo: false, stoch: false, dmi: false, yoshi: false, wyckoff: false, sr: false };
+                (setup.order || []).forEach(([k, w]) => {
+                    filters[k] = w >= OPTIMAL_ACTIVE_WEIGHT_MIN;
+                });
+                activeIndicatorFilters = filters;
+                currentFilterPreset = 'optimal';
+                const map = {
+                    trendilo: 'filtTrendilo', stoch: 'filtStoch', dmi: 'filtDmi',
+                    yoshi: 'filtYoshi', wyckoff: 'filtWyckoff', sr: 'filtSR'
+                };
+                Object.keys(map).forEach(k => {
+                    const el = document.getElementById(map[k]);
+                    if (el) el.checked = !!activeIndicatorFilters[k];
+                });
+                document.querySelectorAll('.preset-btn').forEach(btn => {
+                    btn.classList.remove('border-accentYellow/50', 'bg-accentYellow/15', 'text-accentYellow');
+                    btn.classList.add('border-borderBg', 'bg-panelBg', 'text-slate-300');
+                });
+                const modeEl = document.getElementById('filterModeLabel');
+                if (modeEl) modeEl.innerText = `Óptimo ${tf || currentInterval}`;
+                updateOptimalRankUI(setup, tf);
+            } else {
+                updateOptimalRankUI(setup, tf);
+            }
+            return setup;
+        }
+        window.applyOptimalSetupForTf = applyOptimalSetupForTf;
+
+        function updateOptimalRankUI(setup, tf) {
+            const hintEl = document.getElementById('filterHint');
+            const rankEl = document.getElementById('optimalRankList');
+            const order = (setup && setup.order) || getOptimalSetup(tf).order || [];
+            const lines = order.map(([k, w], i) => {
+                const names = { trendilo: 'Trendilo', stoch: 'StochRSI', dmi: 'DMI', yoshi: 'Yoshi', wyckoff: 'Wyckoff OB', sr: 'S/R+POC' };
+                const on = isIndActive(k);
+                return `${i + 1}. ${names[k] || k} ${w}%${on ? '' : ' (off)'}`;
+            });
+            if (hintEl) {
+                hintEl.innerHTML = `<span class="text-accentYellow">TF ${tf || currentInterval} guía proyección.</span> Orden por P(acierto): ${lines.slice(0, 4).join(' · ')}…`;
+            }
+            if (rankEl) {
+                rankEl.innerHTML = order.map(([k, w], i) => {
+                    const names = { trendilo: 'Trendilo', stoch: 'StochRSI', dmi: 'DMI', yoshi: 'Yoshi', wyckoff: 'Wyckoff', sr: 'S/R' };
+                    const on = isIndActive(k);
+                    const bar = Math.min(100, w * 3);
+                    return `<div class="flex items-center gap-1.5 text-[10px]">
+                        <span class="text-slate-500 w-3">${i + 1}</span>
+                        <span class="flex-1 ${on ? 'text-slate-200' : 'text-slate-500 line-through'}">${names[k]}</span>
+                        <span class="font-mono text-accentYellow w-8 text-right">${w}%</span>
+                        <div class="w-12 h-1 rounded bg-borderBg overflow-hidden"><div class="h-full ${on ? 'bg-accentYellow' : 'bg-slate-600'}" style="width:${bar}%"></div></div>
+                    </div>`;
+                }).join('');
+            }
+        }
+
         function applyIndicatorPreset(name) {
+            if (name === 'optimal') {
+                userLockedFilters = false;
+                applyOptimalSetupForTf(currentInterval, { force: true });
+                recalculateWithFilters();
+                return;
+            }
             const p = INDICATOR_PRESETS[name] || INDICATOR_PRESETS.all;
+            userLockedFilters = false;
             currentFilterPreset = name;
             activeIndicatorFilters = {
                 trendilo: !!p.trendilo,
@@ -1807,6 +1928,13 @@
                 wyckoff: !!p.wyckoff,
                 sr: !!p.sr
             };
+            // Mantener pesos del TF actual aunque el preset sea genérico
+            try {
+                const setup = getOptimalSetup(currentInterval);
+                indicatorWeightMap = {};
+                (setup.order || []).forEach(([k, w]) => { indicatorWeightMap[k] = w / 100; });
+                updateOptimalRankUI(setup, currentInterval);
+            } catch (e) {}
             // Sync checkboxes
             const map = {
                 trendilo: 'filtTrendilo', stoch: 'filtStoch', dmi: 'filtDmi',
@@ -1837,6 +1965,7 @@
         window.applyIndicatorPreset = applyIndicatorPreset;
 
         function onIndicatorFilterChange() {
+            userLockedFilters = true;
             currentFilterPreset = 'custom';
             activeIndicatorFilters = {
                 trendilo: !!(document.getElementById('filtTrendilo') || {}).checked,
@@ -1854,7 +1983,8 @@
             if (modeEl) modeEl.innerText = 'Personalizado';
             const active = Object.keys(activeIndicatorFilters).filter(k => activeIndicatorFilters[k]);
             const hintEl = document.getElementById('filterHint');
-            if (hintEl) hintEl.innerText = `Filtro manual: ${active.length}/6 indicadores activos. Pulsa «Recalcular señales» o se aplica al instante.`;
+            if (hintEl) hintEl.innerText = `Manual: ${active.length}/6 activos. El TF ${currentInterval} sigue guiando la proyección; pesos óptimos se mantienen.`;
+            updateOptimalRankUI(getOptimalSetup(currentInterval), currentInterval);
             recalculateWithFilters();
         }
         window.onIndicatorFilterChange = onIndicatorFilterChange;
@@ -1882,11 +2012,8 @@
 
         // Auto-sugerir preset según TF del gráfico
         function suggestFilterPresetForTf(tf) {
-            const t = String(tf || currentInterval || '1h');
-            if (['1m', '3m', '5m', '9m', '15m'].includes(t)) return 'scalp';
-            if (['20m', '1h', '2h'].includes(t)) return 'intraday';
-            if (['4h', '1d', '1w', '1D', '1S'].includes(t)) return 'swing';
-            return 'intraday';
+            const setup = getOptimalSetup(tf);
+            return setup.profile || 'intraday';
         }
 
         function switchBottomTab(tab) {
@@ -2801,6 +2928,7 @@
                 if (savedSym && savedSym.endsWith('USDT')) currentSymbol = savedSym;
             } catch (e) {}
             updateSymbolUI();
+            try { applyOptimalSetupForTf(currentInterval || '1h', { force: true }); } catch (e) {}
             fetchMarketData();
             setupInputListeners();
             window.addEventListener('resize', function() {
@@ -5546,61 +5674,64 @@
                 if (elWD) elWD.innerText = wDesc;
             } catch (e) { console.warn('wyckoff signal row', e); }
 
-            // 6. Global Confluence Calculation (respeta filtros de temporalidad)
+            // 6. Confluencia ponderada por P(acierto) del TF superior
             let longScore = 0;
             let shortScore = 0;
-            let activeCount = 0;
+            let weightSum = 0;
             const filtOn = (k) => (typeof isIndActive === 'function' ? isIndActive(k) : true);
+            const wOf = (k) => (typeof getIndicatorWeight === 'function' ? getIndicatorWeight(k) : 1);
 
             if (filtOn('trendilo')) {
-                activeCount++;
-                if (zScore > 0.15 || (trendiloLatest.direction || '').includes('Alcista')) longScore++;
-                else if (zScore < -0.15 || (trendiloLatest.direction || '').includes('Bajista')) shortScore++;
+                const w = wOf('trendilo'); weightSum += w;
+                if (zScore > 0.15 || (trendiloLatest.direction || '').includes('Alcista')) longScore += w;
+                else if (zScore < -0.15 || (trendiloLatest.direction || '').includes('Bajista')) shortScore += w;
             }
             if (filtOn('stoch')) {
-                activeCount++;
-                if (kVal < 20) longScore++; else if (kVal > 80) shortScore++;
+                const w = wOf('stoch'); weightSum += w;
+                if (kVal < 20) longScore += w; else if (kVal > 80) shortScore += w;
             }
             if (filtOn('dmi')) {
-                activeCount++;
+                const w = wOf('dmi'); weightSum += w;
                 if (diSpread >= 10) {
-                    if (pDI > nDI) longScore++;
-                    else shortScore++;
+                    if (pDI > nDI) longScore += w;
+                    else shortScore += w;
                 }
             }
             if (filtOn('yoshi')) {
-                activeCount++;
-                if (yoshiLatest && yoshiLatest.signal === 'BUY') longScore++;
-                else if (yoshiLatest && yoshiLatest.signal === 'SELL') shortScore++;
+                const w = wOf('yoshi'); weightSum += w;
+                if (yoshiLatest && yoshiLatest.signal === 'BUY') longScore += w;
+                else if (yoshiLatest && yoshiLatest.signal === 'SELL') shortScore += w;
             }
             if (filtOn('wyckoff')) {
-                activeCount++;
-                if (wyckoffLatest && wyckoffLatest.signal === 'BUY') longScore++;
-                else if (wyckoffLatest && wyckoffLatest.signal === 'SELL') shortScore++;
+                const w = wOf('wyckoff'); weightSum += w;
+                if (wyckoffLatest && wyckoffLatest.signal === 'BUY') longScore += w;
+                else if (wyckoffLatest && wyckoffLatest.signal === 'SELL') shortScore += w;
             }
-            // S/R no suma punto de dirección por sí solo en confluencia de señales; se usa en modal
 
-            const maxN = Math.max(1, activeCount);
+            const totalDir = longScore + shortScore || 1;
+            const longPctW = Math.round((longScore / totalDir) * 100);
+            const edge = Math.abs(longScore - shortScore);
+            const need = Math.max(0.15, weightSum * 0.22);
             let conflBadge = '';
             let conflStatus = '';
             let conflDesc = '';
-            const need = Math.max(2, Math.ceil(maxN * 0.4));
+            const tfTag = currentInterval || '—';
 
-            if (longScore >= need && longScore > shortScore) {
-                conflBadge = `<span class="px-3 py-1 rounded text-xs font-black bg-accentGreen text-slate-950 shadow-md">LONG ALTA CONFLUENCIA (${longScore}/${maxN})</span>`;
-                conflStatus = `<span class="text-accentGreen font-bold">Señal Alcista Validada</span>`;
-                conflDesc = `Filtros activos: ${maxN}. Coincidencia alcista en indicadores habilitados. Contexto apto para Long.`;
-            } else if (shortScore >= need && shortScore > longScore) {
-                conflBadge = `<span class="px-3 py-1 rounded text-xs font-black bg-accentRed text-white shadow-md">SHORT ALTA CONFLUENCIA (${shortScore}/${maxN})</span>`;
-                conflStatus = `<span class="text-accentRed font-bold">Señal Bajista Validada</span>`;
-                conflDesc = `Filtros activos: ${maxN}. Coincidencia bajista en indicadores habilitados. Contexto apto para Short.`;
+            if (edge >= need && longScore > shortScore) {
+                conflBadge = `<span class="px-3 py-1 rounded text-xs font-black bg-accentGreen text-slate-950 shadow-md">LONG (${longPctW}% peso · TF ${tfTag})</span>`;
+                conflStatus = `<span class="text-accentGreen font-bold">Confluencia alcista ponderada</span>`;
+                conflDesc = `TF ${tfTag} guía pesos. Long ${longScore.toFixed(2)} vs Short ${shortScore.toFixed(2)} (P(acierto) relativa). Setup óptimo alineado.`;
+            } else if (edge >= need && shortScore > longScore) {
+                conflBadge = `<span class="px-3 py-1 rounded text-xs font-black bg-accentRed text-white shadow-md">SHORT (${100 - longPctW}% peso · TF ${tfTag})</span>`;
+                conflStatus = `<span class="text-accentRed font-bold">Confluencia bajista ponderada</span>`;
+                conflDesc = `TF ${tfTag} guía pesos. Short ${shortScore.toFixed(2)} vs Long ${longScore.toFixed(2)}. Setup óptimo alineado.`;
             } else {
-                conflBadge = `<span class="px-3 py-1 rounded text-xs font-black bg-accentYellow text-slate-950">NEUTRAL / CONFUSO</span>`;
-                conflStatus = `<span class="text-accentYellow font-bold">Sin Confluencia Clara</span>`;
-                conflDesc = `Filtros activos: ${maxN}. Sin mayoría clara. Ajusta preset (Scalp/Intradía/Swing) o espera confirmación.`;
+                conflBadge = `<span class="px-3 py-1 rounded text-xs font-black bg-accentYellow text-slate-950">NEUTRAL (TF ${tfTag})</span>`;
+                conflStatus = `<span class="text-accentYellow font-bold">Sin ventaja clara</span>`;
+                conflDesc = `TF ${tfTag}: pesos sin mayoría. Usa «Óptimo por TF» o espera confirmación de los indicadores top del ranking.`;
             }
 
-            document.getElementById('sigConfluenceScore').innerText = `Long: ${longScore} | Short: ${shortScore} · filt ${maxN}`;
+            document.getElementById('sigConfluenceScore').innerText = `L ${longScore.toFixed(2)} | S ${shortScore.toFixed(2)} · TF ${tfTag}`;
             document.getElementById('sigConfluenceStatus').innerHTML = conflStatus;
             document.getElementById('sigConfluenceBadge').outerHTML = `<span id="sigConfluenceBadge">${conflBadge}</span>`;
             document.getElementById('sigConfluenceDesc').innerText = conflDesc;
@@ -5666,18 +5797,32 @@
                 return;
             }
 
-            const horizon = projectionHorizon || '1h';
-            const horizonLabel = PROJECTION_HORIZON_LABELS[horizon] || 'próx. 1 hora';
+            // TF del gráfico (header) guía el horizonte de proyección
+            const chartTf = currentInterval || '1h';
+            const setupOpt = (typeof getOptimalSetup === 'function') ? getOptimalSetup(chartTf) : null;
+            const horizon = (setupOpt && setupOpt.horizon) || projectionHorizon || chartTf || '1h';
+            if (projectionHorizon !== horizon && typeof setProjectionHorizon === 'function') {
+                try { projectionHorizon = horizon; } catch (e) {}
+            }
+            const horizonLabel = PROJECTION_HORIZON_LABELS[horizon] || ('próx. ' + horizon);
             const isScalp = ['1m', '3m', '5m', '9m'].includes(horizon);
             const isSwing = ['4h', '1d'].includes(horizon);
 
-            // Pesos por horizonte: scalp → Stoch + ROC; swing → DMI + Trendilo + Yoshi
-            const wTrendilo = isScalp ? 0.7 : isSwing ? 1.3 : 1.0;
-            const wStoch = isScalp ? 1.4 : isSwing ? 0.7 : 1.0;
-            const wDmi = isScalp ? 0.6 : isSwing ? 1.35 : 1.0;
-            const wYoshi = isScalp ? 0.85 : isSwing ? 1.4 : 1.15;
-            const wStruct = isScalp ? 0.8 : isSwing ? 1.15 : 1.0;
+            // Pesos = ranking P(acierto) del TF superior (×10 para escala de puntos)
+            const gw = (k, fallback) => {
+                if (typeof getIndicatorWeight === 'function' && indicatorWeightMap && indicatorWeightMap[k] != null) {
+                    return Math.max(0.3, getIndicatorWeight(k) * 10);
+                }
+                return fallback;
+            };
+            const gate = (k, w) => ((typeof isIndActive === 'function' && !isIndActive(k)) ? 0 : w);
+            const wTrendilo = gate('trendilo', gw('trendilo', isScalp ? 0.7 : isSwing ? 1.3 : 1.0));
+            const wStoch = gate('stoch', gw('stoch', isScalp ? 1.4 : isSwing ? 0.7 : 1.0));
+            const wDmi = gate('dmi', gw('dmi', isScalp ? 0.6 : isSwing ? 1.35 : 1.0));
+            const wYoshi = gate('yoshi', gw('yoshi', isScalp ? 0.85 : isSwing ? 1.4 : 1.15));
+            const wStruct = gate('sr', gw('sr', isScalp ? 0.8 : isSwing ? 1.15 : 1.0));
             const wRoc = isScalp ? 1.5 : isSwing ? 0.85 : 1.1;
+            const wWyck = gate('wyckoff', gw('wyckoff', 1.1));
 
             const z = parseFloat(trendiloLatest.zScore) || 0;
             const k = parseFloat(stochRsiLatest.k) || 50;
@@ -6014,30 +6159,13 @@
                         ? 'tf-btn px-1.5 sm:px-2 py-1 rounded font-medium bg-borderBg text-white'
                         : 'tf-btn px-1.5 sm:px-2 py-1 rounded font-medium text-slate-400 hover:text-white';
                 });
-                console.log('[TF]', currentInterval, '→ fetchMarketData');
-                // Alinear horizonte de proyección al TF del gráfico (9m→9m, 20m→20m, etc.)
+                console.log('[TF]', currentInterval, '→ setup óptimo + fetchMarketData');
+                // TF superior guía: proyección + pesos por P(acierto) + filtros óptimos
                 try {
-                    const tfToHorizon = {
-                        '1m': '1m', '3m': '3m', '5m': '5m', '9m': '9m', '15m': '20m',
-                        '20m': '20m', '1h': '1h', '4h': '4h', '1d': '1d', '1w': '1d'
-                    };
-                    const h = tfToHorizon[currentInterval] || currentInterval;
-                    if (typeof setProjectionHorizon === 'function' && ['1m','3m','5m','9m','20m','1h','4h','1d'].includes(h)) {
-                        setProjectionHorizon(h);
+                    if (typeof applyOptimalSetupForTf === 'function') {
+                        applyOptimalSetupForTf(currentInterval, { force: !userLockedFilters });
                     }
-                } catch (e) {}
-                // Sugerir filtro de indicadores según TF (usuario puede cambiar después)
-                try {
-                    if (typeof suggestFilterPresetForTf === 'function' && typeof applyIndicatorPreset === 'function') {
-                        const suggested = suggestFilterPresetForTf(currentInterval);
-                        if (currentFilterPreset !== 'custom') {
-                            applyIndicatorPreset(suggested);
-                        } else {
-                            const hintEl = document.getElementById('filterHint');
-                            if (hintEl) hintEl.innerText = `TF ${currentInterval}: se sugiere preset «${suggested}». Tienes filtros personalizados; pulsa Scalp/Intradía/Swing para aplicar.`;
-                        }
-                    }
-                } catch (e) {}
+                } catch (e) { console.warn('optimal setup', e); }
                 // Reset suavizado OB al cambiar TF (nuevo contexto)
                 try { wyckoffImbHistory = []; } catch (e) {}
                 if (typeof window.fetchMarketData === 'function') {
@@ -6180,6 +6308,11 @@
             let winProb = 50;
             let breakdown = [];
             const fOn = (k) => (typeof isIndActive === 'function' ? isIndActive(k) : true);
+            const wScale = (k) => {
+                // Escala bonus según ranking P(acierto) del TF (0.5–1.4)
+                const w = (typeof getIndicatorWeight === 'function') ? getIndicatorWeight(k) : 0.15;
+                return Math.max(0.5, Math.min(1.4, w * 6));
+            };
 
             // 1. Trendilo Impact (ALMA %chg vs RMS — dudeowns OS)
             let trendiloBonus = 0;
@@ -6200,6 +6333,7 @@
                 } else { trendiloBonus = 0; trendiloMsg = `Trendilo lateral/consolidación`; }
             }
             if (!fOn('trendilo')) { trendiloBonus = 0; trendiloMsg = 'Filtro desactivado (preset temporalidad)'; }
+            else { trendiloBonus = Math.round(trendiloBonus * wScale('trendilo')); trendiloMsg += ` · peso TF ${Math.round(wScale('trendilo')*100)}%`; }
             winProb += trendiloBonus;
             breakdown.push({ name: "Trendilo (ALMA+RMS)", bonus: trendiloBonus, msg: trendiloMsg, icon: "fa-solid fa-chart-line" });
 
@@ -6217,6 +6351,7 @@
                 else { stochBonus = 2; stochMsg = `Rango medio (%K: ${k})`; }
             }
             if (!fOn('stoch')) { stochBonus = 0; stochMsg = 'Filtro desactivado (preset temporalidad)'; }
+            else { stochBonus = Math.round(stochBonus * wScale('stoch')); }
             winProb += stochBonus;
             breakdown.push({ name: "StochRSI", bonus: stochBonus, msg: stochMsg, icon: "fa-solid fa-wave-square" });
 
@@ -6237,6 +6372,7 @@
                 dmiBonus = -3; dmiMsg = `DMI sin dirección clara (Δ${diSp.toFixed(1)} < 10)`;
             }
             if (!fOn('dmi')) { dmiBonus = 0; dmiMsg = 'Filtro desactivado (preset temporalidad)'; }
+            else { dmiBonus = Math.round(dmiBonus * wScale('dmi')); }
             winProb += dmiBonus;
             breakdown.push({ name: "DMI (+DI / -DI)", bonus: dmiBonus, msg: dmiMsg, icon: "fa-solid fa-compass" });
 
@@ -6291,6 +6427,7 @@
                 }
             }
             if (!fOn('yoshi')) { yoshiBonus = 0; yoshiMsg = 'Filtro desactivado (preset temporalidad)'; }
+            else { yoshiBonus = Math.round(yoshiBonus * wScale('yoshi')); }
             winProb += yoshiBonus;
             breakdown.push({ name: "Yoshi Scanner", bonus: yoshiBonus, msg: yoshiMsg, icon: "fa-solid fa-dragon" });
 
@@ -6336,6 +6473,7 @@
                 }
             }
             if (!fOn('wyckoff')) { wyckoffBonus = 0; wyckoffMsg = 'Filtro desactivado (preset temporalidad)'; }
+            else { wyckoffBonus = Math.round(wyckoffBonus * wScale('wyckoff')); }
             winProb += wyckoffBonus;
             breakdown.push({ name: "Wyckoff Order Book", bonus: wyckoffBonus, msg: wyckoffMsg, icon: "fa-solid fa-book-open" });
 
@@ -6352,6 +6490,7 @@
                 else { srBonus = 3; srMsg = `Resistencia a ${resDist.toFixed(1)}%`; }
             }
             if (!fOn('sr')) { srBonus = 0; srMsg = 'Filtro desactivado (preset temporalidad)'; }
+            else { srBonus = Math.round(srBonus * wScale('sr')); }
             winProb += srBonus;
             breakdown.push({ name: "Soportes / Resistencias", bonus: srBonus, msg: srMsg, icon: "fa-solid fa-layer-group" });
 
