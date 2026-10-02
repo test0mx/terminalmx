@@ -1014,6 +1014,10 @@
                             <i class="fa-solid fa-trophy"></i>
                             <span class="hidden sm:inline">Mejores combos</span><span class="sm:hidden">Rank</span>
                         </button>
+                        <button type="button" id="tabBtnPalacios" onclick="switchBottomTab('palacios')" class="font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs">
+                            <i class="fa-solid fa-layer-group"></i>
+                            <span class="hidden sm:inline">Indicador Palacios</span><span class="sm:hidden">Palacios</span>
+                        </button>
                         <button type="button" id="tabBtnProjection" onclick="switchBottomTab('projection')" class="font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs">
                             <i class="fa-solid fa-clock-rotate-left"></i>
                             <span class="hidden sm:inline">Proyección</span><span class="sm:hidden">Proy.</span>
@@ -1551,6 +1555,80 @@
                         Score ≈ WinRate × √Trades × (1 − MaxDD), normalizado. Datos: últimas 150 velas del par activo en cada temporalidad (Binance). No es garantía de rendimiento futuro.
                     </p>
                 </div>
+
+                <!-- Tab: Indicador Palacios — confluencia 1H + 15m + 1m -->
+                <div id="tabContentPalacios" class="flex-1 overflow-auto p-2 sm:p-3 hidden">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                        <div>
+                            <div class="font-semibold text-accentYellow flex items-center gap-1.5 text-sm">
+                                <i class="fa-solid fa-layer-group"></i> Indicador Palacios
+                            </div>
+                            <p class="text-[11px] text-slate-500 mt-0.5 max-w-2xl">
+                                Señal de <strong class="text-slate-300">compra o venta</strong> solo cuando <strong class="text-accentYellow">1H + 15m + 1m</strong> hacen confluencia en la misma dirección (Long o Short). Sin acuerdo triple → esperar.
+                            </p>
+                        </div>
+                        <button type="button" id="btnPalaciosRecalc" onclick="runPalaciosIndicator(true)"
+                            class="px-3 py-1.5 rounded-lg border border-accentYellow/40 bg-accentYellow/15 text-accentYellow text-[11px] font-bold transition flex items-center gap-1.5 shrink-0">
+                            <i class="fa-solid fa-rotate" id="palaciosRunIcon"></i> Recalcular 1H·15m·1m
+                        </button>
+                    </div>
+
+                    <!-- Señal principal (estilo proyección) -->
+                    <div id="palaciosSignalCard" class="rounded-xl border border-borderBg bg-cardBg p-3 sm:p-4 mb-3">
+                        <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                            <span class="text-[11px] text-slate-500 font-mono">Confluencia multi-TF</span>
+                            <span id="palaciosBadge" class="px-3 py-1 rounded text-xs font-black bg-accentYellow text-slate-950">ESPERAR</span>
+                        </div>
+                        <div id="palaciosMainSignal" class="text-2xl sm:text-3xl font-black text-accentYellow mb-1">SIN CONFLUENCIA</div>
+                        <p id="palaciosActionHint" class="text-xs text-slate-400 leading-relaxed">
+                            Cargando sesgos de 1 hora, 15 minutos y 1 minuto…
+                        </p>
+                        <div class="mt-3 flex flex-wrap gap-2">
+                            <button type="button" id="btnPalaciosApplyLong" onclick="applyPalaciosSignal('LONG')" disabled
+                                class="px-3 py-1.5 rounded-lg text-[11px] font-bold border border-accentGreen/40 bg-accentGreen/10 text-accentGreen opacity-40 cursor-not-allowed transition">
+                                Aplicar LONG
+                            </button>
+                            <button type="button" id="btnPalaciosApplyShort" onclick="applyPalaciosSignal('SHORT')" disabled
+                                class="px-3 py-1.5 rounded-lg text-[11px] font-bold border border-accentRed/40 bg-accentRed/10 text-accentRed opacity-40 cursor-not-allowed transition">
+                                Aplicar SHORT
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Detalle por TF -->
+                    <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
+                        <div class="rounded-lg border border-borderBg bg-panelBg p-2.5">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-[10px] font-bold text-slate-400">1 HORA</span>
+                                <span id="palaciosTf1hBadge" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-borderBg text-slate-400">—</span>
+                            </div>
+                            <div id="palaciosTf1hDir" class="text-lg font-black text-slate-300">—</div>
+                            <div id="palaciosTf1hDetail" class="text-[10px] text-slate-500 mt-1 font-mono">—</div>
+                        </div>
+                        <div class="rounded-lg border border-borderBg bg-panelBg p-2.5">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-[10px] font-bold text-slate-400">15 MINUTOS</span>
+                                <span id="palaciosTf15mBadge" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-borderBg text-slate-400">—</span>
+                            </div>
+                            <div id="palaciosTf15mDir" class="text-lg font-black text-slate-300">—</div>
+                            <div id="palaciosTf15mDetail" class="text-[10px] text-slate-500 mt-1 font-mono">—</div>
+                        </div>
+                        <div class="rounded-lg border border-borderBg bg-panelBg p-2.5">
+                            <div class="flex items-center justify-between mb-1">
+                                <span class="text-[10px] font-bold text-slate-400">1 MINUTO</span>
+                                <span id="palaciosTf1mBadge" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-borderBg text-slate-400">—</span>
+                            </div>
+                            <div id="palaciosTf1mDir" class="text-lg font-black text-slate-300">—</div>
+                            <div id="palaciosTf1mDetail" class="text-[10px] text-slate-500 mt-1 font-mono">—</div>
+                        </div>
+                    </div>
+
+                    <div id="palaciosReasons" class="rounded-lg border border-borderBg bg-panelBg/60 p-2.5 text-[11px] text-slate-400 space-y-1">
+                        <div class="text-slate-500 font-semibold text-[10px] uppercase tracking-wide">Criterio</div>
+                        <p>Cada TF calcula sesgo con momentum (z), RSI y SuperTrend proxy. <strong class="text-slate-300">LONG</strong> solo si 1H, 15m y 1m son alcistas; <strong class="text-slate-300">SHORT</strong> solo si los tres son bajistas. Si uno discrepa → ESPERAR.</p>
+                    </div>
+                    <p id="palaciosStatus" class="text-[10px] text-slate-600 mt-2 font-mono">Listo para calcular.</p>
+                </div>
             </section>
         </main>
     </div>
@@ -2022,6 +2100,7 @@
                 journal: { btn: 'tabBtnJournal', content: 'tabContentJournal' },
                 backtest: { btn: 'tabBtnBacktest', content: 'tabContentBacktest' },
                 rankings: { btn: 'tabBtnRankings', content: 'tabContentRankings' },
+                palacios: { btn: 'tabBtnPalacios', content: 'tabContentPalacios' },
                 projection: { btn: 'tabBtnProjection', content: 'tabContentProjection' },
                 calendar: { btn: 'tabBtnCalendar', content: 'tabContentCalendar' },
                 alts: { btn: 'tabBtnAlts', content: 'tabContentAlts' }
@@ -2085,6 +2164,9 @@
                 try {
                     if (comboRankingsCache && comboRankingsCache.length) renderComboRankings(comboRankingsCache);
                 } catch (e) {}
+            }
+            if (tab === 'palacios') {
+                try { runPalaciosIndicator(false); } catch (e) {}
             }
         }
         window.switchBottomTab = switchBottomTab;
@@ -7000,6 +7082,201 @@
 
 
         // ========== STRATEGY BACKTEST ENGINE ==========
+        // ========== INDICADOR PALACIOS: confluencia 1H + 15m + 1m ==========
+        let palaciosLatest = { signal: 'NONE', bias: 'Neutral', tfs: {}, conf: 0, updatedAt: 0 };
+        let palaciosRunning = false;
+        let palaciosCacheAt = 0;
+
+        /** Sesgo direccional de un array de klines (150 velas máx). Devuelve LONG | SHORT | NEUTRAL */
+        function computeTfBiasFromKlines(data) {
+            if (!data || data.length < 30) return { dir: 'NEUTRAL', score: 0, detail: 'Pocas velas', z: 0, rsi: 50, st: 0 };
+            const n = data.length;
+            // z-score momentum (14)
+            let sum = 0, sq = 0;
+            for (let j = 0; j < 14; j++) sum += (data[n - 1 - j].close - data[n - 1 - j].open);
+            const mean = sum / 14;
+            for (let j = 0; j < 14; j++) {
+                const d = data[n - 1 - j].close - data[n - 1 - j].open;
+                sq += (d - mean) * (d - mean);
+            }
+            const std = Math.sqrt(sq / 14) || 1e-8;
+            const z = (data[n - 1].close - data[n - 2].close) / std;
+
+            // RSI(14)
+            let gains = 0, losses = 0;
+            for (let j = 1; j <= 14; j++) {
+                const ch = data[n - j].close - data[n - j - 1].close;
+                if (ch > 0) gains += ch; else losses -= ch;
+            }
+            const rsi = 100 - (100 / (1 + gains / (losses || 1e-8)));
+
+            // SuperTrend proxy (últimas barras)
+            let atr = 0;
+            for (let i = n - 10; i < n; i++) {
+                if (i < 1) continue;
+                const tr = Math.max(data[i].high - data[i].low, Math.abs(data[i].high - data[i - 1].close), Math.abs(data[i].low - data[i - 1].close));
+                atr += tr;
+            }
+            atr /= 10;
+            const mid = (data[n - 1].high + data[n - 1].low) / 2;
+            const stUp = mid - 2 * atr;
+            const stDn = mid + 2 * atr;
+            const st = data[n - 1].close > stDn ? -1 : (data[n - 1].close < stUp ? 1 : (data[n - 1].close >= data[n - 2].close ? 1 : -1));
+            // Tendencia de cierre 5 vs 15
+            const ma5 = data.slice(-5).reduce((a, b) => a + b.close, 0) / 5;
+            const ma15 = data.slice(-15).reduce((a, b) => a + b.close, 0) / 15;
+            const maBias = ma5 > ma15 ? 1 : (ma5 < ma15 ? -1 : 0);
+
+            let longPts = 0, shortPts = 0;
+            if (z > 0.25) longPts += 1.2; else if (z < -0.25) shortPts += 1.2;
+            if (rsi < 40) longPts += 0.9; else if (rsi > 60) shortPts += 0.9;
+            else if (rsi < 48) longPts += 0.3; else if (rsi > 52) shortPts += 0.3;
+            if (st === 1) longPts += 1.0; else if (st === -1) shortPts += 1.0;
+            if (maBias === 1) longPts += 0.7; else if (maBias === -1) shortPts += 0.7;
+            if (data[n - 1].close > data[n - 1].open) longPts += 0.25; else shortPts += 0.25;
+
+            let dir = 'NEUTRAL';
+            if (longPts >= 1.8 && longPts > shortPts + 0.3) dir = 'LONG';
+            else if (shortPts >= 1.8 && shortPts > longPts + 0.3) dir = 'SHORT';
+
+            return {
+                dir,
+                score: Math.max(longPts, shortPts),
+                longPts, shortPts,
+                detail: `z ${z.toFixed(2)} · RSI ${rsi.toFixed(0)} · ST ${st === 1 ? '↑' : st === -1 ? '↓' : '—'} · MA ${maBias === 1 ? '↑' : maBias === -1 ? '↓' : '—'}`,
+                z, rsi, st, maBias
+            };
+        }
+
+        async function runPalaciosIndicator(force) {
+            if (palaciosRunning) return;
+            // Cache 45s si no force
+            if (!force && palaciosCacheAt && (Date.now() - palaciosCacheAt < 45000) && palaciosLatest.tfs && palaciosLatest.tfs['1h']) {
+                renderPalaciosUI(palaciosLatest);
+                return;
+            }
+            palaciosRunning = true;
+            const status = document.getElementById('palaciosStatus');
+            const icon = document.getElementById('palaciosRunIcon');
+            if (icon) icon.className = 'fa-solid fa-spinner fa-spin';
+            if (status) status.innerText = 'Descargando 1H, 15m y 1m (150 velas c/u)…';
+
+            try {
+                const [d1h, d15, d1m] = await Promise.all([
+                    fetchKlinesForRanking('1h', 150),
+                    fetchKlinesForRanking('15m', 150),
+                    fetchKlinesForRanking('1m', 150)
+                ]);
+                const b1h = computeTfBiasFromKlines(d1h);
+                const b15 = computeTfBiasFromKlines(d15);
+                const b1m = computeTfBiasFromKlines(d1m);
+
+                let signal = 'NONE', bias = 'Sin confluencia', conf = 40;
+                if (b1h.dir === 'LONG' && b15.dir === 'LONG' && b1m.dir === 'LONG') {
+                    signal = 'BUY';
+                    bias = 'Confluencia LONG 1H·15m·1m';
+                    conf = Math.min(92, 55 + (b1h.score + b15.score + b1m.score) * 4);
+                } else if (b1h.dir === 'SHORT' && b15.dir === 'SHORT' && b1m.dir === 'SHORT') {
+                    signal = 'SELL';
+                    bias = 'Confluencia SHORT 1H·15m·1m';
+                    conf = Math.min(92, 55 + (b1h.score + b15.score + b1m.score) * 4);
+                } else {
+                    const dirs = [b1h.dir, b15.dir, b1m.dir];
+                    const longN = dirs.filter(d => d === 'LONG').length;
+                    const shortN = dirs.filter(d => d === 'SHORT').length;
+                    bias = longN > shortN
+                        ? `Parcial alcista (${longN}/3) — falta acuerdo`
+                        : shortN > longN
+                            ? `Parcial bajista (${shortN}/3) — falta acuerdo`
+                            : 'TFs mixtos — sin confluencia';
+                    conf = 30 + Math.max(longN, shortN) * 8;
+                }
+
+                palaciosLatest = {
+                    signal, bias, conf,
+                    tfs: { '1h': b1h, '15m': b15, '1m': b1m },
+                    updatedAt: Date.now()
+                };
+                palaciosCacheAt = Date.now();
+                renderPalaciosUI(palaciosLatest);
+                if (status) status.innerText = `Actualizado ${new Date().toLocaleTimeString()} · conf ${conf.toFixed(0)}%`;
+            } catch (e) {
+                console.error('Palacios', e);
+                if (status) status.innerText = 'Error: ' + (e.message || e);
+            } finally {
+                palaciosRunning = false;
+                if (icon) icon.className = 'fa-solid fa-rotate';
+            }
+        }
+        window.runPalaciosIndicator = runPalaciosIndicator;
+
+        function renderPalaciosUI(p) {
+            if (!p) return;
+            const tfs = p.tfs || {};
+            const paintTf = (key, idPrefix) => {
+                const b = tfs[key] || {};
+                const dir = b.dir || 'NEUTRAL';
+                const dirEl = document.getElementById(idPrefix + 'Dir');
+                const badgeEl = document.getElementById(idPrefix + 'Badge');
+                const detEl = document.getElementById(idPrefix + 'Detail');
+                const col = dir === 'LONG' ? 'text-accentGreen' : dir === 'SHORT' ? 'text-accentRed' : 'text-slate-400';
+                const bg = dir === 'LONG' ? 'bg-accentGreen/20 text-accentGreen' : dir === 'SHORT' ? 'bg-accentRed/20 text-accentRed' : 'bg-borderBg text-slate-400';
+                if (dirEl) { dirEl.innerText = dir; dirEl.className = `text-lg font-black ${col}`; }
+                if (badgeEl) { badgeEl.innerText = dir; badgeEl.className = `text-[10px] font-mono px-1.5 py-0.5 rounded ${bg}`; }
+                if (detEl) detEl.innerText = b.detail || '—';
+            };
+            paintTf('1h', 'palaciosTf1h');
+            paintTf('15m', 'palaciosTf15m');
+            paintTf('1m', 'palaciosTf1m');
+
+            const badge = document.getElementById('palaciosBadge');
+            const main = document.getElementById('palaciosMainSignal');
+            const hint = document.getElementById('palaciosActionHint');
+            const btnL = document.getElementById('btnPalaciosApplyLong');
+            const btnS = document.getElementById('btnPalaciosApplyShort');
+
+            if (p.signal === 'BUY') {
+                if (badge) { badge.innerText = 'LONG'; badge.className = 'px-3 py-1 rounded text-xs font-black bg-accentGreen text-slate-950'; }
+                if (main) { main.innerText = 'COMPRA (confluencia triple)'; main.className = 'text-2xl sm:text-3xl font-black text-accentGreen mb-1'; }
+                if (hint) hint.innerText = `${p.bias}. Confianza ~${(p.conf || 0).toFixed(0)}%. 1H, 15m y 1m alineados alcistas. Puedes aplicar LONG al simulador.`;
+                if (btnL) { btnL.disabled = false; btnL.classList.remove('opacity-40', 'cursor-not-allowed'); }
+                if (btnS) { btnS.disabled = true; btnS.classList.add('opacity-40', 'cursor-not-allowed'); }
+            } else if (p.signal === 'SELL') {
+                if (badge) { badge.innerText = 'SHORT'; badge.className = 'px-3 py-1 rounded text-xs font-black bg-accentRed text-white'; }
+                if (main) { main.innerText = 'VENTA (confluencia triple)'; main.className = 'text-2xl sm:text-3xl font-black text-accentRed mb-1'; }
+                if (hint) hint.innerText = `${p.bias}. Confianza ~${(p.conf || 0).toFixed(0)}%. 1H, 15m y 1m alineados bajistas. Puedes aplicar SHORT al simulador.`;
+                if (btnS) { btnS.disabled = false; btnS.classList.remove('opacity-40', 'cursor-not-allowed'); }
+                if (btnL) { btnL.disabled = true; btnL.classList.add('opacity-40', 'cursor-not-allowed'); }
+            } else {
+                if (badge) { badge.innerText = 'ESPERAR'; badge.className = 'px-3 py-1 rounded text-xs font-black bg-accentYellow text-slate-950'; }
+                if (main) { main.innerText = 'SIN CONFLUENCIA'; main.className = 'text-2xl sm:text-3xl font-black text-accentYellow mb-1'; }
+                if (hint) hint.innerText = `${p.bias || 'Los tres TF no coinciden'}. No hay señal Palacios hasta que 1H + 15m + 1m acuerden Long o Short.`;
+                if (btnL) { btnL.disabled = true; btnL.classList.add('opacity-40', 'cursor-not-allowed'); }
+                if (btnS) { btnS.disabled = true; btnS.classList.add('opacity-40', 'cursor-not-allowed'); }
+            }
+        }
+
+        function applyPalaciosSignal(side) {
+            if (!side) return;
+            if (palaciosLatest.signal === 'BUY' && side !== 'LONG') return;
+            if (palaciosLatest.signal === 'SELL' && side !== 'SHORT') return;
+            if (palaciosLatest.signal === 'NONE') {
+                alert('No hay confluencia Palacios (1H+15m+1m). Espera acuerdo triple.');
+                return;
+            }
+            try {
+                if (typeof setTradeSide === 'function') setTradeSide(side);
+                if (typeof setCurrentPriceAsEntry === 'function') setCurrentPriceAsEntry();
+                if (typeof applySmartLevels === 'function') applySmartLevels();
+                const status = document.getElementById('palaciosStatus');
+                if (status) status.innerHTML = `<span class="text-accentGreen">Aplicado ${side}</span> desde Indicador Palacios (confluencia 1H·15m·1m).`;
+            } catch (e) {
+                console.error(e);
+                alert('Error al aplicar: ' + (e.message || e));
+            }
+        }
+        window.applyPalaciosSignal = applyPalaciosSignal;
+
         // ========== RANKING DE COMBINACIONES (siempre 150 velas) ==========
         const RANK_CANDLE_LIMIT = 150;
         const RANK_TFS = ['5m', '9m', '15m', '20m', '1h', '4h'];
