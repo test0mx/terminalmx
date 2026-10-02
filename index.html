@@ -56,68 +56,42 @@
             scrollbar-width: thin;
             scrollbar-color: #2b313a #0b0e11;
         }
-        /* Panel Paper Trading — responsive + drawer móvil */
-        #leftPanel {
-            display: flex;
-            flex-direction: column;
-            background: #181a20;
+        /* Paper Trading eliminado — panel izquierdo nunca ocupa espacio */
+        #leftPanel,
+        #btnHamburgerPanel,
+        #mobileOverlay,
+        #leftPanelCloseBtn {
+            display: none !important;
+            visibility: hidden !important;
+            pointer-events: none !important;
+            width: 0 !important;
+            min-width: 0 !important;
+            max-width: 0 !important;
+            height: 0 !important;
+            margin: 0 !important;
+            padding: 0 !important;
+            border: none !important;
+            overflow: hidden !important;
+            flex: 0 0 0 !important;
         }
-        @media (max-width: 1023px) {
-            #leftPanel {
-                display: none;
-                position: fixed;
-                top: 0;
-                left: 0;
-                bottom: 0;
-                width: min(100%, 22rem) !important;
-                max-width: 100%;
-                max-height: 100vh !important;
-                height: 100vh !important;
-                z-index: 45;
-                border-right: 1px solid #2b313a;
-                box-shadow: 8px 0 24px rgba(0,0,0,0.45);
-            }
-            #leftPanel.mobile-open {
-                display: flex !important;
-            }
-            #mobileOverlay.show {
-                display: block;
-            }
+        /* Contenedor principal a ancho completo */
+        .layout-row-full {
+            display: flex !important;
+            flex-direction: column !important;
+            width: 100% !important;
+            min-width: 0 !important;
         }
         @media (min-width: 1024px) {
-            #leftPanel {
-                display: flex !important;
-                position: relative !important;
-                inset: auto !important;
-                width: 20rem !important;
-                max-width: 24rem;
-                height: 100% !important;
-                max-height: none !important;
-                z-index: auto;
-                box-shadow: none;
+            .layout-row-full {
+                flex-direction: column !important; /* ya no hay sidebar */
             }
-            #leftPanel.mobile-open {
-                display: flex !important;
+            main#mainWorkspace,
+            main.flex-1 {
+                width: 100% !important;
+                max-width: 100% !important;
+                flex: 1 1 100% !important;
+                min-width: 0 !important;
             }
-            @media (min-width: 1280px) {
-                #leftPanel { width: 24rem !important; }
-            }
-            #mobileOverlay { display: none !important; }
-            #btnHamburgerPanel { display: none !important; }
-            #leftPanelCloseBtn { display: none !important; }
-        }
-
-        #mobileOverlay {
-            display: none;
-            position: fixed;
-            inset: 0;
-            background: rgba(0,0,0,0.55);
-            z-index: 40;
-        }
-        #btnHamburgerPanel.active {
-            border-color: rgba(240, 185, 11, 0.5);
-            color: #f0b90b;
-            background: rgba(240, 185, 11, 0.12);
         }
         /* Layout redimensionable (estilo exchange) */
         /* Gráficos: 40% por defecto, redimensionable hasta 60% · incluye Trendilo */
@@ -458,11 +432,7 @@
 
     <header class="bg-panelBg border-b border-borderBg px-2 sm:px-4 py-2 flex flex-wrap items-center justify-between gap-2 shrink-0 min-h-14">
         <div class="flex items-center space-x-2 sm:space-x-4 min-w-0">
-            <button type="button" id="btnHamburgerPanel" onclick="toggleLeftPanel()"
-                class="lg:hidden p-2 rounded-lg bg-cardBg border border-borderBg text-slate-300 hover:text-white transition shrink-0"
-                title="Paper Trading" aria-label="Menú Paper Trading">
-                <i class="fa-solid fa-bars"></i>
-            </button>
+            <!-- Paper Trading eliminado: sin menú lateral -->
             <div class="flex items-center space-x-2 font-bold text-base sm:text-lg text-accentYellow shrink-0">
                 <i class="fa-brands fa-bitcoin text-xl sm:text-2xl"></i>
                 <span class="hidden sm:inline">TerminalMX</span>
@@ -502,10 +472,10 @@
         </div>
     </header>
 
-    <div class="flex-1 flex flex-col lg:flex-row min-h-0 lg:min-h-[calc(100vh-3.5rem)]">
+    <div class="flex-1 flex flex-col layout-row-full min-h-0 lg:min-h-[calc(100vh-3.5rem)] w-full">
 
-        <!-- LEFT PANEL: Trade Simulation Controls -->
-        <aside id="leftPanel" class="w-full lg:w-80 xl:w-96 bg-panelBg border-r border-borderBg flex flex-col shrink-0 overflow-y-auto p-3 sm:p-4 space-y-3 sm:space-y-4">
+        <!-- LEFT PANEL eliminado (no ocupa espacio) -->
+        <aside id="leftPanel" class="hidden" style="display:none!important;width:0;flex:0" aria-hidden="true">
             <div class="flex items-center justify-between border-b border-borderBg pb-2 shrink-0">
                 <span class="font-semibold text-sm text-accentYellow">Paper Trading</span>
                 <button type="button" id="leftPanelCloseBtn" onclick="toggleLeftPanel(false)"
@@ -860,7 +830,7 @@
         </aside>
 
         <!-- CENTER PANEL: Charts & Main Display -->
-        <main class="flex-1 flex flex-col min-w-0 bg-darkBg min-h-[70vh]">
+        <main id="mainWorkspace" class="flex-1 flex flex-col min-w-0 w-full max-w-full bg-darkBg min-h-[70vh]">
             
             <!-- Technical Overview Bar -->
             <div id="techOverviewBar" class="bg-panelBg/80 border-b border-borderBg px-2 sm:px-4 py-1.5 sm:py-2 flex items-center text-[10px] sm:text-xs overflow-x-auto shrink-0 gap-3 sm:gap-6 scrollbar-thin">
@@ -1006,29 +976,17 @@
                             <i class="fa-solid fa-list-check"></i>
                             <span class="hidden sm:inline">Historial</span><span class="sm:hidden">Hist.</span>
                         </button>
-                        <button type="button" id="tabBtnBacktest" onclick="switchBottomTab('backtest')" class="font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs">
-                            <i class="fa-solid fa-flask"></i>
-                            <span class="hidden sm:inline">Simular Estrategia</span><span class="sm:hidden">Backtest</span>
-                        </button>
-                        <button type="button" id="tabBtnRankings" onclick="switchBottomTab('rankings')" class="font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs">
-                            <i class="fa-solid fa-trophy"></i>
-                            <span class="hidden sm:inline">Mejores combos</span><span class="sm:hidden">Rank</span>
-                        </button>
                         <button type="button" id="tabBtnPalacios" onclick="switchBottomTab('palacios')" class="font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs">
                             <i class="fa-solid fa-layer-group"></i>
                             <span class="hidden sm:inline">Indicador Palacios</span><span class="sm:hidden">Palacios</span>
                         </button>
-                        <button type="button" id="tabBtnProjection" onclick="switchBottomTab('projection')" class="font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs">
-                            <i class="fa-solid fa-clock-rotate-left"></i>
-                            <span class="hidden sm:inline">Proyección</span><span class="sm:hidden">Proy.</span>
+                        <button type="button" id="tabBtnConfluencias" onclick="switchBottomTab('confluencias')" class="font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs">
+                            <i class="fa-solid fa-chart-pie"></i>
+                            <span class="hidden sm:inline">Mejores confluencias</span><span class="sm:hidden">Conflu.</span>
                         </button>
                         <button type="button" id="tabBtnCalendar" onclick="switchBottomTab('calendar')" class="font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs">
                             <i class="fa-solid fa-calendar-days"></i>
                             <span class="hidden sm:inline">Calendario</span><span class="sm:hidden">Cal.</span>
-                        </button>
-                        <button type="button" id="tabBtnAlts" onclick="switchBottomTab('alts')" class="font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs">
-                            <i class="fa-solid fa-coins"></i>
-                            <span class="hidden sm:inline">Altcoins TOTAL2</span><span class="sm:hidden">Alts</span>
                         </button>
                     </div>
 
@@ -1147,24 +1105,26 @@
                 <!-- Tab Content 2: Trading Log Journal -->
                 <div id="tabContentJournal" class="flex-1 overflow-auto p-2 hidden">
                     <div class="overflow-x-auto">
-                    <table class="w-full min-w-[600px] text-left text-[10px] sm:text-xs font-mono">
+                    <table class="w-full min-w-[720px] text-left text-[10px] sm:text-xs font-mono">
                         <thead class="text-slate-400 border-b border-borderBg sticky top-0 bg-panelBg">
                             <tr>
                                 <th class="p-2">Hora</th>
                                 <th class="p-2">Tipo</th>
+                                <th class="p-2">Fuente</th>
+                                <th class="p-2">TF</th>
                                 <th class="p-2">Entrada</th>
                                 <th class="p-2">SL</th>
-                                <th class="p-2">TP</th>
-                                <th class="p-2">R/R</th>
-                                <th class="p-2">Trendilo Context</th>
-                                <th class="p-2">StochRSI</th>
-                                <th class="p-2 text-right">Prob. Acierto</th>
+                                <th class="p-2">TP1</th>
+                                <th class="p-2">TP2</th>
+                                <th class="p-2">TP3</th>
+                                <th class="p-2">Apalan.</th>
+                                <th class="p-2 text-right">Prob.</th>
                                 <th class="p-2 text-right">Vigencia</th>
                             </tr>
                         </thead>
                         <tbody id="journalTableBody" class="divide-y divide-borderBg/50 text-slate-300">
                             <tr>
-                                <td colspan="10" class="text-center py-6 text-slate-500 italic">No hay operaciones simuladas registradas. Ajusta los parámetros en el panel izquierdo y haz clic en "Analizar y Probar Operativa".</td>
+                                <td colspan="12" class="text-center py-6 text-slate-500 italic">No hay operaciones. Usa «Aplicar LONG/SHORT» en Palacios o Mejores confluencias.</td>
                             </tr>
                         </tbody>
                     </table>
@@ -1172,7 +1132,7 @@
                 </div>
 
                 <!-- Tab Content 3: Strategy Backtest -->
-                <div id="tabContentBacktest" class="flex-1 overflow-auto p-2 sm:p-3 hidden">
+                <div id="tabContentBacktest" class="flex-1 overflow-auto p-2 sm:p-3 hidden" style="display:none!important" aria-hidden="true">
                     <div class="grid grid-cols-1 md:grid-cols-12 gap-3 h-full">
                         <!-- Controls -->
                         <div class="md:col-span-3 space-y-2 text-xs md:border-r border-borderBg md:pr-3">
@@ -1291,7 +1251,7 @@
                 </div>
 
                 <!-- Tab Content 4: Proyección por horizonte -->
-                <div id="tabContentProjection" class="flex-1 overflow-auto p-2 sm:p-3 hidden">
+                <div id="tabContentProjection" class="flex-1 overflow-auto p-2 sm:p-3 hidden" style="display:none!important" aria-hidden="true">
                     <div class="grid grid-cols-1 md:grid-cols-12 gap-3 min-h-0">
                         <!-- Controles horizonte -->
                         <div class="md:col-span-4 space-y-3 text-xs">
@@ -1458,7 +1418,7 @@
                 </div>
 
                 <!-- Tab: Altcoins TOTAL2 (intersección Binance ∩ Bybit ∩ OKX) -->
-                <div id="tabContentAlts" class="flex-1 overflow-auto p-2 sm:p-3 hidden">
+                <div id="tabContentAlts" class="flex-1 overflow-auto p-2 sm:p-3 hidden" style="display:none!important" aria-hidden="true">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
                         <div>
                             <div class="font-semibold text-accentYellow flex items-center gap-1.5 text-sm">
@@ -1503,7 +1463,7 @@
                 </div>
 
                 <!-- Tab: Mejores combinaciones TF + indicadores + estrategia (siempre 150 velas) -->
-                <div id="tabContentRankings" class="flex-1 overflow-auto p-2 sm:p-3 hidden">
+                <div id="tabContentRankings" class="flex-1 overflow-auto p-2 sm:p-3 hidden" style="display:none!important" aria-hidden="true">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
                         <div>
                             <div class="font-semibold text-accentYellow flex items-center gap-1.5 text-sm">
@@ -1627,7 +1587,159 @@
                         <div class="text-slate-500 font-semibold text-[10px] uppercase tracking-wide">Criterio</div>
                         <p>Cada TF calcula sesgo con momentum (z), RSI y SuperTrend proxy. <strong class="text-slate-300">LONG</strong> solo si 1H, 15m y 1m son alcistas; <strong class="text-slate-300">SHORT</strong> solo si los tres son bajistas. Si uno discrepa → ESPERAR.</p>
                     </div>
-                    <p id="palaciosStatus" class="text-[10px] text-slate-600 mt-2 font-mono">Listo para calcular.</p>
+                    <p id="palaciosStatus" class="text-[10px] text-slate-600 mt-2 font-mono">Listo para calcular · auto cada 35s.</p>
+                </div>
+
+                <!-- Tab: Mejores confluencias (scalp / intradía / swing) -->
+                <div id="tabContentConfluencias" class="flex-1 overflow-auto p-2 sm:p-3 hidden">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                        <div>
+                            <div class="font-semibold text-accentYellow flex items-center gap-1.5 text-sm">
+                                <i class="fa-solid fa-chart-pie"></i> Mejores confluencias
+                            </div>
+                            <p class="text-[11px] text-slate-500 mt-0.5 max-w-2xl">
+                                Ranking estadístico de <strong class="text-slate-300">combinaciones de temporalidades</strong> con mejor rendimiento histórico (150 velas) para <strong class="text-accentYellow">Scalp</strong>, <strong class="text-accentYellow">Intradía</strong> y <strong class="text-accentYellow">Swing</strong>.
+                            </p>
+                        </div>
+                        <button type="button" onclick="runMejoresConfluencias(true)"
+                            class="px-3 py-1.5 rounded-lg border border-accentYellow/40 bg-accentYellow/15 text-accentYellow text-[11px] font-bold transition flex items-center gap-1.5 shrink-0">
+                            <i class="fa-solid fa-play" id="confluenciasRunIcon"></i> Calcular ranking
+                        </button>
+                    </div>
+                    <p id="confluenciasStatus" class="text-[10px] text-slate-500 font-mono mb-3">Pulsa «Calcular ranking» para evaluar confluencias multi-TF (150 velas).</p>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
+                        <!-- Scalp -->
+                        <div class="rounded-xl border border-borderBg bg-cardBg overflow-hidden">
+                            <div class="px-3 py-2 border-b border-borderBg bg-panelBg flex items-center gap-2">
+                                <i class="fa-solid fa-bolt text-accentYellow text-xs"></i>
+                                <span class="text-xs font-bold text-white">Scalp</span>
+                                <span class="text-[10px] text-slate-500 ml-auto">1m · 5m · 9m · 15m</span>
+                            </div>
+                            <div id="confluenciasScalpBody" class="p-2 space-y-1.5 text-[11px] min-h-[120px]">
+                                <p class="text-slate-500 italic text-center py-4">Sin datos</p>
+                            </div>
+                        </div>
+                        <!-- Intradía -->
+                        <div class="rounded-xl border border-borderBg bg-cardBg overflow-hidden">
+                            <div class="px-3 py-2 border-b border-borderBg bg-panelBg flex items-center gap-2">
+                                <i class="fa-solid fa-clock text-cyan-400 text-xs"></i>
+                                <span class="text-xs font-bold text-white">Intradía</span>
+                                <span class="text-[10px] text-slate-500 ml-auto">15m · 20m · 1h</span>
+                            </div>
+                            <div id="confluenciasIntradayBody" class="p-2 space-y-1.5 text-[11px] min-h-[120px]">
+                                <p class="text-slate-500 italic text-center py-4">Sin datos</p>
+                            </div>
+                        </div>
+                        <!-- Swing -->
+                        <div class="rounded-xl border border-borderBg bg-cardBg overflow-hidden">
+                            <div class="px-3 py-2 border-b border-borderBg bg-panelBg flex items-center gap-2">
+                                <i class="fa-solid fa-chart-line text-accentGreen text-xs"></i>
+                                <span class="text-xs font-bold text-white">Swing</span>
+                                <span class="text-[10px] text-slate-500 ml-auto">1h · 4h · 1d</span>
+                            </div>
+                            <div id="confluenciasSwingBody" class="p-2 space-y-1.5 text-[11px] min-h-[120px]">
+                                <p class="text-slate-500 italic text-center py-4">Sin datos</p>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Sección activa tipo Palacios al seleccionar un combo -->
+                    <div id="confluenciaSelectedSection" class="mt-4 hidden">
+                        <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-2">
+                            <div class="font-semibold text-accentYellow flex items-center gap-1.5 text-sm">
+                                <i class="fa-solid fa-crosshairs"></i>
+                                <span>Confluencia activa:</span>
+                                <span id="confluenciaSelectedLabel" class="text-white font-mono">—</span>
+                                <span id="confluenciaSelectedStyle" class="text-[10px] font-mono px-1.5 py-0.5 rounded bg-borderBg text-slate-400">—</span>
+                            </div>
+                            <button type="button" onclick="refreshSelectedConfluencia(true)"
+                                class="px-2.5 py-1 rounded-lg border border-borderBg bg-panelBg text-slate-300 text-[11px] font-semibold transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-rotate" id="confluenciaLiveIcon"></i> Actualizar sesgo
+                            </button>
+                        </div>
+
+                        <div id="confluenciaSignalCard" class="rounded-xl border border-borderBg bg-cardBg p-3 sm:p-4 mb-3">
+                            <div class="flex flex-wrap items-center justify-between gap-2 mb-2">
+                                <span class="text-[11px] text-slate-500 font-mono">Señal en vivo del combo</span>
+                                <span id="confluenciaLiveBadge" class="px-3 py-1 rounded text-xs font-black bg-accentYellow text-slate-950">ESPERAR</span>
+                            </div>
+                            <div id="confluenciaLiveMain" class="text-2xl sm:text-3xl font-black text-accentYellow mb-1">SIN CONFLUENCIA</div>
+                            <p id="confluenciaLiveHint" class="text-xs text-slate-400 leading-relaxed">
+                                Selecciona un combo del ranking para ver el sesgo actual de cada temporalidad.
+                            </p>
+                            <div class="mt-3 flex flex-wrap gap-2">
+                                <button type="button" id="btnConfluenciaApplyLong" onclick="applySelectedConfluencia('LONG')" disabled
+                                    class="px-3 py-1.5 rounded-lg text-[11px] font-bold border border-accentGreen/40 bg-accentGreen/10 text-accentGreen opacity-40 cursor-not-allowed transition">
+                                    Aplicar LONG
+                                </button>
+                                <button type="button" id="btnConfluenciaApplyShort" onclick="applySelectedConfluencia('SHORT')" disabled
+                                    class="px-3 py-1.5 rounded-lg text-[11px] font-bold border border-accentRed/40 bg-accentRed/10 text-accentRed opacity-40 cursor-not-allowed transition">
+                                    Aplicar SHORT
+                                </button>
+                                <button type="button" onclick="clearSelectedConfluencia()"
+                                    class="px-3 py-1.5 rounded-lg text-[11px] font-medium border border-borderBg text-slate-400 hover:text-white transition">
+                                    Cerrar
+                                </button>
+                            </div>
+                        </div>
+
+                        <div id="confluenciaTfGrid" class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-2 mb-2">
+                            <!-- rellenado dinámicamente -->
+                        </div>
+                        <p id="confluenciaLiveStatus" class="text-[10px] text-slate-600 font-mono">Auto cada 35s mientras el combo esté activo.</p>
+                    </div>
+
+                    <!-- Guía: cómo aplicar + indicadores -->
+                    <div class="mt-4 grid grid-cols-1 lg:grid-cols-2 gap-3">
+                        <div class="rounded-xl border border-borderBg bg-cardBg p-3 space-y-2">
+                            <div class="text-xs font-bold text-accentYellow flex items-center gap-1.5">
+                                <i class="fa-solid fa-book-open"></i> Cómo aplicar las confluencias
+                            </div>
+                            <ol class="list-decimal list-inside text-[11px] text-slate-400 space-y-1.5 leading-relaxed">
+                                <li>Pulsa <strong class="text-slate-200">Calcular ranking</strong> y elige el estilo (Scalp / Intradía / Swing) según tu horizonte.</li>
+                                <li>Toma el combo <strong class="text-slate-200">#1</strong> (mayor score: WR + P&amp;L − drawdown).</li>
+                                <li>En el gráfico, usa el <strong class="text-slate-200">TF más lento</strong> del combo como contexto y opera entradas en el <strong class="text-slate-200">TF más rápido</strong>.</li>
+                                <li>Entra <strong class="text-accentGreen">LONG</strong> solo si <em>todos</em> los TF del combo están alcistas; <strong class="text-accentRed">SHORT</strong> solo si todos están bajistas. Si uno discrepa → no operar.</li>
+                                <li>Usa R/R ≥ 2, riesgo fijo (~1% por trade) y confirma al cierre de vela del TF de entrada.</li>
+                                <li>Cruza con <strong class="text-slate-200">Indicador Palacios</strong> (1H+15m+1m) o <strong class="text-slate-200">Señales</strong>: si coinciden, sube la P(acierto).</li>
+                            </ol>
+                        </div>
+                        <div class="rounded-xl border border-borderBg bg-cardBg p-3 space-y-2">
+                            <div class="text-xs font-bold text-accentYellow flex items-center gap-1.5">
+                                <i class="fa-solid fa-sliders"></i> Indicadores que mejoran el rendimiento
+                            </div>
+                            <p class="text-[11px] text-slate-400 leading-relaxed">
+                                La confluencia de temporalidades es el filtro principal. Estos indicadores aportan confirmación extra según el estilo:
+                            </p>
+                            <div class="space-y-2 text-[11px]">
+                                <div class="rounded-lg bg-panelBg border border-borderBg p-2">
+                                    <div class="font-bold text-slate-200 mb-0.5"><i class="fa-solid fa-bolt text-accentYellow mr-1"></i>Scalp (1m–15m)</div>
+                                    <p class="text-slate-400 leading-relaxed">
+                                        Prioriza <strong class="text-slate-300">StochRSI</strong> (extremos), <strong class="text-slate-300">Yoshi / SuperTrend</strong> (dirección) y <strong class="text-slate-300">Wyckoff Order Book</strong> (absorción). Menos peso a Trendilo/DMI (ruido en TF bajos).
+                                    </p>
+                                </div>
+                                <div class="rounded-lg bg-panelBg border border-borderBg p-2">
+                                    <div class="font-bold text-slate-200 mb-0.5"><i class="fa-solid fa-clock text-cyan-400 mr-1"></i>Intradía (15m–1h)</div>
+                                    <p class="text-slate-400 leading-relaxed">
+                                        Balance: <strong class="text-slate-300">Yoshi</strong> + <strong class="text-slate-300">Wyckoff OB</strong> + <strong class="text-slate-300">Trendilo</strong> + <strong class="text-slate-300">DMI</strong>. StochRSI útil en giros; S/R y POC validan zonas de entrada.
+                                    </p>
+                                </div>
+                                <div class="rounded-lg bg-panelBg border border-borderBg p-2">
+                                    <div class="font-bold text-slate-200 mb-0.5"><i class="fa-solid fa-chart-line text-accentGreen mr-1"></i>Swing (4h–1D)</div>
+                                    <p class="text-slate-400 leading-relaxed">
+                                        Prioriza <strong class="text-slate-300">Trendilo</strong>, <strong class="text-slate-300">DMI</strong> y <strong class="text-slate-300">Yoshi (BOS/estructura)</strong>. S/R y POC marcan objetivos. StochRSI solo como filtro de extremo.
+                                    </p>
+                                </div>
+                            </div>
+                            <p class="text-[10px] text-slate-500 leading-relaxed border-t border-borderBg pt-2">
+                                Regla práctica: <strong class="text-slate-400">confluencia multi-TF (combo #1 del ranking) + 1–2 indicadores top del estilo</strong> → mejor P(acierto). Sin confluencia de TF, no fuerces la entrada aunque un solo indicador sea alcista o bajista.
+                            </p>
+                        </div>
+                    </div>
+                    <p class="text-[10px] text-slate-600 mt-3 leading-relaxed">
+                        Señal del ranking cuando todos los TF del combo coinciden en LONG o SHORT. Simulación R/R 2 sobre 150 velas del TF más rápido. Resultados históricos; no garantizan rendimiento futuro.
+                    </p>
                 </div>
             </section>
         </main>
@@ -2098,12 +2210,9 @@
             const map = {
                 signals: { btn: 'tabBtnSignals', content: 'tabContentSignals' },
                 journal: { btn: 'tabBtnJournal', content: 'tabContentJournal' },
-                backtest: { btn: 'tabBtnBacktest', content: 'tabContentBacktest' },
-                rankings: { btn: 'tabBtnRankings', content: 'tabContentRankings' },
                 palacios: { btn: 'tabBtnPalacios', content: 'tabContentPalacios' },
-                projection: { btn: 'tabBtnProjection', content: 'tabContentProjection' },
-                calendar: { btn: 'tabBtnCalendar', content: 'tabContentCalendar' },
-                alts: { btn: 'tabBtnAlts', content: 'tabContentAlts' }
+                confluencias: { btn: 'tabBtnConfluencias', content: 'tabContentConfluencias' },
+                calendar: { btn: 'tabBtnCalendar', content: 'tabContentCalendar' }
             };
             if (!map[tab]) tab = 'signals';
 
@@ -2167,6 +2276,13 @@
             }
             if (tab === 'palacios') {
                 try { runPalaciosIndicator(false); } catch (e) {}
+            }
+            if (tab === 'confluencias') {
+                try {
+                    if (mejoresConfluenciasCache && (mejoresConfluenciasCache.scalp || mejoresConfluenciasCache.intraday)) {
+                        renderMejoresConfluencias(mejoresConfluenciasCache);
+                    }
+                } catch (e) {}
             }
         }
         window.switchBottomTab = switchBottomTab;
@@ -2973,6 +3089,8 @@
             try { localStorage.setItem(LS_LIVE, '1'); } catch (e) {}
             liveTimerId = setInterval(() => {
                 if (typeof fetchMarketData === 'function') fetchMarketData();
+                // Palacios también en el ciclo LIVE (35s)
+                try { if (typeof runPalaciosIndicator === 'function') runPalaciosIndicator(true); } catch (e) {}
             }, LIVE_INTERVAL_MS);
             updateLiveButtonUI();
         }
@@ -3032,6 +3150,19 @@
             } catch (e) {
                 startLiveUpdates();
             }
+            // Palacios + confluencia activa: auto-refresh cada 35s
+            try {
+                if (window._palaciosTimerId) clearInterval(window._palaciosTimerId);
+                runPalaciosIndicator(true);
+                window._palaciosTimerId = setInterval(() => {
+                    try { runPalaciosIndicator(true); } catch (e) {}
+                    try {
+                        if (typeof selectedConfluencia !== 'undefined' && selectedConfluencia && selectedConfluencia.tfs && selectedConfluencia.tfs.length) {
+                            if (typeof refreshSelectedConfluencia === 'function') refreshSelectedConfluencia(true);
+                        }
+                    } catch (e) {}
+                }, 35000);
+            } catch (e) {}
             initPanelResizeHandle();
             applyPanelHeightPrefs();
             startPositionCountdownTicker();
@@ -6722,16 +6853,24 @@
                 });
                 chartPriceLines.push(slLine);
 
-                // Línea de Take Profit
-                const tpLine = candlestickSeries.createPriceLine({
-                    price: trade.tp,
-                    color: '#0ecb81',
-                    lineWidth: 1,
-                    lineStyle: LightweightCharts.LineStyle.Dashed,
-                    axisLabelVisible: true,
-                    title: `TP: $${trade.tp.toFixed(2)}`,
+                // TP1 / TP2 / TP3
+                const tps = [
+                    { p: trade.tp1 != null ? trade.tp1 : trade.tp, label: 'TP1', color: '#0ecb81' },
+                    { p: trade.tp2, label: 'TP2', color: '#26a69a' },
+                    { p: trade.tp3, label: 'TP3', color: '#66bb6a' }
+                ];
+                tps.forEach(t => {
+                    if (t.p == null || !isFinite(t.p)) return;
+                    const line = candlestickSeries.createPriceLine({
+                        price: t.p,
+                        color: t.color,
+                        lineWidth: 1,
+                        lineStyle: LightweightCharts.LineStyle.Dashed,
+                        axisLabelVisible: true,
+                        title: `${t.label}: $${Number(t.p).toFixed(1)}`,
+                    });
+                    chartPriceLines.push(line);
                 });
-                chartPriceLines.push(tpLine);
             } catch (err) {
                 console.error("Error al graficar líneas en el chart:", err);
             }
@@ -6862,6 +7001,155 @@
             renderJournal();
         }
 
+        /** Calcula entrada, SL, TP1/TP2/TP3, apalancamiento y vigencia recomendados */
+        function recommendTradePlan(side, tfHint) {
+            const price = (rawKlines && rawKlines.length)
+                ? rawKlines[rawKlines.length - 1].close
+                : (parseFloat((document.getElementById('currentPriceDisplay') || {}).innerText) || 0);
+            if (!price || price <= 0) return null;
+
+            // ATR aproximado (14 velas) o 1.2% del precio
+            let atr = price * 0.012;
+            if (rawKlines && rawKlines.length > 15) {
+                let sum = 0;
+                const n = rawKlines.length;
+                for (let i = n - 14; i < n; i++) {
+                    const tr = Math.max(
+                        rawKlines[i].high - rawKlines[i].low,
+                        Math.abs(rawKlines[i].high - rawKlines[i - 1].close),
+                        Math.abs(rawKlines[i].low - rawKlines[i - 1].close)
+                    );
+                    sum += tr;
+                }
+                atr = sum / 14;
+            }
+
+            const tf = tfHint || currentInterval || '1h';
+            // Multiplicadores de riesgo según TF (scalp más estrecho)
+            const isScalp = ['1m', '3m', '5m', '9m', '15m'].includes(tf);
+            const isSwing = ['4h', '1d', '1w'].includes(tf);
+            const slMult = isScalp ? 1.0 : isSwing ? 1.8 : 1.35;
+            const risk = atr * slMult;
+
+            let entry = price;
+            let sl, tp1, tp2, tp3;
+            if (side === 'LONG') {
+                sl = entry - risk;
+                // Si hay soporte cercano por debajo, usarlo como SL si es razonable
+                if (calculatedPivots && calculatedPivots.nearestSup && calculatedPivots.nearestSup < entry && calculatedPivots.nearestSup > entry - risk * 2) {
+                    sl = Math.min(sl, calculatedPivots.nearestSup * 0.999);
+                }
+                const r = entry - sl;
+                tp1 = entry + r * 1.5;  // R/R 1.5
+                tp2 = entry + r * 2.5;  // R/R 2.5
+                tp3 = entry + r * 4.0;  // R/R 4
+                if (calculatedPivots && calculatedPivots.nearestRes && calculatedPivots.nearestRes > entry) {
+                    // Ajustar TP2 hacia resistencia si está en zona intermedia
+                    const res = calculatedPivots.nearestRes;
+                    if (res > tp1 && res < tp3) tp2 = res;
+                }
+            } else {
+                sl = entry + risk;
+                if (calculatedPivots && calculatedPivots.nearestRes && calculatedPivots.nearestRes > entry && calculatedPivots.nearestRes < entry + risk * 2) {
+                    sl = Math.max(sl, calculatedPivots.nearestRes * 1.001);
+                }
+                const r = sl - entry;
+                tp1 = entry - r * 1.5;
+                tp2 = entry - r * 2.5;
+                tp3 = entry - r * 4.0;
+                if (calculatedPivots && calculatedPivots.nearestSup && calculatedPivots.nearestSup < entry) {
+                    const sup = calculatedPivots.nearestSup;
+                    if (sup < tp1 && sup > tp3) tp2 = sup;
+                }
+            }
+
+            // Apalancamiento recomendado
+            const diSpread = parseFloat((dmiLatest && dmiLatest.diSpread) || 0);
+            let leverage = isScalp ? 8 : isSwing ? 3 : 5;
+            if (diSpread >= 18) leverage = Math.min(leverage + 2, isScalp ? 12 : 7);
+            if (diSpread < 8) leverage = Math.max(leverage - 2, 2);
+
+            const openedAt = Date.now();
+            const expiresAt = openedAt + getHoldingMsForTf(tf);
+            const rrMain = ((Math.abs(tp2 - entry) / Math.abs(entry - sl)) || 2).toFixed(2);
+
+            return {
+                side, entry, sl, tp1, tp2, tp3,
+                tp: tp2, // TP principal = TP2
+                leverage, tf, openedAt, expiresAt,
+                rr: rrMain,
+                riskDist: Math.abs(entry - sl)
+            };
+        }
+
+        /**
+         * Registra posición en Historial al aplicar LONG/SHORT desde Palacios o Confluencias.
+         * meta: { source, score, tf, note }
+         */
+        function registerAppliedPosition(side, meta) {
+            meta = meta || {};
+            const tf = meta.tf || currentInterval || '1h';
+            const plan = recommendTradePlan(side, tf);
+            if (!plan) {
+                alert('No hay precio de mercado para armar la posición.');
+                return null;
+            }
+
+            // Intentar rellenar inputs del simulador si existen
+            try {
+                const ep = document.getElementById('entryPrice');
+                const slEl = document.getElementById('stopLoss');
+                const tpEl = document.getElementById('takeProfit');
+                const levEl = document.getElementById('leverage');
+                if (ep) ep.value = plan.entry.toFixed(2);
+                if (slEl) slEl.value = plan.sl.toFixed(2);
+                if (tpEl) tpEl.value = plan.tp2.toFixed(2);
+                if (levEl) levEl.value = String(plan.leverage);
+                if (typeof setTradeSide === 'function') setTradeSide(side);
+                if (typeof calculateTradeMetrics === 'function') calculateTradeMetrics();
+            } catch (e) {}
+
+            const score = meta.score != null ? Math.round(meta.score) : 55;
+            const trade = {
+                id: 'sig_' + Date.now(),
+                time: new Date().toLocaleTimeString(),
+                date: new Date().toLocaleDateString(),
+                side: plan.side,
+                entry: plan.entry,
+                sl: plan.sl,
+                tp: plan.tp2,
+                tp1: plan.tp1,
+                tp2: plan.tp2,
+                tp3: plan.tp3,
+                rr: plan.rr,
+                leverage: plan.leverage,
+                size: 1,
+                source: meta.source || 'Señal',
+                note: meta.note || '',
+                trendilo: (trendiloLatest && trendiloLatest.direction) || '—',
+                stoch: (stochRsiLatest && stochRsiLatest.k) != null ? Number(stochRsiLatest.k).toFixed(1) : '—',
+                score,
+                breakdown: [
+                    { name: 'Fuente', msg: meta.source || '—', bonus: 0 },
+                    { name: 'TP1 / TP2 / TP3', msg: `$${plan.tp1.toFixed(1)} / $${plan.tp2.toFixed(1)} / $${plan.tp3.toFixed(1)}`, bonus: 0 },
+                    { name: 'Apalancamiento', msg: plan.leverage + 'x recomendado', bonus: 0 },
+                    { name: 'Vigencia TF', msg: `${tf} · hasta ${new Date(plan.expiresAt).toLocaleString()}`, bonus: 0 }
+                ],
+                openedAt: plan.openedAt,
+                expiresAt: plan.expiresAt,
+                tf: plan.tf,
+                closed: false
+            };
+
+            lastConfirmedTrade = { ...trade };
+            addJournalEntry(trade);
+            try { plotTradeOnChart(trade); } catch (e) {}
+            try { updatePositionCountdownUI(); } catch (e) {}
+            try { switchBottomTab('journal'); } catch (e) {}
+            return trade;
+        }
+        window.registerAppliedPosition = registerAppliedPosition;
+
         function journalCountdownHtml(t) {
             const opened = t.openedAt;
             const expires = t.expiresAt || (opened ? opened + getHoldingMsForTf(t.tf || '1h') : null);
@@ -6921,35 +7209,44 @@
         function renderJournal() {
             const tbody = document.getElementById('journalTableBody');
             if (journalHistory.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="10" class="text-center py-6 text-slate-500 italic">No hay operaciones simuladas registradas.</td></tr>`;
+                tbody.innerHTML = `<tr><td colspan="12" class="text-center py-6 text-slate-500 italic">No hay operaciones. Usa «Aplicar LONG/SHORT» en Palacios o Mejores confluencias.</td></tr>`;
                 return;
             }
 
-            tbody.innerHTML = journalHistory.map((t) => `
-                <tr onclick="selectJournalTrade('${t.id}')" class="hover:bg-cardBg/80 cursor-pointer transition select-none" title="Haz clic para ver detalles completos, tiempo de tenencia y desglose en modal">
-                    <td class="p-2 text-slate-400">${t.time}</td>
+            tbody.innerHTML = journalHistory.map((t) => {
+                const tp1 = t.tp1 != null ? t.tp1 : t.tp;
+                const tp2 = t.tp2 != null ? t.tp2 : (t.tp ? t.tp : '—');
+                const tp3 = t.tp3 != null ? t.tp3 : '—';
+                const fmt = (v) => (v == null || v === '—') ? '—' : ('$' + Number(v).toFixed(1));
+                return `
+                <tr onclick="selectJournalTrade('${t.id}')" class="hover:bg-cardBg/80 cursor-pointer transition select-none" title="Clic para detalles">
+                    <td class="p-2 text-slate-400 whitespace-nowrap">${t.time || '—'}</td>
                     <td class="p-2 font-bold ${t.side === 'LONG' ? 'text-accentGreen' : 'text-accentRed'}">${t.side}</td>
-                    <td class="p-2 font-mono">$${Number(t.entry).toFixed(2)}</td>
-                    <td class="p-2 font-mono text-accentRed">$${Number(t.sl).toFixed(2)}</td>
-                    <td class="p-2 font-mono text-accentGreen">$${Number(t.tp).toFixed(2)}</td>
-                    <td class="p-2 font-mono text-accentYellow">${t.rr}</td>
-                    <td class="p-2 text-xs">${t.trendilo || '—'}</td>
-                    <td class="p-2 font-mono">${t.stoch != null ? t.stoch : '—'}</td>
+                    <td class="p-2 text-[10px] text-slate-400 max-w-[7rem] truncate" title="${t.source || ''}">${t.source || 'Manual'}</td>
+                    <td class="p-2 font-mono text-accentYellow">${t.tf || '—'}</td>
+                    <td class="p-2 font-mono">$${Number(t.entry).toFixed(1)}</td>
+                    <td class="p-2 font-mono text-accentRed">$${Number(t.sl).toFixed(1)}</td>
+                    <td class="p-2 font-mono text-accentGreen">${fmt(tp1)}</td>
+                    <td class="p-2 font-mono text-accentGreen/90">${fmt(tp2)}</td>
+                    <td class="p-2 font-mono text-emerald-400/80">${fmt(tp3)}</td>
+                    <td class="p-2 font-mono text-slate-300">${t.leverage ? t.leverage + 'x' : '—'}</td>
                     <td class="p-2 text-right">
-                        <span class="px-2 py-0.5 rounded text-xs font-bold font-mono ${t.score >= 60 ? 'bg-accentGreen/20 text-accentGreen' : t.score >= 45 ? 'bg-accentYellow/20 text-accentYellow' : 'bg-accentRed/20 text-accentRed'}">
-                            ${t.score}% Prob.
+                        <span class="px-1.5 py-0.5 rounded text-[10px] font-bold font-mono ${t.score >= 60 ? 'bg-accentGreen/20 text-accentGreen' : t.score >= 45 ? 'bg-accentYellow/20 text-accentYellow' : 'bg-accentRed/20 text-accentRed'}">
+                            ${t.score != null ? t.score + '%' : '—'}
                         </span>
                     </td>
                     <td class="p-2 text-right whitespace-nowrap" onclick="event.stopPropagation()">
                         ${journalCountdownHtml(t)}
                     </td>
-                </tr>
-            `).join('');
+                </tr>`;
+            }).join('');
 
-            document.getElementById('statTotalTrades').innerText = journalHistory.length;
+            const st = document.getElementById('statTotalTrades');
+            if (st) st.innerText = journalHistory.length;
             const highConf = journalHistory.filter(h => h.score >= 60).length;
             const winRate = journalHistory.length > 0 ? ((highConf / journalHistory.length) * 100).toFixed(0) : 0;
-            document.getElementById('statWinRate').innerText = `${winRate}% (Est.)`;
+            const wr = document.getElementById('statWinRate');
+            if (wr) wr.innerText = `${winRate}% (Est.)`;
             updateJournalCountdowns();
         }
 
@@ -7265,17 +7562,410 @@
                 return;
             }
             try {
-                if (typeof setTradeSide === 'function') setTradeSide(side);
-                if (typeof setCurrentPriceAsEntry === 'function') setCurrentPriceAsEntry();
-                if (typeof applySmartLevels === 'function') applySmartLevels();
+                if (typeof changeTimeframe === 'function') changeTimeframe('15m'); // TF de entrada intermedio
+                const trade = registerAppliedPosition(side, {
+                    source: 'Palacios 1H+15m+1m',
+                    score: palaciosLatest.conf || 60,
+                    tf: '15m',
+                    note: 'Confluencia triple 1H · 15m · 1m'
+                });
                 const status = document.getElementById('palaciosStatus');
-                if (status) status.innerHTML = `<span class="text-accentGreen">Aplicado ${side}</span> desde Indicador Palacios (confluencia 1H·15m·1m).`;
+                if (status && trade) {
+                    status.innerHTML = `<span class="text-accentGreen">Registrado ${side}</span> en Historial · Entrada $${trade.entry.toFixed(1)} · SL $${trade.sl.toFixed(1)} · TP1 $${trade.tp1.toFixed(1)} / TP2 $${trade.tp2.toFixed(1)} / TP3 $${trade.tp3.toFixed(1)} · ${trade.leverage}x · vigencia ${trade.tf}`;
+                }
             } catch (e) {
                 console.error(e);
                 alert('Error al aplicar: ' + (e.message || e));
             }
         }
         window.applyPalaciosSignal = applyPalaciosSignal;
+
+        // ========== MEJORES CONFLUENCIAS (scalp / intradía / swing) ==========
+        let mejoresConfluenciasCache = null;
+        let confluenciasRunning = false;
+
+        const CONFLUENCIA_COMBOS = {
+            scalp: [
+                { tfs: ['1m', '5m'], label: '1m + 5m' },
+                { tfs: ['5m', '15m'], label: '5m + 15m' },
+                { tfs: ['1m', '5m', '15m'], label: '1m + 5m + 15m' },
+                { tfs: ['9m', '15m'], label: '9m + 15m' },
+                { tfs: ['1m', '9m'], label: '1m + 9m' }
+            ],
+            intraday: [
+                { tfs: ['15m', '1h'], label: '15m + 1h' },
+                { tfs: ['20m', '1h'], label: '20m + 1h' },
+                { tfs: ['15m', '20m', '1h'], label: '15m + 20m + 1h' },
+                { tfs: ['15m', '20m'], label: '15m + 20m' }
+            ],
+            swing: [
+                { tfs: ['1h', '4h'], label: '1h + 4h' },
+                { tfs: ['4h', '1d'], label: '4h + 1d' },
+                { tfs: ['1h', '4h', '1d'], label: '1h + 4h + 1d' },
+                { tfs: ['1h', '1d'], label: '1h + 1d' }
+            ]
+        };
+
+        /** Serie de sesgos (-1/0/1) por barra — versión rápida (RSI + MA + momentum) */
+        function buildBiasSeries(data) {
+            const n = data.length;
+            const series = new Array(n).fill(0);
+            for (let i = 20; i < n; i++) {
+                let gains = 0, losses = 0;
+                for (let j = 1; j <= 14; j++) {
+                    const ch = data[i - j + 1].close - data[i - j].close;
+                    if (ch > 0) gains += ch; else losses -= ch;
+                }
+                const rsi = 100 - (100 / (1 + gains / (losses || 1e-8)));
+                const ma5 = (data[i].close + data[i - 1].close + data[i - 2].close + data[i - 3].close + data[i - 4].close) / 5;
+                let ma15 = 0;
+                for (let j = 0; j < 15; j++) ma15 += data[i - j].close;
+                ma15 /= 15;
+                const mom = data[i].close - data[i - 3].close;
+                let longPts = 0, shortPts = 0;
+                if (rsi < 42) longPts += 1; else if (rsi > 58) shortPts += 1;
+                if (ma5 > ma15) longPts += 1; else if (ma5 < ma15) shortPts += 1;
+                if (mom > 0) longPts += 0.6; else if (mom < 0) shortPts += 0.6;
+                if (data[i].close > data[i].open) longPts += 0.3; else shortPts += 0.3;
+                if (longPts >= 1.8 && longPts > shortPts) series[i] = 1;
+                else if (shortPts >= 1.8 && shortPts > longPts) series[i] = -1;
+            }
+            return series;
+        }
+
+        function backtestConfluenceCombo(tfDataMap, combo, targetRR) {
+            const tfs = combo.tfs;
+            const baseTf = tfs[0]; // TF más rápido para entradas
+            const base = tfDataMap[baseTf];
+            if (!base || base.length < 40) return null;
+
+            const biasMap = {};
+            tfs.forEach(tf => {
+                if (tfDataMap[tf] && tfDataMap[tf].length >= 30) {
+                    biasMap[tf] = buildBiasSeries(tfDataMap[tf]);
+                }
+            });
+            if (Object.keys(biasMap).length < tfs.length) return null;
+
+            // Mapear bias de TF lentos al tiempo del TF base
+            const getBiasAtTime = (tf, tSec) => {
+                const data = tfDataMap[tf];
+                const series = biasMap[tf];
+                if (!data || !series) return 0;
+                let idx = -1;
+                for (let i = data.length - 1; i >= 0; i--) {
+                    if (data[i].time <= tSec) { idx = i; break; }
+                }
+                return idx >= 0 ? series[idx] : 0;
+            };
+
+            let equity = 10000, peak = 10000, maxDD = 0, wins = 0, trades = 0;
+            let nextFree = 0;
+            const n = base.length;
+
+            for (let i = 25; i < n - 1; i++) {
+                if (i < nextFree) continue;
+                const t = base[i].time;
+                const biases = tfs.map(tf => getBiasAtTime(tf, t));
+                if (biases.some(b => b === 0)) continue;
+                const allLong = biases.every(b => b === 1);
+                const allShort = biases.every(b => b === -1);
+                if (!allLong && !allShort) continue;
+
+                const side = allLong ? 'LONG' : 'SHORT';
+                const entry = base[i].close;
+                let trSum = 0;
+                for (let j = 1; j <= 10 && i - j >= 0; j++) {
+                    const hi = base[i - j + 1].high, lo = base[i - j + 1].low, pc = base[i - j].close;
+                    trSum += Math.max(hi - lo, Math.abs(hi - pc), Math.abs(lo - pc));
+                }
+                const atr = (trSum / 10) || entry * 0.008;
+                const slDist = Math.max(atr / entry, 0.004);
+                const sl = side === 'LONG' ? entry * (1 - slDist) : entry * (1 + slDist);
+                const tp = side === 'LONG' ? entry * (1 + slDist * targetRR) : entry * (1 - slDist * targetRR);
+
+                let exitPrice = entry, exitIdx = n - 1;
+                for (let j = i + 1; j < n; j++) {
+                    const bar = base[j];
+                    if (side === 'LONG') {
+                        if (bar.low <= sl) { exitPrice = sl; exitIdx = j; break; }
+                        if (bar.high >= tp) { exitPrice = tp; exitIdx = j; break; }
+                    } else {
+                        if (bar.high >= sl) { exitPrice = sl; exitIdx = j; break; }
+                        if (bar.low <= tp) { exitPrice = tp; exitIdx = j; break; }
+                    }
+                    exitPrice = bar.close;
+                    exitIdx = j;
+                }
+                const pnlPct = side === 'LONG' ? (exitPrice - entry) / entry : (entry - exitPrice) / entry;
+                const riskUsd = equity * 0.01;
+                equity += riskUsd * (pnlPct / slDist);
+                if (equity < 1) equity = 1;
+                if (equity > peak) peak = equity;
+                const dd = (peak - equity) / peak;
+                if (dd > maxDD) maxDD = dd;
+                if (pnlPct > 0) wins++;
+                trades++;
+                nextFree = exitIdx + 1;
+                // límite de ops para no sobre-operar
+                if (trades >= 40) break;
+            }
+
+            if (trades < 2) return null;
+            const wr = (wins / trades) * 100;
+            const pnlPctTotal = ((equity - 10000) / 10000) * 100;
+            const score = wr * Math.sqrt(Math.min(trades, 30) / 8) * (1 - Math.min(maxDD, 0.45)) * (pnlPctTotal > 0 ? 1.2 : 0.8);
+            return {
+                label: combo.label,
+                tfs: tfs.slice(),
+                trades,
+                wr,
+                pnlPct: pnlPctTotal,
+                maxDD: maxDD * 100,
+                score
+            };
+        }
+
+        async function runMejoresConfluencias(force) {
+            if (confluenciasRunning) return;
+            confluenciasRunning = true;
+            const status = document.getElementById('confluenciasStatus');
+            const icon = document.getElementById('confluenciasRunIcon');
+            if (icon) icon.className = 'fa-solid fa-spinner fa-spin';
+            if (status) status.innerText = 'Descargando velas y evaluando confluencias multi-TF…';
+
+            try {
+                const allTfs = new Set();
+                Object.values(CONFLUENCIA_COMBOS).forEach(list => list.forEach(c => c.tfs.forEach(t => allTfs.add(t))));
+                const tfDataMap = {};
+                for (const tf of allTfs) {
+                    if (status) status.innerText = `Cargando ${tf} (150 velas)…`;
+                    const data = await fetchKlinesForRanking(tf, 150);
+                    if (data && data.length >= 40) {
+                        tfDataMap[tf] = data.length > 150 ? data.slice(-150) : data;
+                    }
+                }
+
+                const out = { scalp: [], intraday: [], swing: [] };
+                for (const style of ['scalp', 'intraday', 'swing']) {
+                    if (status) status.innerText = `Evaluando ${style}…`;
+                    const results = [];
+                    for (const combo of CONFLUENCIA_COMBOS[style]) {
+                        const r = backtestConfluenceCombo(tfDataMap, combo, 2);
+                        if (r) results.push(r);
+                    }
+                    results.sort((a, b) => b.score - a.score);
+                    out[style] = results;
+                }
+
+                mejoresConfluenciasCache = out;
+                renderMejoresConfluencias(out);
+                if (status) status.innerText = `Ranking listo · 150 velas · R/R 2 · ${new Date().toLocaleTimeString()}`;
+            } catch (e) {
+                console.error('Mejores confluencias', e);
+                if (status) status.innerText = 'Error: ' + (e.message || e);
+            } finally {
+                confluenciasRunning = false;
+                if (icon) icon.className = 'fa-solid fa-play';
+            }
+        }
+        window.runMejoresConfluencias = runMejoresConfluencias;
+
+        let selectedConfluencia = null; // { style, label, tfs, ...stats }
+        let confluenciaLiveLatest = { signal: 'NONE', tfs: {} };
+
+        function renderMejoresConfluencias(data) {
+            const paint = (style, elId) => {
+                const el = document.getElementById(elId);
+                if (!el) return;
+                const rows = (data && data[style]) || [];
+                if (!rows.length) {
+                    el.innerHTML = '<p class="text-slate-500 italic text-center py-4">Sin combos con suficientes trades</p>';
+                    return;
+                }
+                el.innerHTML = rows.slice(0, 5).map((r, i) => {
+                    const wrCol = r.wr >= 55 ? 'text-accentGreen' : r.wr >= 45 ? 'text-accentYellow' : 'text-accentRed';
+                    const pnlCol = r.pnlPct >= 0 ? 'text-accentGreen' : 'text-accentRed';
+                    const tfsJson = JSON.stringify(r.tfs || []).replace(/'/g, '&#39;');
+                    const isSel = selectedConfluencia && selectedConfluencia.label === r.label && selectedConfluencia.style === style;
+                    const border = isSel ? 'border-accentYellow/60 bg-accentYellow/10' : 'border-borderBg bg-panelBg/80 hover:border-accentYellow/40';
+                    return `<button type="button" onclick='selectConfluencia(${JSON.stringify(style)}, ${JSON.stringify(r.label)}, ${tfsJson}, ${JSON.stringify({ trades: r.trades, wr: r.wr, pnlPct: r.pnlPct, score: r.score })})'
+                        class="w-full text-left rounded-lg border ${border} px-2 py-1.5 flex flex-col gap-0.5 transition cursor-pointer">
+                        <div class="flex items-center justify-between gap-1">
+                            <span class="font-bold text-slate-200">#${i + 1} ${r.label}</span>
+                            <span class="font-mono text-accentYellow text-[10px]">${r.score.toFixed(1)}</span>
+                        </div>
+                        <div class="flex flex-wrap gap-x-2 text-[10px] text-slate-400 font-mono">
+                            <span>${r.trades} ops</span>
+                            <span class="${wrCol}">WR ${r.wr.toFixed(0)}%</span>
+                            <span class="${pnlCol}">${r.pnlPct >= 0 ? '+' : ''}${r.pnlPct.toFixed(1)}%</span>
+                            <span class="text-accentRed">DD ${r.maxDD.toFixed(0)}%</span>
+                        </div>
+                        <span class="text-[9px] text-accentYellow/80 mt-0.5">${isSel ? '● Activa' : 'Clic para activar →'}</span>
+                    </button>`;
+                }).join('');
+            };
+            paint('scalp', 'confluenciasScalpBody');
+            paint('intraday', 'confluenciasIntradayBody');
+            paint('swing', 'confluenciasSwingBody');
+        }
+
+        function selectConfluencia(style, label, tfs, stats) {
+            selectedConfluencia = {
+                style: style || 'scalp',
+                label: label || (tfs || []).join('+'),
+                tfs: Array.isArray(tfs) ? tfs : [],
+                stats: stats || {}
+            };
+            const sec = document.getElementById('confluenciaSelectedSection');
+            if (sec) sec.classList.remove('hidden');
+            const lab = document.getElementById('confluenciaSelectedLabel');
+            if (lab) lab.innerText = selectedConfluencia.label;
+            const st = document.getElementById('confluenciaSelectedStyle');
+            if (st) {
+                const names = { scalp: 'Scalp', intraday: 'Intradía', swing: 'Swing' };
+                st.innerText = names[selectedConfluencia.style] || selectedConfluencia.style;
+            }
+            // Re-pintar ranking para marcar selección
+            try { if (mejoresConfluenciasCache) renderMejoresConfluencias(mejoresConfluenciasCache); } catch (e) {}
+            refreshSelectedConfluencia(true);
+            // Scroll a la sección
+            try { sec && sec.scrollIntoView({ behavior: 'smooth', block: 'nearest' }); } catch (e) {}
+        }
+        window.selectConfluencia = selectConfluencia;
+
+        function clearSelectedConfluencia() {
+            selectedConfluencia = null;
+            const sec = document.getElementById('confluenciaSelectedSection');
+            if (sec) sec.classList.add('hidden');
+            try { if (mejoresConfluenciasCache) renderMejoresConfluencias(mejoresConfluenciasCache); } catch (e) {}
+        }
+        window.clearSelectedConfluencia = clearSelectedConfluencia;
+
+        async function refreshSelectedConfluencia(force) {
+            if (!selectedConfluencia || !selectedConfluencia.tfs || !selectedConfluencia.tfs.length) return;
+            const icon = document.getElementById('confluenciaLiveIcon');
+            const status = document.getElementById('confluenciaLiveStatus');
+            if (icon) icon.className = 'fa-solid fa-spinner fa-spin';
+            if (status) status.innerText = 'Cargando sesgo de ' + selectedConfluencia.tfs.join(' · ') + '…';
+
+            try {
+                const tfs = selectedConfluencia.tfs;
+                const biases = {};
+                await Promise.all(tfs.map(async (tf) => {
+                    const data = await fetchKlinesForRanking(tf, 150);
+                    biases[tf] = computeTfBiasFromKlines(data);
+                }));
+
+                const dirs = tfs.map(tf => (biases[tf] && biases[tf].dir) || 'NEUTRAL');
+                const allLong = dirs.every(d => d === 'LONG');
+                const allShort = dirs.every(d => d === 'SHORT');
+                let signal = 'NONE', conf = 40;
+                if (allLong) {
+                    signal = 'BUY';
+                    conf = Math.min(92, 55 + tfs.reduce((a, tf) => a + (biases[tf].score || 0), 0) * 3);
+                } else if (allShort) {
+                    signal = 'SELL';
+                    conf = Math.min(92, 55 + tfs.reduce((a, tf) => a + (biases[tf].score || 0), 0) * 3);
+                }
+
+                confluenciaLiveLatest = { signal, conf, tfs: biases, dirs, updatedAt: Date.now() };
+                renderSelectedConfluenciaLive(confluenciaLiveLatest);
+                if (status) {
+                    const hist = selectedConfluencia.stats;
+                    const histTxt = hist && hist.wr != null
+                        ? ` · hist WR ${Number(hist.wr).toFixed(0)}% score ${Number(hist.score || 0).toFixed(1)}`
+                        : '';
+                    status.innerText = `Actualizado ${new Date().toLocaleTimeString()}${histTxt} · auto cada 35s`;
+                }
+            } catch (e) {
+                console.error('refreshSelectedConfluencia', e);
+                if (status) status.innerText = 'Error: ' + (e.message || e);
+            } finally {
+                if (icon) icon.className = 'fa-solid fa-rotate';
+            }
+        }
+        window.refreshSelectedConfluencia = refreshSelectedConfluencia;
+
+        function renderSelectedConfluenciaLive(live) {
+            const badge = document.getElementById('confluenciaLiveBadge');
+            const main = document.getElementById('confluenciaLiveMain');
+            const hint = document.getElementById('confluenciaLiveHint');
+            const btnL = document.getElementById('btnConfluenciaApplyLong');
+            const btnS = document.getElementById('btnConfluenciaApplyShort');
+            const grid = document.getElementById('confluenciaTfGrid');
+            const tfs = selectedConfluencia ? selectedConfluencia.tfs : [];
+
+            if (grid) {
+                grid.innerHTML = tfs.map(tf => {
+                    const b = (live.tfs && live.tfs[tf]) || {};
+                    const dir = b.dir || 'NEUTRAL';
+                    const col = dir === 'LONG' ? 'text-accentGreen' : dir === 'SHORT' ? 'text-accentRed' : 'text-slate-400';
+                    const bg = dir === 'LONG' ? 'bg-accentGreen/20 text-accentGreen' : dir === 'SHORT' ? 'bg-accentRed/20 text-accentRed' : 'bg-borderBg text-slate-400';
+                    return `<div class="rounded-lg border border-borderBg bg-panelBg p-2.5">
+                        <div class="flex items-center justify-between mb-1">
+                            <span class="text-[10px] font-bold text-slate-400">${tf.toUpperCase()}</span>
+                            <span class="text-[10px] font-mono px-1.5 py-0.5 rounded ${bg}">${dir}</span>
+                        </div>
+                        <div class="text-lg font-black ${col}">${dir}</div>
+                        <div class="text-[10px] text-slate-500 mt-1 font-mono">${b.detail || '—'}</div>
+                    </div>`;
+                }).join('');
+            }
+
+            if (live.signal === 'BUY') {
+                if (badge) { badge.innerText = 'LONG'; badge.className = 'px-3 py-1 rounded text-xs font-black bg-accentGreen text-slate-950'; }
+                if (main) { main.innerText = 'COMPRA (confluencia activa)'; main.className = 'text-2xl sm:text-3xl font-black text-accentGreen mb-1'; }
+                if (hint) hint.innerText = `Todos los TF del combo (${(selectedConfluencia && selectedConfluencia.label) || ''}) alineados alcistas. Confianza ~${(live.conf || 0).toFixed(0)}%.`;
+                if (btnL) { btnL.disabled = false; btnL.classList.remove('opacity-40', 'cursor-not-allowed'); }
+                if (btnS) { btnS.disabled = true; btnS.classList.add('opacity-40', 'cursor-not-allowed'); }
+            } else if (live.signal === 'SELL') {
+                if (badge) { badge.innerText = 'SHORT'; badge.className = 'px-3 py-1 rounded text-xs font-black bg-accentRed text-white'; }
+                if (main) { main.innerText = 'VENTA (confluencia activa)'; main.className = 'text-2xl sm:text-3xl font-black text-accentRed mb-1'; }
+                if (hint) hint.innerText = `Todos los TF del combo (${(selectedConfluencia && selectedConfluencia.label) || ''}) alineados bajistas. Confianza ~${(live.conf || 0).toFixed(0)}%.`;
+                if (btnS) { btnS.disabled = false; btnS.classList.remove('opacity-40', 'cursor-not-allowed'); }
+                if (btnL) { btnL.disabled = true; btnL.classList.add('opacity-40', 'cursor-not-allowed'); }
+            } else {
+                if (badge) { badge.innerText = 'ESPERAR'; badge.className = 'px-3 py-1 rounded text-xs font-black bg-accentYellow text-slate-950'; }
+                if (main) { main.innerText = 'SIN CONFLUENCIA'; main.className = 'text-2xl sm:text-3xl font-black text-accentYellow mb-1'; }
+                const dirs = live.dirs || [];
+                if (hint) hint.innerText = `Los TF del combo no coinciden (${dirs.join(' · ') || '—'}). Espera acuerdo completo en LONG o SHORT.`;
+                if (btnL) { btnL.disabled = true; btnL.classList.add('opacity-40', 'cursor-not-allowed'); }
+                if (btnS) { btnS.disabled = true; btnS.classList.add('opacity-40', 'cursor-not-allowed'); }
+            }
+        }
+
+        function applySelectedConfluencia(side) {
+            if (!confluenciaLiveLatest || confluenciaLiveLatest.signal === 'NONE') {
+                alert('No hay confluencia activa en este combo. Espera acuerdo de todos los TF.');
+                return;
+            }
+            if (confluenciaLiveLatest.signal === 'BUY' && side !== 'LONG') return;
+            if (confluenciaLiveLatest.signal === 'SELL' && side !== 'SHORT') return;
+            try {
+                const tfs = (selectedConfluencia && selectedConfluencia.tfs) || [];
+                const entryTf = tfs[0] || currentInterval || '15m';
+                if (entryTf && typeof changeTimeframe === 'function') changeTimeframe(entryTf);
+                const label = (selectedConfluencia && selectedConfluencia.label) || tfs.join('+');
+                const histScore = selectedConfluencia && selectedConfluencia.stats && selectedConfluencia.stats.wr
+                    ? selectedConfluencia.stats.wr
+                    : (confluenciaLiveLatest.conf || 55);
+                const trade = registerAppliedPosition(side, {
+                    source: 'Confluencia ' + label,
+                    score: histScore,
+                    tf: entryTf,
+                    note: `Combo ${label} · estilo ${(selectedConfluencia && selectedConfluencia.style) || ''}`
+                });
+                const status = document.getElementById('confluenciaLiveStatus');
+                if (status && trade) {
+                    status.innerHTML = `<span class="text-accentGreen">Registrado ${side}</span> · ${label} · Entrada $${trade.entry.toFixed(1)} · SL $${trade.sl.toFixed(1)} · TP1/2/3 $${trade.tp1.toFixed(1)}/${trade.tp2.toFixed(1)}/${trade.tp3.toFixed(1)} · ${trade.leverage}x · TF ${entryTf}`;
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Error al aplicar: ' + (e.message || e));
+            }
+        }
+        window.applySelectedConfluencia = applySelectedConfluencia;
 
         // ========== RANKING DE COMBINACIONES (siempre 150 velas) ==========
         const RANK_CANDLE_LIMIT = 150;
