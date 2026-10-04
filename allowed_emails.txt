@@ -1,0 +1,8 @@
+# Lista de correos autorizados a TerminalMX (uno por línea)
+# Las líneas que empiezan con # se ignoran
+# Ejemplo:
+# admin@tuempresa.com
+# trader@ejemplo.com
+
+admin@example.com
+trader@example.com
