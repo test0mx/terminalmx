@@ -1,0 +1,369 @@
+body { font-family: 'Inter', sans-serif; background-color: #0b0e11; color: #eaecef; }
+html {
+    overflow-y: auto;
+    overflow-x: hidden;
+    height: auto;
+    scrollbar-gutter: stable;
+}
+body {
+    overflow-y: auto !important;
+    overflow-x: hidden;
+    height: auto;
+    min-height: 100vh;
+}
+::-webkit-scrollbar { width: 10px; height: 10px; }
+::-webkit-scrollbar-track { background: #0b0e11; }
+::-webkit-scrollbar-thumb {
+    background: #2b313a;
+    border-radius: 5px;
+    border: 2px solid #0b0e11;
+}
+::-webkit-scrollbar-thumb:hover { background: #474d57; }
+* {
+    scrollbar-width: thin;
+    scrollbar-color: #2b313a #0b0e11;
+}
+/* Paper Trading eliminado — panel izquierdo nunca ocupa espacio */
+#leftPanel,
+#btnHamburgerPanel,
+#mobileOverlay,
+#leftPanelCloseBtn {
+    display: none !important;
+    visibility: hidden !important;
+    pointer-events: none !important;
+    width: 0 !important;
+    min-width: 0 !important;
+    max-width: 0 !important;
+    height: 0 !important;
+    margin: 0 !important;
+    padding: 0 !important;
+    border: none !important;
+    overflow: hidden !important;
+    flex: 0 0 0 !important;
+}
+/* Contenedor principal a ancho completo */
+.layout-row-full {
+    display: flex !important;
+    flex-direction: column !important;
+    width: 100% !important;
+    min-width: 0 !important;
+}
+@media (min-width: 1024px) {
+    .layout-row-full {
+        flex-direction: column !important; /* ya no hay sidebar */
+    }
+    main#mainWorkspace,
+    main.flex-1 {
+        width: 100% !important;
+        max-width: 100% !important;
+        flex: 1 1 100% !important;
+        min-width: 0 !important;
+    }
+}
+/* Layout redimensionable (estilo exchange) */
+/* Gráficos: 40% por defecto, redimensionable hasta 60% · incluye Trendilo */
+#chartsSplitContainer {
+    flex: 0 0 auto;
+    height: 40vh;
+    min-height: 40vh;
+    max-height: 60vh;
+    display: flex !important;
+    flex-direction: column !important;
+    overflow: hidden;
+}
+#mainChartContainer {
+    flex: 6.5 1 0 !important;
+    min-height: 100px;
+    overflow: hidden;
+    position: relative;
+}
+#subChartContainer {
+    flex: 3.5 1 0 !important;
+    min-height: 90px;
+    overflow: hidden;
+    position: relative;
+    display: flex !important;
+    flex-direction: column;
+}
+#subChartContainer.chart-hidden {
+    display: none !important;
+}
+#trendiloChart {
+    flex: 1 1 auto;
+    min-height: 80px;
+    width: 100%;
+    height: 100%;
+}
+#bottomPanelSection {
+    flex: 1 1 auto;
+    min-height: 280px;
+    max-height: none;
+    overflow: hidden;
+    display: flex;
+    flex-direction: column;
+}
+/* Handles estilo BingX / terminal */
+#chartResizeHandle,
+#panelResizeHandle {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 8px;
+    flex: 0 0 8px;
+    cursor: row-resize;
+    background: #1e2329;
+    border-top: 1px solid #2b313a;
+    border-bottom: 1px solid #2b313a;
+    position: relative;
+    z-index: 40;
+    pointer-events: auto;
+    touch-action: none;
+    user-select: none;
+    transition: background 0.12s, border-color 0.12s;
+}
+#chartResizeHandle:hover,
+#panelResizeHandle:hover,
+#chartResizeHandle.dragging,
+#panelResizeHandle.dragging {
+    background: rgba(240, 185, 11, 0.25);
+    border-color: #f0b90b;
+}
+#chartResizeHandle .resize-grip,
+#panelResizeHandle .resize-grip {
+    width: 36px;
+    height: 3px;
+    border-radius: 2px;
+    background: #5e6673;
+    pointer-events: none;
+}
+#chartResizeHandle:hover .resize-grip,
+#panelResizeHandle:hover .resize-grip,
+#chartResizeHandle.dragging .resize-grip,
+#panelResizeHandle.dragging .resize-grip {
+    background: #f0b90b;
+}
+#chartResizeHandle.handle-hidden {
+    display: none !important;
+}
+/* Overlay transparente durante drag (evita que el canvas robe el mouse) */
+#resizeDragOverlay {
+    display: none;
+    position: fixed;
+    inset: 0;
+    z-index: 9999;
+    cursor: row-resize;
+    background: transparent;
+}
+#resizeDragOverlay.active {
+    display: block;
+}
+body.is-resizing {
+    cursor: row-resize !important;
+    user-select: none !important;
+}
+body.is-resizing iframe,
+body.is-resizing canvas {
+    pointer-events: none !important;
+}
+
+/* Yoshi Order Block zones — sombreado tipo TradingView */
+#yoshiObOverlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 5;
+    overflow: hidden;
+}
+.yoshi-ob-zone {
+    position: absolute;
+    left: 0;
+    right: 48px; /* deja espacio escala de precios */
+    border-left: 2px solid;
+    box-sizing: border-box;
+    display: flex;
+    align-items: flex-start;
+    padding: 2px 0 0 8px;
+}
+.yoshi-ob-zone.bull {
+    background: linear-gradient(180deg, rgba(49, 121, 245, 0.28), rgba(49, 121, 245, 0.12));
+    border-color: rgba(49, 121, 245, 0.7);
+    border-top: 1px solid rgba(49, 121, 245, 0.45);
+    border-bottom: 1px solid rgba(49, 121, 245, 0.45);
+}
+.yoshi-ob-zone.bear {
+    background: linear-gradient(180deg, rgba(246, 70, 93, 0.28), rgba(246, 70, 93, 0.12));
+    border-color: rgba(246, 70, 93, 0.7);
+    border-top: 1px solid rgba(246, 70, 93, 0.45);
+    border-bottom: 1px solid rgba(246, 70, 93, 0.45);
+}
+.yoshi-ob-label {
+    font-size: 10px;
+    font-weight: 700;
+    letter-spacing: 0.02em;
+    text-shadow: 0 1px 2px rgba(0,0,0,0.85);
+    white-space: nowrap;
+    opacity: 0.95;
+}
+.yoshi-ob-zone.bull .yoshi-ob-label { color: #7eb6ff; }
+.yoshi-ob-zone.bear .yoshi-ob-label { color: #ff9aa2; }
+
+/* Chart fullscreen mode (solo velas) */
+#mainChartContainer.chart-fs {
+    position: fixed !important;
+    inset: 0;
+    z-index: 60;
+    height: 100vh !important;
+    min-height: 100vh !important;
+    background: #0b0e11;
+}
+#mainChartContainer.chart-fs #candlestickChart {
+    height: 100% !important;
+}
+body.chart-fs-active {
+    overflow: hidden;
+}
+/* Ocultar todos los gráficos */
+body.charts-hidden-mode #chartsSplitContainer,
+body.charts-hidden-mode #chartResizeHandle,
+body.charts-hidden-mode #panelResizeHandle,
+body.charts-hidden-mode #techOverviewBar,
+body.charts-hidden-mode #tvChartToolbar {
+    display: none !important;
+}
+body.charts-hidden-mode #bottomPanelSection {
+    flex: 1 1 auto !important;
+    height: auto !important;
+    max-height: none !important;
+    min-height: 200px !important;
+}
+#btnHideCharts.active {
+    border-color: rgba(240, 185, 11, 0.5);
+    color: #f0b90b;
+    background: rgba(240, 185, 11, 0.12);
+}
+#chartsHiddenExitBar {
+    display: none;
+    position: fixed;
+    top: 12px;
+    right: 12px;
+    z-index: 80;
+    gap: 8px;
+    align-items: center;
+}
+body.charts-hidden-mode #chartsHiddenExitBar {
+    display: flex !important;
+}
+
+/* Solo gráficos: velas + Trendilo a pantalla completa */
+
+body.charts-only-mode > header,
+body.charts-only-mode #leftPanel,
+body.charts-only-mode #mobileOverlay,
+body.charts-only-mode #techOverviewBar,
+body.charts-only-mode #bottomPanelSection,
+body.charts-only-mode #panelResizeHandle,
+body.charts-only-mode #positionCountdownBar {
+    display: none !important;
+}
+body.charts-only-mode #tvChartToolbar {
+    position: fixed;
+    top: 0;
+    left: 0;
+    right: 0;
+    z-index: 65;
+}
+body.charts-only-mode #chartsSplitContainer {
+    top: 36px !important;
+    height: calc(100vh - 36px) !important;
+    min-height: calc(100vh - 36px) !important;
+}
+body.charts-only-mode {
+    overflow: hidden;
+    height: 100vh;
+}
+body.charts-only-mode .flex-1.flex.flex-col.lg\\:flex-row,
+body.charts-only-mode main {
+    height: 100vh !important;
+    max-height: 100vh !important;
+}
+body.charts-only-mode #chartsSplitContainer {
+    position: fixed !important;
+    inset: 0;
+    z-index: 55;
+    height: 100vh !important;
+    min-height: 100vh !important;
+    grid-template-rows: 2fr 1fr !important;
+    background: #0b0e11;
+}
+body.charts-only-mode #chartsOnlyExitBar {
+    display: flex !important;
+}
+/* Botón regresar debajo de los gráficos (modo solo gráficos) */
+#chartsOnlyExitBar {
+    display: none;
+    position: fixed;
+    bottom: 16px;
+    left: 50%;
+    transform: translateX(-50%);
+    z-index: 70;
+    gap: 8px;
+    align-items: center;
+}
+#positionCountdownBar.cd-urgent {
+    background: rgba(246, 70, 93, 0.12);
+    border-color: rgba(246, 70, 93, 0.4);
+}
+#positionCountdownBar.cd-warn {
+    background: rgba(240, 185, 11, 0.1);
+    border-color: rgba(240, 185, 11, 0.35);
+}
+#positionCountdownBar.cd-ok {
+    background: rgba(14, 203, 129, 0.08);
+    border-color: rgba(14, 203, 129, 0.25);
+}
+/* Controles navegación gráfico (estilo TV) */
+.chart-nav-btn {
+    width: 32px;
+    height: 32px;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    border-radius: 8px;
+    background: rgba(30, 35, 41, 0.92);
+    border: 1px solid #2b313a;
+    color: #c8cdd3;
+    font-size: 12px;
+    cursor: pointer;
+    transition: background 0.15s, color 0.15s, border-color 0.15s;
+    box-shadow: 0 2px 8px rgba(0,0,0,0.35);
+}
+.chart-nav-btn:hover {
+    background: #2b313a;
+    color: #fff;
+    border-color: #474d57;
+}
+.chart-nav-btn:active {
+    background: #f0b90b;
+    color: #0b0e11;
+    border-color: #f0b90b;
+}
+#candlestickChart {
+    cursor: grab;
+    min-height: 260px;
+    height: 100%;
+    width: 100%;
+}
+#candlestickChart.dragging {
+    cursor: grabbing !important;
+}
+#mainChartContainer {
+    min-height: 280px !important;
+}
+#chartsSplitContainer {
+    min-height: 360px;
+}
+#trendiloChart {
+    min-height: 120px;
+    height: 100%;
+    width: 100%;
+}
