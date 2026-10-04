@@ -937,7 +937,7 @@
                 <div id="chartResizeHandle" title="Arrastra para redimensionar · Doble clic restaura"><span class="resize-grip"></span></div>
                 <div id="subChartContainer" class="w-full border-t border-borderBg relative overflow-hidden" style="flex: 3.5 1 0; min-height: 90px;">
                     <div class="absolute top-1 left-2 z-10 text-[10px] text-slate-500 pointer-events-none font-mono">
-                        Trendilo · ALMA(%chg) + RMS · <a href="https://es.tradingview.com/script/h5kMWewu-Trendilo-OPEN-SOURCE/" target="_blank" rel="noopener" class="text-accentYellow/80 hover:underline pointer-events-auto">dudeowns OS</a>
+                        Trendilo · ALMA + ±RMS · <a href="https://es.tradingview.com/script/h5kMWewu-Trendilo-OPEN-SOURCE/" target="_blank" rel="noopener" class="text-accentYellow/80 hover:underline pointer-events-auto">dudeowns OS</a> · estilo TradingView
                     </div>
                     <div id="trendiloChart" class="w-full h-full"></div>
                 </div>
@@ -983,6 +983,10 @@
                         <button type="button" id="tabBtnConfluencias" onclick="switchBottomTab('confluencias')" class="font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs">
                             <i class="fa-solid fa-chart-pie"></i>
                             <span class="hidden sm:inline">Mejores confluencias</span><span class="sm:hidden">Conflu.</span>
+                        </button>
+                        <button type="button" id="tabBtnTrendiloProj" onclick="switchBottomTab('trendiloProj')" class="font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs">
+                            <i class="fa-solid fa-wave-square"></i>
+                            <span class="hidden sm:inline">Proyección Trendilo</span><span class="sm:hidden">Trendilo</span>
                         </button>
                         <button type="button" id="tabBtnCalendar" onclick="switchBottomTab('calendar')" class="font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs">
                             <i class="fa-solid fa-calendar-days"></i>
@@ -1741,6 +1745,105 @@
                         Señal del ranking cuando todos los TF del combo coinciden en LONG o SHORT. Simulación R/R 2 sobre 150 velas del TF más rápido. Resultados históricos; no garantizan rendimiento futuro.
                     </p>
                 </div>
+
+                <!-- Tab: Proyección Trendilo -->
+                <div id="tabContentTrendiloProj" class="flex-1 overflow-auto p-2 sm:p-3 hidden">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                        <div>
+                            <div class="font-semibold text-accentYellow flex items-center gap-1.5 text-sm">
+                                <i class="fa-solid fa-wave-square"></i> Proyección Trendilo
+                            </div>
+                            <p class="text-[11px] text-slate-500 mt-0.5 max-w-2xl">
+                                ALMA(%chg) + bandas ±RMS con <strong class="text-slate-300">proyección</strong> del sesgo. Elige temporalidad y aplica LONG/SHORT cuando ALMA cruza o se apoya en las bandas.
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <div class="flex flex-wrap gap-1" id="trendiloProjTfFilters">
+                                <button type="button" data-tptf="5m" onclick="setTrendiloProjTf('5m')" class="tptf-btn px-2 py-1 rounded text-[10px] font-mono border border-borderBg text-slate-400 hover:text-white">5m</button>
+                                <button type="button" data-tptf="15m" onclick="setTrendiloProjTf('15m')" class="tptf-btn px-2 py-1 rounded text-[10px] font-mono border border-borderBg text-slate-400 hover:text-white">15m</button>
+                                <button type="button" data-tptf="1h" onclick="setTrendiloProjTf('1h')" class="tptf-btn px-2 py-1 rounded text-[10px] font-mono border border-accentYellow/50 bg-accentYellow/15 text-accentYellow">1h</button>
+                                <button type="button" data-tptf="4h" onclick="setTrendiloProjTf('4h')" class="tptf-btn px-2 py-1 rounded text-[10px] font-mono border border-borderBg text-slate-400 hover:text-white">4h</button>
+                                <button type="button" data-tptf="1d" onclick="setTrendiloProjTf('1d')" class="tptf-btn px-2 py-1 rounded text-[10px] font-mono border border-borderBg text-slate-400 hover:text-white">1d</button>
+                            </div>
+                            <button type="button" onclick="runTrendiloProjection(true)"
+                                class="px-2.5 py-1 rounded-lg border border-accentYellow/40 bg-accentYellow/15 text-accentYellow text-[11px] font-bold transition flex items-center gap-1.5">
+                                <i class="fa-solid fa-rotate" id="trendiloProjIcon"></i> Recalcular
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Señal + métricas -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-3">
+                        <div class="lg:col-span-1 rounded-xl border border-borderBg bg-cardBg p-3">
+                            <div class="flex items-center justify-between mb-2">
+                                <span class="text-[11px] text-slate-500 font-mono">Sesgo proyectado · <span id="tpTfLabel">1h</span></span>
+                                <span id="tpBiasBadge" class="px-2.5 py-0.5 rounded text-[10px] font-black bg-accentYellow text-slate-950">—</span>
+                            </div>
+                            <div id="tpBiasMain" class="text-2xl font-black text-accentYellow mb-1">Cargando…</div>
+                            <p id="tpBiasHint" class="text-[11px] text-slate-400 leading-relaxed mb-3">—</p>
+                            <div class="grid grid-cols-2 gap-2 text-[10px] font-mono mb-3">
+                                <div class="bg-panelBg rounded border border-borderBg p-2">
+                                    <div class="text-slate-500">ALMA</div>
+                                    <div id="tpAlmaVal" class="text-slate-200 font-bold">—</div>
+                                </div>
+                                <div class="bg-panelBg rounded border border-borderBg p-2">
+                                    <div class="text-slate-500">RMS</div>
+                                    <div id="tpRmsVal" class="text-purple-400 font-bold">—</div>
+                                </div>
+                                <div class="bg-panelBg rounded border border-borderBg p-2">
+                                    <div class="text-slate-500">Proy. 3 barras</div>
+                                    <div id="tpProjVal" class="text-accentYellow font-bold">—</div>
+                                </div>
+                                <div class="bg-panelBg rounded border border-borderBg p-2">
+                                    <div class="text-slate-500">Confianza</div>
+                                    <div id="tpConfVal" class="text-slate-200 font-bold">—</div>
+                                </div>
+                            </div>
+                            <div class="flex flex-wrap gap-2">
+                                <button type="button" id="btnTpApplyLong" onclick="applyTrendiloProjection('LONG')" disabled
+                                    class="flex-1 px-3 py-1.5 rounded-lg text-[11px] font-bold border border-accentGreen/40 bg-accentGreen/10 text-accentGreen opacity-40 cursor-not-allowed">Aplicar LONG</button>
+                                <button type="button" id="btnTpApplyShort" onclick="applyTrendiloProjection('SHORT')" disabled
+                                    class="flex-1 px-3 py-1.5 rounded-lg text-[11px] font-bold border border-accentRed/40 bg-accentRed/10 text-accentRed opacity-40 cursor-not-allowed">Aplicar SHORT</button>
+                            </div>
+                            <p id="tpStatus" class="text-[10px] text-slate-600 font-mono mt-2">—</p>
+                        </div>
+                        <div class="lg:col-span-2 rounded-xl border border-borderBg bg-black overflow-hidden relative" style="min-height: 220px;">
+                            <div class="absolute top-1.5 left-2 z-10 text-[10px] text-slate-500 pointer-events-none">Trendilo · proyección (línea discontinua)</div>
+                            <div id="trendiloProjChart" class="w-full h-full" style="min-height: 220px; height: 240px;"></div>
+                        </div>
+                    </div>
+
+                    <!-- Cómo aplicar -->
+                    <div class="rounded-xl border border-borderBg bg-cardBg p-3 space-y-2">
+                        <div class="text-xs font-bold text-accentYellow flex items-center gap-1.5">
+                            <i class="fa-solid fa-book-open"></i> Cómo aplicar la estrategia Trendilo
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px] text-slate-400 leading-relaxed">
+                            <div>
+                                <p class="font-semibold text-slate-200 mb-1">Lectura del gráfico</p>
+                                <ul class="list-disc list-inside space-y-1">
+                                    <li><strong class="text-slate-300">Línea gris (ALMA)</strong>: momentum del % cambio suavizado.</li>
+                                    <li><strong class="text-purple-400">Bandas ±RMS moradas</strong>: rango “normal” de ruido. Fuera de banda = impulso fuerte.</li>
+                                    <li><strong class="text-accentGreen">Relleno verde</strong> sobre 0 = sesgo alcista; <strong class="text-accentRed">rojo/naranja</strong> bajo 0 = bajista.</li>
+                                    <li><strong class="text-accentYellow">Línea discontinua</strong>: proyección lineal de las próximas 3 barras del ALMA.</li>
+                                </ul>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-slate-200 mb-1">Reglas de entrada</p>
+                                <ol class="list-decimal list-inside space-y-1">
+                                    <li><strong class="text-accentGreen">LONG</strong>: ALMA cruza por encima de 0 o rebota desde −RMS hacia arriba, y la proyección sigue positiva.</li>
+                                    <li><strong class="text-accentRed">SHORT</strong>: ALMA cruza por debajo de 0 o rechaza +RMS hacia abajo, y la proyección sigue negativa.</li>
+                                    <li>Confirma con el TF del filtro (arriba). En scalp usa 5m/15m; swing 4h/1d.</li>
+                                    <li>SL más allá de la banda RMS opuesta; TP1 en 0 (si vienes de banda), TP2 en la banda contraria.</li>
+                                    <li>Evita entrar si ALMA está plano entre ±0.3×RMS (consolidación).</li>
+                                </ol>
+                            </div>
+                        </div>
+                        <p class="text-[10px] text-slate-500 border-t border-borderBg pt-2">
+                            Al pulsar Aplicar se registra en <strong class="text-slate-400">Historial</strong> con entrada, SL, TP1/TP2/TP3, apalancamiento y vigencia según el TF elegido.
+                        </p>
+                    </div>
+                </div>
             </section>
         </main>
     </div>
@@ -1880,6 +1983,7 @@
         let trendiloAlmaSeries = null;
         let trendiloRmsUpper = null;
         let trendiloRmsLower = null;
+        let trendiloZeroSeries = null;
         let stochKSeries = null;
         let stochDSeries = null;
         let chartType = 'candle'; // candle | heikin | line | area
@@ -2212,6 +2316,7 @@
                 journal: { btn: 'tabBtnJournal', content: 'tabContentJournal' },
                 palacios: { btn: 'tabBtnPalacios', content: 'tabContentPalacios' },
                 confluencias: { btn: 'tabBtnConfluencias', content: 'tabContentConfluencias' },
+                trendiloProj: { btn: 'tabBtnTrendiloProj', content: 'tabContentTrendiloProj' },
                 calendar: { btn: 'tabBtnCalendar', content: 'tabContentCalendar' }
             };
             if (!map[tab]) tab = 'signals';
@@ -2284,8 +2389,281 @@
                     }
                 } catch (e) {}
             }
+            if (tab === 'trendiloProj') {
+                try {
+                    setTimeout(() => {
+                        ensureTrendiloProjChart();
+                        runTrendiloProjection(false);
+                    }, 80);
+                } catch (e) {}
+            }
         }
         window.switchBottomTab = switchBottomTab;
+
+        // ========== PROYECCIÓN TRENDILO ==========
+        let trendiloProjTf = '1h';
+        let trendiloProjChart = null;
+        let tpAlmaSeries = null, tpRmsUp = null, tpRmsDn = null, tpZero = null, tpProjSeries = null;
+        let trendiloProjLatest = { signal: 'NONE', alma: 0, rms: 0, proj: 0, conf: 0 };
+        let trendiloProjRunning = false;
+        let trendiloProjCacheAt = 0;
+
+        function setTrendiloProjTf(tf) {
+            trendiloProjTf = String(tf || '1h');
+            document.querySelectorAll('.tptf-btn').forEach(btn => {
+                const on = btn.getAttribute('data-tptf') === trendiloProjTf;
+                btn.className = on
+                    ? 'tptf-btn px-2 py-1 rounded text-[10px] font-mono border border-accentYellow/50 bg-accentYellow/15 text-accentYellow'
+                    : 'tptf-btn px-2 py-1 rounded text-[10px] font-mono border border-borderBg text-slate-400 hover:text-white';
+            });
+            const lab = document.getElementById('tpTfLabel');
+            if (lab) lab.innerText = trendiloProjTf;
+            runTrendiloProjection(true);
+        }
+        window.setTrendiloProjTf = setTrendiloProjTf;
+
+        function ensureTrendiloProjChart() {
+            const el = document.getElementById('trendiloProjChart');
+            if (!el || typeof LightweightCharts === 'undefined') return;
+            if (trendiloProjChart) {
+                try {
+                    trendiloProjChart.applyOptions({
+                        width: Math.max(el.clientWidth || 300, 280),
+                        height: Math.max(el.clientHeight || 220, 200)
+                    });
+                } catch (e) {}
+                return;
+            }
+            const w = Math.max(el.clientWidth || 400, 280);
+            const h = Math.max(el.clientHeight || 240, 200);
+            trendiloProjChart = LightweightCharts.createChart(el, {
+                width: w,
+                height: h,
+                layout: { background: { color: '#000000' }, textColor: '#b2b5be', fontFamily: "'Inter', sans-serif" },
+                grid: { vertLines: { color: 'rgba(42,46,57,0.45)' }, horzLines: { color: 'rgba(42,46,57,0.45)' } },
+                rightPriceScale: { borderVisible: false, scaleMargins: { top: 0.1, bottom: 0.1 } },
+                timeScale: { borderVisible: false, timeVisible: true, rightOffset: 12, barSpacing: 6 },
+                crosshair: {
+                    vertLine: { color: 'rgba(178,181,190,0.35)', style: 2 },
+                    horzLine: { color: 'rgba(178,181,190,0.35)', style: 2 }
+                }
+            });
+            try {
+                tpAlmaSeries = addChartSeries(trendiloProjChart, 'Baseline', {
+                    baseValue: { type: 'price', price: 0 },
+                    topLineColor: 'rgba(180,190,200,0.95)',
+                    topFillColor1: 'rgba(38,166,154,0.45)',
+                    topFillColor2: 'rgba(38,166,154,0.05)',
+                    bottomLineColor: 'rgba(180,190,200,0.95)',
+                    bottomFillColor1: 'rgba(255,152,0,0.08)',
+                    bottomFillColor2: 'rgba(239,83,80,0.40)',
+                    lineWidth: 2,
+                    lastValueVisible: true,
+                    priceLineVisible: false,
+                    title: 'ALMA'
+                });
+            } catch (e) {
+                tpAlmaSeries = addChartSeries(trendiloProjChart, 'Line', {
+                    color: '#b0bec5', lineWidth: 2, lastValueVisible: true, title: 'ALMA'
+                });
+            }
+            tpRmsUp = addChartSeries(trendiloProjChart, 'Line', {
+                color: '#ab47bc', lineWidth: 2, lastValueVisible: true, priceLineVisible: false, title: '+RMS'
+            });
+            tpRmsDn = addChartSeries(trendiloProjChart, 'Line', {
+                color: '#ab47bc', lineWidth: 2, lastValueVisible: true, priceLineVisible: false, title: '-RMS'
+            });
+            tpZero = addChartSeries(trendiloProjChart, 'Line', {
+                color: 'rgba(145,155,155,0.5)', lineWidth: 1, lineStyle: 2,
+                lastValueVisible: false, priceLineVisible: false
+            });
+            tpProjSeries = addChartSeries(trendiloProjChart, 'Line', {
+                color: '#f0b90b', lineWidth: 2, lineStyle: 2,
+                lastValueVisible: true, priceLineVisible: false, title: 'Proy.'
+            });
+        }
+
+        function computeTrendiloSeriesFromKlines(klines) {
+            const almaLen = 20, almaOffset = 0.85, almaSigma = 6, rmsLen = 20, smoothLen = 3;
+            if (!klines || klines.length < almaLen + 5) return null;
+            const pctChange = [];
+            for (let i = 0; i < klines.length; i++) {
+                if (i === 0) pctChange.push(0);
+                else {
+                    const prev = klines[i - 1].close || 1;
+                    pctChange.push(((klines[i].close - prev) / prev) * 100);
+                }
+            }
+            const smoothed = [];
+            const alpha = 2 / (smoothLen + 1);
+            let emaS = pctChange[0];
+            for (let i = 0; i < pctChange.length; i++) {
+                emaS = pctChange[i] * alpha + emaS * (1 - alpha);
+                smoothed.push(emaS);
+            }
+            const almaArr = [];
+            for (let i = 0; i < smoothed.length; i++) {
+                almaArr.push(typeof almaValue === 'function' ? almaValue(smoothed, i, almaLen, almaOffset, almaSigma) : smoothed[i]);
+            }
+            const almaLine = [], rmsUp = [], rmsDn = [], zero = [];
+            let lastRms = 0;
+            for (let i = 0; i < klines.length; i++) {
+                const alma = almaArr[i];
+                if (alma === null || i < almaLen) continue;
+                let sumSq = 0, cnt = 0;
+                for (let j = 0; j < rmsLen && i - j >= 0; j++) {
+                    const a = almaArr[i - j];
+                    if (a !== null) { sumSq += a * a; cnt++; }
+                }
+                const rms = cnt > 0 ? Math.sqrt(sumSq / cnt) : 0;
+                lastRms = rms;
+                almaLine.push({ time: klines[i].time, value: alma });
+                rmsUp.push({ time: klines[i].time, value: rms });
+                rmsDn.push({ time: klines[i].time, value: -rms });
+                zero.push({ time: klines[i].time, value: 0 });
+            }
+            if (almaLine.length < 4) return null;
+            // Proyección lineal simple (3 barras) sobre el ALMA
+            const n = almaLine.length;
+            const y1 = almaLine[n - 3].value, y2 = almaLine[n - 1].value;
+            const slope = (y2 - y1) / 2;
+            const lastT = almaLine[n - 1].time;
+            const barSec = (typeof lastT === 'number')
+                ? Math.max(60, (almaLine[n - 1].time - almaLine[n - 2].time) || 3600)
+                : 3600;
+            const proj = [{ time: lastT, value: y2 }];
+            for (let k = 1; k <= 3; k++) {
+                const tNext = (typeof lastT === 'number') ? lastT + barSec * k : lastT;
+                proj.push({ time: tNext, value: y2 + slope * k });
+            }
+            const projEnd = proj[proj.length - 1].value;
+            let signal = 'NONE', conf = 40;
+            const alma = y2;
+            if (alma > lastRms * 0.45 && projEnd > alma * 0.5) {
+                signal = 'BUY'; conf = Math.min(88, 55 + Math.abs(alma / (lastRms || 0.01)) * 15);
+            } else if (alma < -lastRms * 0.45 && projEnd < alma * 0.5) {
+                signal = 'SELL'; conf = Math.min(88, 55 + Math.abs(alma / (lastRms || 0.01)) * 15);
+            } else if (alma > 0 && slope > 0) {
+                signal = 'BUY'; conf = 48;
+            } else if (alma < 0 && slope < 0) {
+                signal = 'SELL'; conf = 48;
+            }
+            return { almaLine, rmsUp, rmsDn, zero, proj, alma: y2, rms: lastRms, projEnd, slope, signal, conf };
+        }
+
+        async function runTrendiloProjection(force) {
+            if (trendiloProjRunning) return;
+            if (!force && trendiloProjCacheAt && Date.now() - trendiloProjCacheAt < 20000 && trendiloProjLatest.alma) {
+                renderTrendiloProjUI(trendiloProjLatest);
+                return;
+            }
+            trendiloProjRunning = true;
+            const icon = document.getElementById('trendiloProjIcon');
+            const status = document.getElementById('tpStatus');
+            if (icon) icon.className = 'fa-solid fa-spinner fa-spin';
+            if (status) status.innerText = `Cargando Trendilo ${trendiloProjTf}…`;
+            try {
+                ensureTrendiloProjChart();
+                let klines = null;
+                // Reutilizar rawKlines si el TF del gráfico coincide
+                if (currentInterval === trendiloProjTf && rawKlines && rawKlines.length > 40) {
+                    klines = rawKlines.slice(-150);
+                } else if (typeof fetchKlinesForRanking === 'function') {
+                    klines = await fetchKlinesForRanking(trendiloProjTf, 150);
+                }
+                const series = computeTrendiloSeriesFromKlines(klines);
+                if (!series) {
+                    if (status) status.innerText = 'Datos insuficientes para Trendilo.';
+                    return;
+                }
+                if (tpAlmaSeries) tpAlmaSeries.setData(series.almaLine);
+                if (tpRmsUp) tpRmsUp.setData(series.rmsUp);
+                if (tpRmsDn) tpRmsDn.setData(series.rmsDn);
+                if (tpZero) tpZero.setData(series.zero);
+                if (tpProjSeries) tpProjSeries.setData(series.proj);
+                try { trendiloProjChart.timeScale().fitContent(); } catch (e) {}
+
+                trendiloProjLatest = {
+                    signal: series.signal,
+                    alma: series.alma,
+                    rms: series.rms,
+                    proj: series.projEnd,
+                    slope: series.slope,
+                    conf: series.conf,
+                    tf: trendiloProjTf
+                };
+                trendiloProjCacheAt = Date.now();
+                renderTrendiloProjUI(trendiloProjLatest);
+                if (status) status.innerText = `TF ${trendiloProjTf} · ${new Date().toLocaleTimeString()}`;
+            } catch (e) {
+                console.error('Trendilo proj', e);
+                if (status) status.innerText = 'Error: ' + (e.message || e);
+            } finally {
+                trendiloProjRunning = false;
+                if (icon) icon.className = 'fa-solid fa-rotate';
+            }
+        }
+        window.runTrendiloProjection = runTrendiloProjection;
+
+        function renderTrendiloProjUI(p) {
+            if (!p) return;
+            const badge = document.getElementById('tpBiasBadge');
+            const main = document.getElementById('tpBiasMain');
+            const hint = document.getElementById('tpBiasHint');
+            const btnL = document.getElementById('btnTpApplyLong');
+            const btnS = document.getElementById('btnTpApplyShort');
+            const setTxt = (id, v) => { const el = document.getElementById(id); if (el) el.innerText = v; };
+            setTxt('tpAlmaVal', Number(p.alma).toFixed(4));
+            setTxt('tpRmsVal', '±' + Number(p.rms).toFixed(4));
+            setTxt('tpProjVal', Number(p.proj).toFixed(4) + (p.slope >= 0 ? ' ↑' : ' ↓'));
+            setTxt('tpConfVal', Math.round(p.conf) + '%');
+
+            if (p.signal === 'BUY') {
+                if (badge) { badge.innerText = 'LONG'; badge.className = 'px-2.5 py-0.5 rounded text-[10px] font-black bg-accentGreen text-slate-950'; }
+                if (main) { main.innerText = 'PROYECCIÓN ALCISTA'; main.className = 'text-2xl font-black text-accentGreen mb-1'; }
+                if (hint) hint.innerText = `ALMA ${p.alma.toFixed(3)} sobre zona positiva · proyección 3 barras → ${p.proj.toFixed(3)}. Busca LONG en pullback a 0 o −RMS.`;
+                if (btnL) { btnL.disabled = false; btnL.classList.remove('opacity-40', 'cursor-not-allowed'); }
+                if (btnS) { btnS.disabled = true; btnS.classList.add('opacity-40', 'cursor-not-allowed'); }
+            } else if (p.signal === 'SELL') {
+                if (badge) { badge.innerText = 'SHORT'; badge.className = 'px-2.5 py-0.5 rounded text-[10px] font-black bg-accentRed text-white'; }
+                if (main) { main.innerText = 'PROYECCIÓN BAJISTA'; main.className = 'text-2xl font-black text-accentRed mb-1'; }
+                if (hint) hint.innerText = `ALMA ${p.alma.toFixed(3)} en zona negativa · proyección → ${p.proj.toFixed(3)}. Busca SHORT en rechazo de 0 o +RMS.`;
+                if (btnS) { btnS.disabled = false; btnS.classList.remove('opacity-40', 'cursor-not-allowed'); }
+                if (btnL) { btnL.disabled = true; btnL.classList.add('opacity-40', 'cursor-not-allowed'); }
+            } else {
+                if (badge) { badge.innerText = 'NEUTRAL'; badge.className = 'px-2.5 py-0.5 rounded text-[10px] font-black bg-accentYellow text-slate-950'; }
+                if (main) { main.innerText = 'SIN IMPULSO CLARO'; main.className = 'text-2xl font-black text-accentYellow mb-1'; }
+                if (hint) hint.innerText = `ALMA cerca de 0 o dentro de ±RMS. Esperar cruce o rechazo de banda antes de operar.`;
+                if (btnL) { btnL.disabled = true; btnL.classList.add('opacity-40', 'cursor-not-allowed'); }
+                if (btnS) { btnS.disabled = true; btnS.classList.add('opacity-40', 'cursor-not-allowed'); }
+            }
+        }
+
+        function applyTrendiloProjection(side) {
+            if (!trendiloProjLatest || trendiloProjLatest.signal === 'NONE') {
+                alert('Sin sesgo Trendilo claro. Espera cruce de 0 o de banda RMS.');
+                return;
+            }
+            if (trendiloProjLatest.signal === 'BUY' && side !== 'LONG') return;
+            if (trendiloProjLatest.signal === 'SELL' && side !== 'SHORT') return;
+            try {
+                if (typeof changeTimeframe === 'function') changeTimeframe(trendiloProjTf);
+                const trade = registerAppliedPosition(side, {
+                    source: 'Trendilo ' + trendiloProjTf,
+                    score: trendiloProjLatest.conf || 55,
+                    tf: trendiloProjTf,
+                    note: `ALMA ${Number(trendiloProjLatest.alma).toFixed(3)} · RMS ±${Number(trendiloProjLatest.rms).toFixed(3)} · proy ${Number(trendiloProjLatest.proj).toFixed(3)}`
+                });
+                const status = document.getElementById('tpStatus');
+                if (status && trade) {
+                    status.innerHTML = `<span class="text-accentGreen">Registrado ${side}</span> · TF ${trendiloProjTf} · Entrada $${trade.entry.toFixed(1)} · TP1/2/3 listos en Historial`;
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Error: ' + (e.message || e));
+            }
+        }
+        window.applyTrendiloProjection = applyTrendiloProjection;
 
         // ========== Calendario económico (impacto BTC) ==========
         let econCalendarCache = [];
@@ -3727,15 +4105,28 @@
             trendiloChart = LightweightCharts.createChart(subContainer, {
                 width: subW,
                 height: subH,
-                layout: { background: { color: '#0b0e11' }, textColor: '#919b9b', fontFamily: "'Inter', sans-serif" },
-                grid: { vertLines: { color: 'rgba(43,49,58,0.5)' }, horzLines: { color: 'rgba(43,49,58,0.5)' } },
+                layout: { background: { color: '#000000' }, textColor: '#b2b5be', fontFamily: "'Inter', sans-serif" },
+                grid: {
+                    vertLines: { color: 'rgba(42, 46, 57, 0.5)' },
+                    horzLines: { color: 'rgba(42, 46, 57, 0.5)' }
+                },
                 crosshair: {
                     mode: LightweightCharts.CrosshairMode.Normal,
-                    vertLine: { color: 'rgba(240,185,11,0.35)', width: 1, style: 2, labelBackgroundColor: '#2b313a' },
-                    horzLine: { color: 'rgba(240,185,11,0.35)', width: 1, style: 2, labelBackgroundColor: '#2b313a' }
+                    vertLine: { color: 'rgba(178, 181, 190, 0.35)', width: 1, style: 2, labelBackgroundColor: '#2962ff' },
+                    horzLine: { color: 'rgba(178, 181, 190, 0.35)', width: 1, style: 2, labelBackgroundColor: '#2962ff' }
                 },
-                rightPriceScale: { borderColor: '#2b313a' },
-                timeScale: { borderColor: '#2b313a', timeVisible: true, rightOffset: 8, barSpacing: 8 },
+                rightPriceScale: {
+                    borderColor: 'rgba(42, 46, 57, 0.8)',
+                    borderVisible: false,
+                    scaleMargins: { top: 0.08, bottom: 0.12 }
+                },
+                timeScale: {
+                    borderColor: 'rgba(42, 46, 57, 0.8)',
+                    timeVisible: true,
+                    rightOffset: 8,
+                    barSpacing: 8,
+                    visible: false
+                },
                 handleScroll: {
                     mouseWheel: true,
                     pressedMouseMove: true,
@@ -3750,24 +4141,79 @@
                 kineticScroll: { touch: true, mouse: true }
             });
 
-            trendiloHistSeries = addChartSeries(trendiloChart, 'Histogram', {
-                priceFormat: { type: 'custom', formatter: val => val.toFixed(3) },
-                priceScaleId: 'right'
-            });
-            trendiloAlmaSeries = addChartSeries(trendiloChart, 'Line', {
-                color: '#eaecef', lineWidth: 2, priceLineVisible: false, lastValueVisible: true, title: 'ALMA'
-            });
+            // Trendilo estilo TradingView: Baseline (relleno ±0) + bandas RMS moradas
+            trendiloHistSeries = null; // ya no usamos histograma
+            try {
+                trendiloAlmaSeries = addChartSeries(trendiloChart, 'Baseline', {
+                    baseValue: { type: 'price', price: 0 },
+                    topLineColor: 'rgba(180, 190, 200, 0.95)',
+                    topFillColor1: 'rgba(38, 166, 154, 0.45)',
+                    topFillColor2: 'rgba(38, 166, 154, 0.05)',
+                    bottomLineColor: 'rgba(180, 190, 200, 0.95)',
+                    bottomFillColor1: 'rgba(255, 152, 0, 0.08)',
+                    bottomFillColor2: 'rgba(239, 83, 80, 0.40)',
+                    lineWidth: 2,
+                    priceLineVisible: false,
+                    lastValueVisible: true,
+                    title: 'ALMA',
+                    priceFormat: { type: 'custom', formatter: val => Number(val).toFixed(8).replace(/\.?0+$/, '') || '0' },
+                    priceScaleId: 'right'
+                });
+            } catch (e) {
+                // Fallback si Baseline no está disponible
+                trendiloAlmaSeries = addChartSeries(trendiloChart, 'Line', {
+                    color: '#b0bec5', lineWidth: 2, priceLineVisible: false, lastValueVisible: true, title: 'ALMA'
+                });
+            }
+            // Bandas RMS simétricas (morado TradingView)
             trendiloRmsUpper = addChartSeries(trendiloChart, 'Line', {
-                color: 'rgba(14, 203, 129, 0.45)', lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false
+                color: '#ab47bc',
+                lineWidth: 2,
+                lineStyle: 0,
+                priceLineVisible: false,
+                lastValueVisible: true,
+                title: '+RMS',
+                priceFormat: { type: 'custom', formatter: val => Number(val).toFixed(8).replace(/\.?0+$/, '') || '0' }
             });
             trendiloRmsLower = addChartSeries(trendiloChart, 'Line', {
-                color: 'rgba(246, 70, 93, 0.45)', lineWidth: 1, lineStyle: 2, priceLineVisible: false, lastValueVisible: false
+                color: '#ab47bc',
+                lineWidth: 2,
+                lineStyle: 0,
+                priceLineVisible: false,
+                lastValueVisible: true,
+                title: '-RMS',
+                priceFormat: { type: 'custom', formatter: val => Number(val).toFixed(8).replace(/\.?0+$/, '') || '0' }
             });
-
-            stochKSeries = addChartSeries(trendiloChart, 'Line', { color: '#f0b90b', lineWidth: 1, priceScaleId: 'stoch' });
-            stochDSeries = addChartSeries(trendiloChart, 'Line', { color: '#00bcd4', lineWidth: 1, priceScaleId: 'stoch' });
+            // Línea cero de referencia
             try {
-                trendiloChart.priceScale('stoch').applyOptions({ scaleMargins: { top: 0.75, bottom: 0 } });
+                trendiloZeroSeries = addChartSeries(trendiloChart, 'Line', {
+                    color: 'rgba(145, 155, 155, 0.55)',
+                    lineWidth: 1,
+                    lineStyle: 2,
+                    priceLineVisible: false,
+                    lastValueVisible: false,
+                    crosshairMarkerVisible: false
+                });
+            } catch (e) { trendiloZeroSeries = null; }
+
+            // StochRSI en el mismo panel pero discreto (escala inferior)
+            stochKSeries = addChartSeries(trendiloChart, 'Line', {
+                color: 'rgba(240, 185, 11, 0.35)', lineWidth: 1, priceScaleId: 'stoch',
+                lastValueVisible: false, priceLineVisible: false
+            });
+            stochDSeries = addChartSeries(trendiloChart, 'Line', {
+                color: 'rgba(0, 188, 212, 0.35)', lineWidth: 1, priceScaleId: 'stoch',
+                lastValueVisible: false, priceLineVisible: false
+            });
+            try {
+                trendiloChart.priceScale('right').applyOptions({
+                    scaleMargins: { top: 0.08, bottom: 0.12 },
+                    borderVisible: false
+                });
+                trendiloChart.priceScale('stoch').applyOptions({
+                    scaleMargins: { top: 0.82, bottom: 0 },
+                    visible: false
+                });
             } catch (e) {}
 
             trendiloChart.timeScale().subscribeVisibleLogicalRangeChange((range) => {
@@ -4788,20 +5234,17 @@
                 almaSeries.push(v);
             }
 
-            // 4) RMS del ALMA (banda de rango esperado)
-            const histData = [];
+            // 4) RMS del ALMA (bandas ±RMS estilo TradingView)
             const almaLine = [];
             const rmsUp = [];
             const rmsDn = [];
+            const zeroLine = [];
+            let lastRms = 0;
 
             for (let i = 0; i < rawKlines.length; i++) {
                 const alma = almaSeries[i];
-                if (alma === null || i < almaLen) {
-                    histData.push({ time: rawKlines[i].time, value: 0, color: '#474d57' });
-                    continue;
-                }
+                if (alma === null || i < almaLen) continue;
 
-                // RMS sobre últimos rmsLen valores ALMA válidos
                 let sumSq = 0, cnt = 0;
                 for (let j = 0; j < rmsLen && i - j >= 0; j++) {
                     const a = almaSeries[i - j];
@@ -4811,40 +5254,29 @@
                     }
                 }
                 const rms = cnt > 0 ? Math.sqrt(sumSq / cnt) : 0;
+                lastRms = rms;
 
-                // Color tendencia: ALMA vs bandas RMS (como Trendilo OS)
-                let color = '#f0b90b'; // lateral
-                let direction = 'Consolidación';
-                if (alma > rms * 0.5) {
-                    color = '#0ecb81';
-                    direction = 'Alcista (Bullish)';
-                } else if (alma < -rms * 0.5) {
-                    color = '#f6465d';
-                    direction = 'Bajista (Bearish)';
-                }
-
-                histData.push({ time: rawKlines[i].time, value: alma, color });
                 almaLine.push({ time: rawKlines[i].time, value: alma });
                 rmsUp.push({ time: rawKlines[i].time, value: rms });
                 rmsDn.push({ time: rawKlines[i].time, value: -rms });
+                zeroLine.push({ time: rawKlines[i].time, value: 0 });
             }
 
-            if (trendiloHistSeries) trendiloHistSeries.setData(histData);
             if (trendiloAlmaSeries) trendiloAlmaSeries.setData(almaLine);
             if (trendiloRmsUpper) trendiloRmsUpper.setData(rmsUp);
             if (trendiloRmsLower) trendiloRmsLower.setData(rmsDn);
+            if (trendiloZeroSeries) trendiloZeroSeries.setData(zeroLine);
 
-            const lastIdx = histData.length - 1;
-            const lastVal = histData[lastIdx] ? histData[lastIdx].value : 0;
-            const lastColor = histData[lastIdx] ? histData[lastIdx].color : '#f0b90b';
+            const lastVal = almaLine.length ? almaLine[almaLine.length - 1].value : 0;
             let dir = 'Consolidación';
-            if (lastColor === '#0ecb81') dir = 'Alcista (Bullish)';
-            else if (lastColor === '#f6465d') dir = 'Bajista (Bearish)';
+            if (lastVal > lastRms * 0.5) dir = 'Alcista (Bullish)';
+            else if (lastVal < -lastRms * 0.5) dir = 'Bajista (Bearish)';
 
             trendiloLatest = {
-                value: lastVal.toFixed(3),
+                value: lastVal.toFixed(4),
                 direction: dir,
-                zScore: lastVal // se reutiliza en scoring como "momentum Trendilo"
+                zScore: lastVal,
+                rms: lastRms
             };
 
             const indEl = document.getElementById('indTrendilo');
