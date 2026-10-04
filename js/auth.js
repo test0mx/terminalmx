@@ -16,8 +16,108 @@
   );
 
   const STORAGE_KEY = 'tmx_session_v1';
+  const RATE_KEY = 'tmx_auth_rate_v1';
   const SESSION_MS = 3 * 24 * 60 * 60 * 1000;
+
+  /** Políticas de seguridad (cliente) */
+  const POLICY = {
+    otpCooldownMs: 45 * 1000,       // no re-pedir OTP antes de 45s
+    otpTtlMs: 10 * 60 * 1000,       // OTP válido ~10 min en UI
+    maxOtpRequestsPerHour: 5,       // por correo
+    maxVerifyAttempts: 5,           // intentos de código
+    maxVerifyFailsGlobal: 15,       // fallos totales antes de bloqueo temporal
+    lockoutMs: 15 * 60 * 1000,      // bloqueo 15 min
+    requestTimeoutMs: 25 * 1000,    // timeout de red
+    minEmailLen: 5,
+    maxEmailLen: 120,
+    sessionMaxMs: SESSION_MS,       // tope sesión 3 días
+  };
+
   let pendingEmail = '';
+  let otpIssuedAt = 0;
+  let verifyAttempts = 0;
+  let inFlightRequest = false;
+  let inFlightVerify = false;
+  let cooldownTimer = null;
+
+  function now() { return Date.now(); }
+
+  function loadRate() {
+    try {
+      return JSON.parse(localStorage.getItem(RATE_KEY) || '{}') || {};
+    } catch {
+      return {};
+    }
+  }
+
+  function saveRate(data) {
+    try {
+      localStorage.setItem(RATE_KEY, JSON.stringify(data));
+    } catch (e) {}
+  }
+
+  function getEmailRate(email) {
+    const r = loadRate();
+    const e = r[email] || {};
+    return {
+      lastOtpAt: Number(e.lastOtpAt) || 0,
+      otpCountHour: Number(e.otpCountHour) || 0,
+      hourWindowStart: Number(e.hourWindowStart) || 0,
+      verifyFails: Number(e.verifyFails) || 0,
+      lockoutUntil: Number(e.lockoutUntil) || 0,
+      globalFails: Number(r._globalFails) || 0,
+      globalLockUntil: Number(r._globalLockUntil) || 0,
+    };
+  }
+
+  function setEmailRate(email, patch) {
+    const r = loadRate();
+    r[email] = Object.assign({}, r[email] || {}, patch);
+    if (patch.globalFails != null) r._globalFails = patch.globalFails;
+    if (patch.globalLockUntil != null) r._globalLockUntil = patch.globalLockUntil;
+    // limpieza ligera de entradas muy viejas
+    const cutoff = now() - 24 * 60 * 60 * 1000;
+    Object.keys(r).forEach((k) => {
+      if (k.startsWith('_')) return;
+      const row = r[k];
+      if (row && Number(row.lastOtpAt || 0) < cutoff && Number(row.lockoutUntil || 0) < now()) {
+        delete r[k];
+      }
+    });
+    saveRate(r);
+  }
+
+  function isLocked(email) {
+    const er = getEmailRate(email || '');
+    if (er.globalLockUntil > now()) {
+      return { locked: true, until: er.globalLockUntil, reason: 'Demasiados intentos fallidos. Espera antes de reintentar.' };
+    }
+    if (email && er.lockoutUntil > now()) {
+      return { locked: true, until: er.lockoutUntil, reason: 'Cuenta temporalmente bloqueada por intentos fallidos.' };
+    }
+    return { locked: false };
+  }
+
+  function formatWait(ms) {
+    const s = Math.max(1, Math.ceil(ms / 1000));
+    if (s >= 60) return Math.ceil(s / 60) + ' min';
+    return s + 's';
+  }
+
+  function normalizeEmail(email) {
+    return String(email || '').trim().toLowerCase().slice(0, POLICY.maxEmailLen);
+  }
+
+  function isValidEmail(email) {
+    if (!email || email.length < POLICY.minEmailLen || email.length > POLICY.maxEmailLen) return false;
+    // RFC simple + rechazo de caracteres peligrosos
+    if (/[\s<>"'\\]/.test(email)) return false;
+    return /^[a-z0-9._%+-]+@[a-z0-9.-]+\.[a-z]{2,}$/i.test(email);
+  }
+
+  function sanitizeOtp(code) {
+    return String(code || '').replace(/\D/g, '').slice(0, 8);
+  }
 
   function loadSession() {
     try {
@@ -25,7 +125,17 @@
       if (!raw) return null;
       const s = JSON.parse(raw);
       if (!s || !s.token || !s.expiresAt) return null;
-      if (Date.now() > Number(s.expiresAt)) {
+      const exp = Number(s.expiresAt);
+      if (!exp || now() > exp) {
+        localStorage.removeItem(STORAGE_KEY);
+        return null;
+      }
+      // Rechazar sesiones con duración absurda (> 3 días + margen)
+      if (s.issuedAt && exp - Number(s.issuedAt) > POLICY.sessionMaxMs + 60 * 60 * 1000) {
+        localStorage.removeItem(STORAGE_KEY);
+        return null;
+      }
+      if (typeof s.token !== 'string' || s.token.length < 8 || s.token.length > 512) {
         localStorage.removeItem(STORAGE_KEY);
         return null;
       }
@@ -37,20 +147,25 @@
 
   function saveSession(data) {
     let exp = data.expiresAt;
-    if (exp == null) exp = Date.now() + SESSION_MS;
-    // Si viene en segundos Unix, pasar a ms
+    if (exp == null) exp = now() + SESSION_MS;
     if (typeof exp === 'number' && exp < 1e12) exp = exp * 1000;
     if (typeof exp === 'string' && !/^\d+$/.test(exp)) {
       const parsed = Date.parse(exp);
-      exp = isNaN(parsed) ? Date.now() + SESSION_MS : parsed;
+      exp = isNaN(parsed) ? now() + SESSION_MS : parsed;
     }
     exp = Number(exp);
+    // Capar sesión a máximo 3 días desde ahora
+    const maxExp = now() + POLICY.sessionMaxMs;
+    if (exp > maxExp) exp = maxExp;
+    if (exp <= now()) exp = now() + SESSION_MS;
+
     localStorage.setItem(
       STORAGE_KEY,
       JSON.stringify({
-        token: data.token,
-        email: data.email,
+        token: String(data.token).slice(0, 512),
+        email: normalizeEmail(data.email),
         expiresAt: exp,
+        issuedAt: now(),
       })
     );
   }
@@ -60,29 +175,40 @@
   }
 
   async function postJson(url, payload) {
-    const res = await fetch(url, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json', Accept: 'application/json' },
-      body: JSON.stringify(payload || {}),
-    });
-    let body = null;
-    const text = await res.text();
+    const ctrl = typeof AbortController !== 'undefined' ? new AbortController() : null;
+    const timer = ctrl ? setTimeout(() => ctrl.abort(), POLICY.requestTimeoutMs) : null;
     try {
-      body = text ? JSON.parse(text) : {};
-    } catch {
-      // Power Automate a veces devuelve texto plano
-      body = { ok: res.ok, message: text, raw: text };
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          Accept: 'application/json',
+        },
+        body: JSON.stringify(payload || {}),
+        signal: ctrl ? ctrl.signal : undefined,
+        credentials: 'omit',
+        cache: 'no-store',
+        mode: 'cors',
+      });
+      let body = null;
+      const text = await res.text();
+      try {
+        body = text ? JSON.parse(text) : {};
+      } catch {
+        body = { ok: res.ok, message: text, raw: text };
+      }
+      if (body.ok === undefined) {
+        if (res.ok && (body.token || body.Token)) body.ok = true;
+        else if (res.status >= 400) body.ok = false;
+      }
+      if (!body.error && body.Error) body.error = body.Error;
+      if (!body.token && body.Token) body.token = body.Token;
+      if (!body.email && body.Email) body.email = body.Email;
+      if (!body.expiresAt && body.ExpiresAt) body.expiresAt = body.ExpiresAt;
+      return { status: res.status, body, okHttp: res.ok };
+    } finally {
+      if (timer) clearTimeout(timer);
     }
-    // Normalizar flags de éxito/error comunes en PA
-    if (body.ok === undefined) {
-      if (res.ok && (body.token || body.Token)) body.ok = true;
-      else if (res.status >= 400) body.ok = false;
-    }
-    if (!body.error && body.Error) body.error = body.Error;
-    if (!body.token && body.Token) body.token = body.Token;
-    if (!body.email && body.Email) body.email = body.Email;
-    if (!body.expiresAt && body.ExpiresAt) body.expiresAt = body.ExpiresAt;
-    return { status: res.status, body, okHttp: res.ok };
   }
 
   function injectStyles() {
@@ -125,11 +251,10 @@
       .tmx-auth-msg { font-size: 12px; min-height: 18px; margin: 8px 0 0; color: #f0b90b; }
       .tmx-auth-msg.err { color: #f6465d; }
       .tmx-auth-msg.ok { color: #0ecb81; }
-      .tmx-auth-foot { font-size: 10px; color: #5e6673; margin: 16px 0 0; line-height: 1.4; }
+      .tmx-auth-foot { font-size: 10px; color: #5e6673; margin: 16px 0 0; line-height: 1.45; }
+      .tmx-auth-policy { font-size: 10px; color: #5e6673; margin-top: 8px; line-height: 1.4; }
       #tmxAuthStepOtp.hidden, #tmxAuthStepEmail.hidden, #tmxAuthStepDenied.hidden { display: none !important; }
       body.tmx-locked > *:not(#tmxAuthGate) { visibility: hidden !important; pointer-events: none !important; }
-
-      /* Layout NO AUTORIZADO */
       .tmx-denied-wrap { text-align: center; padding: 8px 0 4px; }
       .tmx-denied-icon {
         width: 72px; height: 72px; margin: 0 auto 16px; border-radius: 50%;
@@ -144,7 +269,6 @@
         background: #0b0e11; border: 1px solid #2b313a; border-radius: 8px;
         padding: 6px 10px; color: #eaecef; margin-bottom: 16px; word-break: break-all;
       }
-
       .tmx-session-chip {
         position: fixed; bottom: 12px; right: 12px; z-index: 50;
         background: #181a20; border: 1px solid #2b313a; border-radius: 999px;
@@ -175,14 +299,16 @@
 
           <div id="tmxAuthStepEmail">
             <label class="tmx-auth-label">Correo autorizado</label>
-            <input id="tmxAuthEmail" type="email" autocomplete="email" placeholder="tu@correo.com" class="tmx-auth-input" />
+            <input id="tmxAuthEmail" type="email" autocomplete="email" placeholder="tu@correo.com" class="tmx-auth-input" maxlength="120" />
             <button type="button" id="tmxAuthBtnOtp" class="tmx-auth-btn primary">Enviar código OTP</button>
+            <p class="tmx-auth-policy">Política: 1 solicitud cada 45 s · máx. 5 OTP/hora · 5 intentos de código</p>
           </div>
 
           <div id="tmxAuthStepOtp" class="hidden">
             <label class="tmx-auth-label">Código de 6 dígitos</label>
-            <input id="tmxAuthCode" type="text" inputmode="numeric" maxlength="8" placeholder="000000" class="tmx-auth-input mono" />
+            <input id="tmxAuthCode" type="text" inputmode="numeric" autocomplete="one-time-code" maxlength="8" placeholder="000000" class="tmx-auth-input mono" />
             <button type="button" id="tmxAuthBtnVerify" class="tmx-auth-btn primary">Verificar y entrar</button>
+            <button type="button" id="tmxAuthBtnResend" class="tmx-auth-btn ghost" disabled>Reenviar código (45s)</button>
             <button type="button" id="tmxAuthBtnBack" class="tmx-auth-btn ghost">← Cambiar correo</button>
           </div>
 
@@ -192,7 +318,6 @@
               <h2 class="tmx-denied-title">No autorizado</h2>
               <p class="tmx-denied-text" id="tmxDeniedText">
                 Este correo no tiene permiso para acceder a TerminalMX.
-                Solo cuentas incluidas en la lista de acceso pueden solicitar un código OTP.
               </p>
               <div class="tmx-denied-email" id="tmxDeniedEmail">—</div>
               <button type="button" id="tmxAuthBtnRetry" class="tmx-auth-btn danger">Probar otro correo</button>
@@ -200,7 +325,7 @@
           </div>
 
           <p id="tmxAuthMsg" class="tmx-auth-msg"></p>
-          <p class="tmx-auth-foot">Sesión válida 3 días tras aprobar el OTP. Validación mediante Power Automate.</p>
+          <p class="tmx-auth-foot">Sesión máxima 3 días. Timeout de red 25 s. Validación Power Automate.</p>
         </div>
       </div>
     `;
@@ -208,8 +333,12 @@
 
     document.getElementById('tmxAuthBtnOtp').onclick = requestOtp;
     document.getElementById('tmxAuthBtnVerify').onclick = verifyOtp;
+    document.getElementById('tmxAuthBtnResend').onclick = requestOtp;
     document.getElementById('tmxAuthBtnBack').onclick = showEmailStep;
     document.getElementById('tmxAuthBtnRetry').onclick = showEmailStep;
+    document.getElementById('tmxAuthCode').addEventListener('input', (e) => {
+      e.target.value = sanitizeOtp(e.target.value);
+    });
     document.getElementById('tmxAuthCode').addEventListener('keydown', (e) => {
       if (e.key === 'Enter') verifyOtp();
     });
@@ -235,7 +364,9 @@
   function showEmailStep() {
     hideAllSteps();
     document.getElementById('tmxAuthStepEmail').classList.remove('hidden');
+    verifyAttempts = 0;
     setMsg('');
+    updateCooldownUI();
   }
 
   function showDenied(email, reason) {
@@ -247,7 +378,7 @@
     if (tx) {
       tx.textContent =
         reason ||
-        'Este correo no tiene permiso para acceder a TerminalMX. Solo cuentas incluidas en la lista de acceso pueden solicitar un código OTP.';
+        'Este correo no tiene permiso para acceder a TerminalMX. Solo cuentas en la lista de acceso pueden solicitar OTP.';
     }
     setMsg('');
   }
@@ -275,9 +406,9 @@
       chip.className = 'tmx-session-chip';
       document.body.appendChild(chip);
     }
-    const left = Math.max(0, Number(session.expiresAt) - Date.now());
+    const left = Math.max(0, Number(session.expiresAt) - now());
     const label =
-      left >= SESSION_MS
+      left >= 24 * 3600000
         ? (left / SESSION_MS).toFixed(1) + 'd'
         : Math.ceil(left / 3600000) + 'h';
     chip.innerHTML = `
@@ -293,6 +424,39 @@
     };
   }
 
+  function updateCooldownUI() {
+    const btnOtp = document.getElementById('tmxAuthBtnOtp');
+    const btnResend = document.getElementById('tmxAuthBtnResend');
+    const email = normalizeEmail((document.getElementById('tmxAuthEmail') || {}).value || pendingEmail);
+    const er = getEmailRate(email);
+    const wait = Math.max(0, POLICY.otpCooldownMs - (now() - er.lastOtpAt));
+
+    if (btnResend) {
+      if (wait > 0) {
+        btnResend.disabled = true;
+        btnResend.textContent = 'Reenviar código (' + formatWait(wait) + ')';
+      } else {
+        btnResend.disabled = inFlightRequest;
+        btnResend.textContent = 'Reenviar código';
+      }
+    }
+    if (btnOtp && wait > 0 && er.lastOtpAt) {
+      // solo forzar texto si ya hubo un envío reciente del mismo correo
+      if (normalizeEmail(pendingEmail) === email || er.lastOtpAt > now() - POLICY.otpCooldownMs) {
+        btnOtp.disabled = true;
+        btnOtp.textContent = 'Espera ' + formatWait(wait);
+      }
+    } else if (btnOtp && !inFlightRequest) {
+      btnOtp.disabled = false;
+      btnOtp.textContent = 'Enviar código OTP';
+    }
+
+    if (wait > 0) {
+      if (cooldownTimer) clearTimeout(cooldownTimer);
+      cooldownTimer = setTimeout(updateCooldownUI, 1000);
+    }
+  }
+
   function isUnauthorizedStatus(status, body) {
     if (status === 401 || status === 403) return true;
     const err = String((body && (body.error || body.message)) || '').toLowerCase();
@@ -306,25 +470,101 @@
     );
   }
 
+  function canRequestOtp(email) {
+    const lock = isLocked(email);
+    if (lock.locked) {
+      return { ok: false, msg: lock.reason + ' (' + formatWait(lock.until - now()) + ')' };
+    }
+    const er = getEmailRate(email);
+    const since = now() - er.lastOtpAt;
+    if (er.lastOtpAt && since < POLICY.otpCooldownMs) {
+      return { ok: false, msg: 'Espera ' + formatWait(POLICY.otpCooldownMs - since) + ' antes de pedir otro código' };
+    }
+    // ventana horaria
+    let count = er.otpCountHour;
+    let windowStart = er.hourWindowStart;
+    if (!windowStart || now() - windowStart > 60 * 60 * 1000) {
+      count = 0;
+      windowStart = now();
+    }
+    if (count >= POLICY.maxOtpRequestsPerHour) {
+      const left = 60 * 60 * 1000 - (now() - windowStart);
+      return { ok: false, msg: 'Límite de ' + POLICY.maxOtpRequestsPerHour + ' OTP/hora. Reintenta en ' + formatWait(left) };
+    }
+    return { ok: true, count, windowStart };
+  }
+
+  function registerOtpRequest(email, meta) {
+    setEmailRate(email, {
+      lastOtpAt: now(),
+      otpCountHour: (meta.count || 0) + 1,
+      hourWindowStart: meta.windowStart || now(),
+    });
+    otpIssuedAt = now();
+    verifyAttempts = 0;
+    updateCooldownUI();
+  }
+
+  function registerVerifyFail(email) {
+    verifyAttempts += 1;
+    const er = getEmailRate(email);
+    const fails = (er.verifyFails || 0) + 1;
+    const globalFails = (er.globalFails || 0) + 1;
+    const patch = { verifyFails: fails, globalFails };
+
+    if (verifyAttempts >= POLICY.maxVerifyAttempts || fails >= POLICY.maxVerifyAttempts) {
+      patch.lockoutUntil = now() + POLICY.lockoutMs;
+      patch.verifyFails = 0;
+    }
+    if (globalFails >= POLICY.maxVerifyFailsGlobal) {
+      patch.globalLockUntil = now() + POLICY.lockoutMs;
+      patch.globalFails = 0;
+    }
+    setEmailRate(email, patch);
+  }
+
+  function registerVerifySuccess(email) {
+    setEmailRate(email, { verifyFails: 0, globalFails: 0, lockoutUntil: 0 });
+    verifyAttempts = 0;
+  }
+
   async function requestOtp() {
-    const email = (document.getElementById('tmxAuthEmail').value || '').trim().toLowerCase();
-    if (!email || !email.includes('@')) {
+    if (inFlightRequest) return;
+    const email = normalizeEmail((document.getElementById('tmxAuthEmail') || {}).value || pendingEmail);
+    if (!isValidEmail(email)) {
       setMsg('Introduce un correo válido', 'err');
       return;
     }
+
+    const gate = canRequestOtp(email);
+    if (!gate.ok) {
+      setMsg(gate.msg, 'err');
+      updateCooldownUI();
+      return;
+    }
+
+    // OTP vencido en UI: permitir reenvío solo si pasó cooldown (ya validado)
     const btn = document.getElementById('tmxAuthBtnOtp');
-    btn.disabled = true;
+    const btnResend = document.getElementById('tmxAuthBtnResend');
+    inFlightRequest = true;
+    if (btn) btn.disabled = true;
+    if (btnResend) btnResend.disabled = true;
     setMsg('Validando acceso y enviando código…');
+
     try {
       const { status, body, okHttp } = await postJson(PA.requestOtp, { email });
 
-      if (isUnauthorizedStatus(status, body) || body.ok === false && isUnauthorizedStatus(status, body)) {
+      if (isUnauthorizedStatus(status, body)) {
         showDenied(email, body.error || body.message || 'Correo no autorizado');
         return;
       }
 
       if (!okHttp || body.ok === false) {
-        // Si el flujo responde error genérico de lista, mostrar layout denied
+        if (status === 429) {
+          setMsg(body.error || body.message || 'Demasiadas solicitudes. Espera 45 s.', 'err');
+          registerOtpRequest(email, gate); // forzar cooldown local
+          return;
+        }
         if (status === 403 || status === 401) {
           showDenied(email, body.error || body.message);
           return;
@@ -333,81 +573,125 @@
         return;
       }
 
+      // Solo registrar cooldown tras éxito real
+      registerOtpRequest(email, gate);
       pendingEmail = email;
       hideAllSteps();
       document.getElementById('tmxAuthStepOtp').classList.remove('hidden');
-      document.getElementById('tmxAuthCode').value = '';
-      document.getElementById('tmxAuthCode').focus();
-      setMsg(body.message || 'Código enviado. Revisa tu correo (y spam).', 'ok');
+      const codeInput = document.getElementById('tmxAuthCode');
+      if (codeInput) {
+        codeInput.value = '';
+        codeInput.focus();
+      }
+      setMsg(body.message || 'Código enviado. Válido ~10 min. Revisa correo/spam.', 'ok');
+      updateCooldownUI();
     } catch (e) {
-      setMsg('Error de red al contactar Power Automate. Revisa CORS/flujo.', 'err');
+      const aborted = e && (e.name === 'AbortError' || String(e.message || '').includes('abort'));
+      setMsg(
+        aborted
+          ? 'Tiempo de espera agotado (25 s). Intenta de nuevo más tarde.'
+          : 'Error de red al contactar Power Automate. Revisa CORS/flujo.',
+        'err'
+      );
       console.error('requestOtp', e);
     } finally {
-      btn.disabled = false;
+      inFlightRequest = false;
+      updateCooldownUI();
     }
   }
 
   async function verifyOtp() {
-    const code = (document.getElementById('tmxAuthCode').value || '').trim();
-    if (!pendingEmail || code.length < 4) {
-      setMsg('Introduce el código OTP', 'err');
+    if (inFlightVerify) return;
+    const email = normalizeEmail(pendingEmail);
+    const code = sanitizeOtp((document.getElementById('tmxAuthCode') || {}).value);
+
+    if (!email || !isValidEmail(email)) {
+      setMsg('Sesión de OTP inválida. Vuelve a pedir el código.', 'err');
+      showEmailStep();
       return;
     }
+    if (code.length < 4 || code.length > 8) {
+      setMsg('Introduce un código OTP válido (4–8 dígitos)', 'err');
+      return;
+    }
+
+    const lock = isLocked(email);
+    if (lock.locked) {
+      setMsg(lock.reason + ' (' + formatWait(lock.until - now()) + ')', 'err');
+      return;
+    }
+
+    if (verifyAttempts >= POLICY.maxVerifyAttempts) {
+      registerVerifyFail(email);
+      setMsg('Máximo de intentos alcanzado. Cuenta bloqueada temporalmente.', 'err');
+      return;
+    }
+
+    // OTP demasiado viejo en cliente (10 min)
+    if (otpIssuedAt && now() - otpIssuedAt > POLICY.otpTtlMs) {
+      setMsg('El código expiró. Solicita uno nuevo (respeta la espera de 45 s).', 'err');
+      return;
+    }
+
     const btn = document.getElementById('tmxAuthBtnVerify');
-    btn.disabled = true;
+    inFlightVerify = true;
+    if (btn) btn.disabled = true;
     setMsg('Verificando…');
+
     try {
-      const { status, body, okHttp } = await postJson(PA.verifyOtp, {
-        email: pendingEmail,
-        code,
-      });
+      const { status, body, okHttp } = await postJson(PA.verifyOtp, { email, code });
 
       if (isUnauthorizedStatus(status, body)) {
-        showDenied(pendingEmail, body.error || body.message || 'Acceso denegado');
+        registerVerifyFail(email);
+        showDenied(email, body.error || body.message || 'Acceso denegado');
         return;
       }
 
-      if (!okHttp || body.ok === false || (!body.token && body.ok !== true)) {
-        // Código incorrecto: quedarse en paso OTP
-        if (status === 401 || status === 400) {
-          setMsg(body.error || body.message || 'Código incorrecto o expirado', 'err');
-          return;
-        }
-        // Si PA devuelve 200 sin JSON estándar pero con token
-        if (body.token) {
-          // continuar
+      if (!okHttp || (body.ok === false && !body.token)) {
+        registerVerifyFail(email);
+        const left = Math.max(0, POLICY.maxVerifyAttempts - verifyAttempts);
+        if (status === 429) {
+          setMsg(body.error || 'Demasiados intentos. Espera antes de reintentar.', 'err');
         } else {
-          setMsg(body.error || body.message || 'No se pudo verificar el código', 'err');
-          return;
+          setMsg(
+            (body.error || body.message || 'Código incorrecto o expirado') +
+              (left > 0 ? ' · Quedan ' + left + ' intentos' : ''),
+            'err'
+          );
         }
-      }
-
-      if (!body.token) {
-        setMsg('El flujo no devolvió token de sesión. Revisa la respuesta de Power Automate.', 'err');
+        if (verifyAttempts >= POLICY.maxVerifyAttempts) {
+          setMsg('Cuenta bloqueada 15 min por intentos fallidos.', 'err');
+        }
         return;
       }
 
-      const sessionPayload = {
+      if (!body.token || typeof body.token !== 'string') {
+        setMsg('El flujo no devolvió token de sesión válido.', 'err');
+        return;
+      }
+
+      registerVerifySuccess(email);
+      saveSession({
         token: body.token,
-        email: body.email || pendingEmail,
-        expiresAt: body.expiresAt || Date.now() + SESSION_MS,
-      };
-      saveSession(sessionPayload);
+        email: body.email || email,
+        expiresAt: body.expiresAt || now() + SESSION_MS,
+      });
       setMsg('Acceso concedido', 'ok');
       unlockApp(loadSession());
     } catch (e) {
-      setMsg('Error de red al verificar OTP', 'err');
+      const aborted = e && (e.name === 'AbortError' || String(e.message || '').includes('abort'));
+      setMsg(aborted ? 'Tiempo de espera agotado al verificar.' : 'Error de red al verificar OTP', 'err');
       console.error('verifyOtp', e);
     } finally {
-      btn.disabled = false;
+      inFlightVerify = false;
+      if (btn) btn.disabled = false;
     }
   }
 
   function boot() {
     ensureGateUI();
     const local = loadSession();
-    if (local && local.token && local.expiresAt > Date.now()) {
-      // Sin endpoint /me en PA: confiamos en expiración local de 3 días
+    if (local && local.token && Number(local.expiresAt) > now()) {
       unlockApp(local);
       return;
     }
@@ -424,6 +708,7 @@
     },
     getSession: loadSession,
     flows: PA,
+    policy: POLICY,
   };
 
   if (document.readyState === 'loading') {

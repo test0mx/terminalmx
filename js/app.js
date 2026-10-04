@@ -452,7 +452,17 @@ let currentInterval = '1h';
                 try {
                     setTimeout(() => {
                         ensureTrendiloProjChart();
+                        initTrendiloProjChartResize();
                         runTrendiloProjection(false);
+                        try {
+                            if (trendiloProjChart) {
+                                const el = document.getElementById('trendiloProjChart');
+                                if (el) trendiloProjChart.applyOptions({
+                                    width: Math.max(el.clientWidth || 280, 260),
+                                    height: Math.max(el.clientHeight || 200, 160)
+                                });
+                            }
+                        } catch (e2) {}
                     }, 80);
                 } catch (e) {}
             }
@@ -1796,7 +1806,7 @@ let currentInterval = '1h';
             const vh = window.innerHeight || 800;
             const chartH = Math.round(vh * 0.40);
             const minChart = Math.round(vh * 0.40);
-            const maxChart = Math.round(vh * 0.60);
+            const maxChart = Math.round(vh * 0.85);
             if (split) {
                 split.style.flex = '0 0 auto';
                 split.style.height = chartH + 'px';
@@ -1823,7 +1833,7 @@ let currentInterval = '1h';
                 bottom.style.minHeight = '280px';
             }
             try {
-                localStorage.setItem(LS_PANEL_H, String(Math.round(vh * 0.60)));
+                localStorage.setItem(LS_PANEL_H, String(Math.round(vh * 0.45)));
                 if (typeof saveChartPrefs === 'function') {
                     saveChartPrefs({ mainFlex: 6.5, subFlex: 3.5, mainVisible: true, subVisible: true });
                 }
@@ -1866,7 +1876,7 @@ let currentInterval = '1h';
                 const split = document.getElementById('chartsSplitContainer');
                 const vh = window.innerHeight || 800;
                 const minChart = Math.round(vh * 0.40);
-                const maxChart = Math.round(vh * 0.60);
+                const maxChart = Math.round(vh * 0.85);
                 // clientY respecto al main: altura de gráficos = clientY - top del área de charts
                 const splitEl = split || main;
                 const top = (split && split.getBoundingClientRect().top) || main.getBoundingClientRect().top;
@@ -2743,6 +2753,60 @@ let currentInterval = '1h';
             applyChartPrefs();
         }
 
+
+        function initTrendiloProjChartResize() {
+            const handle = document.getElementById('trendiloProjResizeHandle');
+            const wrap = document.getElementById('trendiloProjChartWrap');
+            if (!handle || !wrap || handle.dataset.bound === '1') return;
+            handle.dataset.bound = '1';
+            let dragging = false;
+            const onMove = (clientY) => {
+                const rect = wrap.getBoundingClientRect();
+                let h = clientY - rect.top;
+                h = Math.max(180, Math.min(window.innerHeight * 0.7, h));
+                wrap.style.height = Math.round(h) + 'px';
+                try {
+                    if (trendiloProjChart) {
+                        const el = document.getElementById('trendiloProjChart');
+                        trendiloProjChart.applyOptions({
+                            width: Math.max(el.clientWidth || 280, 260),
+                            height: Math.max((el.clientHeight || h - 12), 140)
+                        });
+                    }
+                } catch (e) {}
+            };
+            handle.addEventListener('mousedown', (e) => {
+                e.preventDefault();
+                dragging = true;
+                handle.classList.add('dragging');
+                _showResizeOverlay(true);
+            });
+            window.addEventListener('mousemove', (e) => {
+                if (dragging) onMove(e.clientY);
+            });
+            window.addEventListener('mouseup', () => {
+                if (!dragging) return;
+                dragging = false;
+                handle.classList.remove('dragging');
+                _showResizeOverlay(false);
+            });
+            handle.addEventListener('touchstart', (e) => {
+                if (!e.touches[0]) return;
+                e.preventDefault();
+                dragging = true;
+                handle.classList.add('dragging');
+            }, { passive: false });
+            window.addEventListener('touchmove', (e) => {
+                if (!dragging || !e.touches[0]) return;
+                e.preventDefault();
+                onMove(e.touches[0].clientY);
+            }, { passive: false });
+            window.addEventListener('touchend', () => {
+                dragging = false;
+                handle.classList.remove('dragging');
+            });
+        }
+
         function initChartResizeHandle() {
             const handle = document.getElementById('chartResizeHandle');
             const split = document.getElementById('chartsSplitContainer');
@@ -2758,8 +2822,8 @@ let currentInterval = '1h';
                 const usable = rect.height - handleH;
                 if (usable < 160) return;
                 // Mínimos para que velas y Trendilo siempre se vean
-                const minMain = Math.max(80, Math.round(usable * 0.35));
-                const minSub = Math.max(70, Math.round(usable * 0.25));
+                const minMain = Math.max(100, Math.round(usable * 0.25));
+                const minSub = Math.max(80, Math.round(usable * 0.18));
                 let mainH = clientY - rect.top;
                 mainH = Math.max(minMain, Math.min(usable - minSub, mainH));
                 const subH = usable - mainH;

@@ -542,7 +542,7 @@
             </div>
 
             <!-- Charts Split Container (redimensionable verticalmente) -->
-            <div id="chartsSplitContainer" class="flex flex-col gap-0 relative overflow-hidden resizing-layout" style="height: 40vh; min-height: 40vh; max-height: 60vh;">
+            <div id="chartsSplitContainer" class="flex flex-col gap-0 relative overflow-hidden resizing-layout" style="height: 45vh; min-height: 28vh; max-height: 85vh;">
                 <div id="mainChartContainer" class="w-full relative overflow-hidden" style="flex: 6.5 1 0; min-height: 100px;">
                     <div id="candlestickChart" class="w-full h-full cursor-grab active:cursor-grabbing"></div>
                     <div id="yoshiObOverlay" aria-hidden="true"></div>
@@ -568,7 +568,7 @@
                         </button>
                     </div>
                 </div>
-                <div id="chartResizeHandle" title="Arrastra para redimensionar · Doble clic restaura"><span class="resize-grip"></span></div>
+                <div id="chartResizeHandle" title="Arrastra para repartir velas / Trendilo · Doble clic restaura"><span class="resize-grip"></span></div>
                 <div id="subChartContainer" class="w-full border-t border-borderBg relative overflow-hidden" style="flex: 3.5 1 0; min-height: 90px;">
                     <div class="absolute top-1 left-2 z-10 text-[10px] text-slate-500 pointer-events-none font-mono">
                         Trendilo · ALMA + ±RMS · <a href="https://es.tradingview.com/script/h5kMWewu-Trendilo-OPEN-SOURCE/" target="_blank" rel="noopener" class="text-accentYellow/80 hover:underline pointer-events-auto">dudeowns OS</a> · estilo TradingView
@@ -578,7 +578,7 @@
             </div>
 
             <!-- Resize vertical: gráficos ↔ panel operaciones -->
-            <div id="panelResizeHandle" title="Arrastra para redimensionar · Doble clic restaura"><span class="resize-grip"></span></div>
+            <div id="panelResizeHandle" title="Arrastra para redimensionar zona de gráficos · Doble clic restaura"><span class="resize-grip"></span></div>
 
             <!-- Countdown vigencia posición -->
             <div id="positionCountdownBar" class="hidden shrink-0 bg-cardBg border-t border-borderBg px-3 py-1.5 flex items-center justify-between gap-2 text-[11px] sm:text-xs">
@@ -620,7 +620,7 @@
                         </button>
                         <button type="button" id="tabBtnTrendiloProj" onclick="switchBottomTab('trendiloProj')" class="font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs">
                             <i class="fa-solid fa-wave-square"></i>
-                            <span class="hidden sm:inline">Proyección Trendilo</span><span class="sm:hidden">Trendilo</span>
+                            <span class="hidden sm:inline">TrendiloMX</span><span class="sm:hidden">TrendiloMX</span>
                         </button>
                         <button type="button" id="tabBtnCalendar" onclick="switchBottomTab('calendar')" class="font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs">
                             <i class="fa-solid fa-calendar-days"></i>
@@ -1380,12 +1380,12 @@
                     </p>
                 </div>
 
-                <!-- Tab: Proyección Trendilo -->
+                <!-- Tab: TrendiloMX -->
                 <div id="tabContentTrendiloProj" class="flex-1 overflow-auto p-2 sm:p-3 hidden">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
                         <div>
                             <div class="font-semibold text-accentYellow flex items-center gap-1.5 text-sm">
-                                <i class="fa-solid fa-wave-square"></i> Proyección Trendilo
+                                <i class="fa-solid fa-wave-square"></i> TrendiloMX
                             </div>
                             <p class="text-[11px] text-slate-500 mt-0.5 max-w-2xl">
                                 ALMA(%chg) + bandas ±RMS con <strong class="text-slate-300">proyección</strong> del sesgo. Elige temporalidad y aplica LONG/SHORT cuando ALMA cruza o se apoya en las bandas.
@@ -1441,9 +1441,12 @@
                             </div>
                             <p id="tpStatus" class="text-[10px] text-slate-600 font-mono mt-2">—</p>
                         </div>
-                        <div class="lg:col-span-2 rounded-xl border border-borderBg bg-black overflow-hidden relative" style="min-height: 220px;">
-                            <div class="absolute top-1.5 left-2 z-10 text-[10px] text-slate-500 pointer-events-none">Trendilo · proyección (línea discontinua)</div>
-                            <div id="trendiloProjChart" class="w-full h-full" style="min-height: 220px; height: 240px;"></div>
+                        <div class="lg:col-span-2 rounded-xl border border-borderBg bg-black overflow-hidden relative flex flex-col" id="trendiloProjChartWrap" style="min-height: 200px; height: 280px;">
+                            <div class="absolute top-1.5 left-2 z-10 text-[10px] text-slate-500 pointer-events-none">TrendiloMX · proyección (línea discontinua)</div>
+                            <div id="trendiloProjChart" class="w-full flex-1" style="min-height: 160px;"></div>
+                            <div id="trendiloProjResizeHandle" class="tmx-inline-resize" title="Arrastra para redimensionar TrendiloMX">
+                                <span class="resize-grip"></span>
+                            </div>
                         </div>
                     </div>
 

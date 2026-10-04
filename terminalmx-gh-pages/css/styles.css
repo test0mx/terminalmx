@@ -64,21 +64,21 @@ body {
 /* Gráficos: 40% por defecto, redimensionable hasta 60% · incluye Trendilo */
 #chartsSplitContainer {
     flex: 0 0 auto;
-    height: 40vh;
-    min-height: 40vh;
-    max-height: 60vh;
+    height: 45vh;
+    min-height: 28vh;
+    max-height: 85vh;
     display: flex !important;
     flex-direction: column !important;
     overflow: hidden;
 }
 #mainChartContainer {
-    flex: 6.5 1 0 !important;
+    flex: 6.5 1 0;
     min-height: 100px;
     overflow: hidden;
     position: relative;
 }
 #subChartContainer {
-    flex: 3.5 1 0 !important;
+    flex: 3.5 1 0;
     min-height: 90px;
     overflow: hidden;
     position: relative;
@@ -108,8 +108,8 @@ body {
     display: flex;
     align-items: center;
     justify-content: center;
-    height: 8px;
-    flex: 0 0 8px;
+    height: 12px;
+    flex: 0 0 12px;
     cursor: row-resize;
     background: #1e2329;
     border-top: 1px solid #2b313a;
@@ -366,4 +366,39 @@ body.charts-only-mode #chartsOnlyExitBar {
     min-height: 120px;
     height: 100%;
     width: 100%;
+}
+
+
+/* Handle redimensionar gráfico TrendiloMX en pestaña */
+.tmx-inline-resize {
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    height: 12px;
+    flex: 0 0 12px;
+    cursor: ns-resize;
+    background: #1e2329;
+    border-top: 1px solid #2b313a;
+    touch-action: none;
+    user-select: none;
+    z-index: 5;
+}
+.tmx-inline-resize:hover,
+.tmx-inline-resize.dragging {
+    background: rgba(240, 185, 11, 0.25);
+    border-color: #f0b90b;
+}
+.tmx-inline-resize .resize-grip {
+    width: 36px;
+    height: 3px;
+    border-radius: 2px;
+    background: #5e6673;
+}
+.tmx-inline-resize:hover .resize-grip,
+.tmx-inline-resize.dragging .resize-grip {
+    background: #f0b90b;
+}
+#trendiloProjChartWrap {
+    resize: vertical;
+    overflow: auto;
 }
