@@ -617,12 +617,51 @@ let currentInterval = '1h';
             } else if (alma < 0 && slope < 0) {
                 signal = 'SELL'; conf = 48;
             }
-            return { almaLine, rmsUp, rmsDn, zero, proj, alma: y2, rms: lastRms, projEnd, slope, signal, conf };
+            // Acierto histórico: señal en barra i vs movimiento de precio en las siguientes 3 velas
+            let hits = 0, total = 0;
+            const look = 3;
+            const almaByTime = {};
+            almaLine.forEach(p => { almaByTime[p.time] = p.value; });
+            for (let i = almaLen; i < klines.length - look; i++) {
+                const a0 = almaArr[i];
+                const a1 = almaArr[i - 2] != null ? almaArr[i - 2] : a0;
+                if (a0 == null) continue;
+                const slopeI = (a0 - a1) / 2;
+                let sig = 'NONE';
+                // RMS local
+                let sumSq = 0, cnt = 0;
+                for (let j = 0; j < rmsLen && i - j >= 0; j++) {
+                    const a = almaArr[i - j];
+                    if (a !== null) { sumSq += a * a; cnt++; }
+                }
+                const rmsI = cnt > 0 ? Math.sqrt(sumSq / cnt) : 0;
+                if (a0 > rmsI * 0.45 && slopeI > 0) sig = 'BUY';
+                else if (a0 < -rmsI * 0.45 && slopeI < 0) sig = 'SELL';
+                else if (a0 > 0 && slopeI > 0) sig = 'BUY';
+                else if (a0 < 0 && slopeI < 0) sig = 'SELL';
+                if (sig === 'NONE') continue;
+                const p0 = klines[i].close;
+                const p1 = klines[i + look].close;
+                const up = p1 > p0 * 1.0001;
+                const dn = p1 < p0 * 0.9999;
+                if (!up && !dn) continue;
+                total++;
+                if (sig === 'BUY' && up) hits++;
+                if (sig === 'SELL' && dn) hits++;
+            }
+            const hitRate = total > 0 ? (hits / total) * 100 : null;
+            const hitSamples = total;
+
+            return {
+                almaLine, rmsUp, rmsDn, zero, proj,
+                alma: y2, rms: lastRms, projEnd, slope, signal, conf,
+                hitRate, hitSamples, hits
+            };
         }
 
         async function runTrendiloProjection(force) {
             if (trendiloProjRunning) return;
-            if (!force && trendiloProjCacheAt && Date.now() - trendiloProjCacheAt < 20000 && trendiloProjLatest.alma) {
+            if (!force && trendiloProjCacheAt && Date.now() - trendiloProjCacheAt < 12000 && trendiloProjLatest.alma) {
                 renderTrendiloProjUI(trendiloProjLatest);
                 return;
             }
@@ -659,11 +698,18 @@ let currentInterval = '1h';
                     proj: series.projEnd,
                     slope: series.slope,
                     conf: series.conf,
-                    tf: trendiloProjTf
+                    tf: trendiloProjTf,
+                    hitRate: series.hitRate,
+                    hitSamples: series.hitSamples,
+                    hits: series.hits,
+                    updatedAt: Date.now()
                 };
                 trendiloProjCacheAt = Date.now();
                 renderTrendiloProjUI(trendiloProjLatest);
-                if (status) status.innerText = `TF ${trendiloProjTf} · ${new Date().toLocaleTimeString()}`;
+                const hitTxt = series.hitRate != null
+                    ? ` · acierto ${series.hitRate.toFixed(0)}% (${series.hits}/${series.hitSamples})`
+                    : '';
+                if (status) status.innerText = `TF ${trendiloProjTf} · auto 35s · ${new Date().toLocaleTimeString()}${hitTxt}`;
             } catch (e) {
                 console.error('Trendilo proj', e);
                 if (status) status.innerText = 'Error: ' + (e.message || e);
@@ -686,6 +732,32 @@ let currentInterval = '1h';
             setTxt('tpRmsVal', '±' + Number(p.rms).toFixed(4));
             setTxt('tpProjVal', Number(p.proj).toFixed(4) + (p.slope >= 0 ? ' ↑' : ' ↓'));
             setTxt('tpConfVal', Math.round(p.conf) + '%');
+            // % acierto proyección vs movimiento real del precio
+            const hrEl = document.getElementById('tpHitRateVal');
+            const hrBar = document.getElementById('tpHitRateBar');
+            const hrDet = document.getElementById('tpHitRateDetail');
+            if (p.hitRate != null && p.hitSamples > 0) {
+                const hr = Number(p.hitRate);
+                if (hrEl) {
+                    hrEl.innerText = hr.toFixed(0) + '%';
+                    hrEl.className = 'text-lg font-black ' + (
+                        hr >= 58 ? 'text-accentGreen' : hr >= 48 ? 'text-accentYellow' : 'text-accentRed'
+                    );
+                }
+                if (hrBar) {
+                    hrBar.style.width = Math.max(0, Math.min(100, hr)) + '%';
+                    hrBar.className = 'h-full rounded-full transition-all ' + (
+                        hr >= 58 ? 'bg-accentGreen' : hr >= 48 ? 'bg-accentYellow' : 'bg-accentRed'
+                    );
+                }
+                if (hrDet) {
+                    hrDet.innerText = `Aciertos ${p.hits || 0}/${p.hitSamples} · señal Trendilo vs precio +3 velas (${p.tf || trendiloProjTf})`;
+                }
+            } else {
+                if (hrEl) { hrEl.innerText = '—'; hrEl.className = 'text-lg font-black text-slate-500'; }
+                if (hrBar) { hrBar.style.width = '0%'; }
+                if (hrDet) hrDet.innerText = 'Calculando acierto vs movimiento real…';
+            }
 
             if (p.signal === 'BUY') {
                 if (badge) { badge.innerText = 'LONG'; badge.className = 'px-2.5 py-0.5 rounded text-[10px] font-black bg-accentGreen text-slate-950'; }
@@ -1597,10 +1669,11 @@ let currentInterval = '1h';
             } catch (e) {
                 startLiveUpdates();
             }
-            // Palacios + confluencia activa: auto-refresh cada 35s
+            // Palacios + confluencia + TrendiloMX: auto-refresh cada 35s
             try {
                 if (window._palaciosTimerId) clearInterval(window._palaciosTimerId);
                 runPalaciosIndicator(true);
+                try { if (typeof runTrendiloProjection === 'function') runTrendiloProjection(true); } catch (e) {}
                 window._palaciosTimerId = setInterval(() => {
                     try { runPalaciosIndicator(true); } catch (e) {}
                     try {
@@ -1608,6 +1681,7 @@ let currentInterval = '1h';
                             if (typeof refreshSelectedConfluencia === 'function') refreshSelectedConfluencia(true);
                         }
                     } catch (e) {}
+                    try { if (typeof runTrendiloProjection === 'function') runTrendiloProjection(true); } catch (e) {}
                 }, 35000);
             } catch (e) {}
             initPanelResizeHandle();

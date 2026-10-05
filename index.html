@@ -1432,6 +1432,18 @@
                                     <div class="text-slate-500">Confianza</div>
                                     <div id="tpConfVal" class="text-slate-200 font-bold">—</div>
                                 </div>
+                                <div class="bg-panelBg rounded border border-borderBg p-2 col-span-2">
+                                    <div class="flex items-center justify-between gap-2">
+                                        <div>
+                                            <div class="text-slate-500">Acierto vs precio real</div>
+                                            <div id="tpHitRateDetail" class="text-[9px] text-slate-500 mt-0.5">Proyección vs movimiento real (N barras)</div>
+                                        </div>
+                                        <div id="tpHitRateVal" class="text-lg font-black text-accentYellow">—</div>
+                                    </div>
+                                    <div class="mt-1.5 h-1.5 rounded-full bg-borderBg overflow-hidden">
+                                        <div id="tpHitRateBar" class="h-full rounded-full bg-accentYellow transition-all" style="width:0%"></div>
+                                    </div>
+                                </div>
                             </div>
                             <div class="flex flex-wrap gap-2">
                                 <button type="button" id="btnTpApplyLong" onclick="applyTrendiloProjection('LONG')" disabled
