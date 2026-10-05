@@ -376,6 +376,7 @@ let currentInterval = '1h';
                 palacios: { btn: 'tabBtnPalacios', content: 'tabContentPalacios' },
                 confluencias: { btn: 'tabBtnConfluencias', content: 'tabContentConfluencias' },
                 trendiloProj: { btn: 'tabBtnTrendiloProj', content: 'tabContentTrendiloProj' },
+                alts: { btn: 'tabBtnAlts', content: 'tabContentAlts' },
                 calendar: { btn: 'tabBtnCalendar', content: 'tabContentCalendar' }
             };
             if (!map[tab]) tab = 'signals';
@@ -1464,20 +1465,56 @@ let currentInterval = '1h';
                     fetchBybitUsdtSet(),
                     fetchOkxUsdtSet()
                 ]);
+                // Intersección completa (todos los USDT en los 3 exchanges)
+                let intersectionCount = 0;
+                binanceMap.forEach((_, sym) => {
+                    if (bybitSet.has(sym) && okxSet.has(sym)) intersectionCount++;
+                });
+
                 const alts = [];
+                const FEATURED = new Set(['XAUUSDT', 'PAXGUSDT', 'ETHUSDT', 'SOLUSDT']);
                 binanceMap.forEach((row, sym) => {
                     if (sym === 'BTCUSDT') return; // TOTAL2 = excluye BTC
                     if (!bybitSet.has(sym)) return;
                     if (!okxSet.has(sym)) return;
-                    if (!Number.isFinite(row.quoteVol) || row.quoteVol < 500000) return; // liquidez mínima
+                    const minVol = (sym === 'XAUUSDT' || sym === 'PAXGUSDT') ? 50000 : 100000;
+                    if (!Number.isFinite(row.quoteVol) || row.quoteVol < minVol) {
+                        // XAU: incluir aunque el vol Binance sea bajo si está en los 3
+                        if (sym !== 'XAUUSDT' && sym !== 'PAXGUSDT') return;
+                    }
                     alts.push({
                         ...row,
-                        exchanges: 'BN · BY · OKX'
+                        exchanges: 'BN · BY · OKX',
+                        featured: FEATURED.has(sym)
                     });
                 });
-                alts.sort((a, b) => b.quoteVol - a.quoteVol);
+                // Si XAUUSDT no vino en Binance 24hr pero existe en los 3, intentar forzar
+                if (!alts.some(a => a.symbol === 'XAUUSDT') && bybitSet.has('XAUUSDT') && okxSet.has('XAUUSDT')) {
+                    const row = binanceMap.get('XAUUSDT');
+                    if (row) {
+                        alts.unshift({ ...row, exchanges: 'BN · BY · OKX', featured: true });
+                    } else {
+                        alts.unshift({
+                            symbol: 'XAUUSDT',
+                            price: NaN,
+                            changePct: 0,
+                            quoteVol: 0,
+                            exchanges: 'BN · BY · OKX',
+                            featured: true
+                        });
+                    }
+                }
+                alts.sort((a, b) => {
+                    if (a.featured && !b.featured) return -1;
+                    if (!a.featured && b.featured) return 1;
+                    return b.quoteVol - a.quoteVol;
+                });
                 altsListCache = alts;
                 altsLoadedAt = Date.now();
+                const badge = document.getElementById('altsTotalBadge');
+                if (badge) badge.innerText = alts.length + ' tokens';
+                const info = document.getElementById('altsIntersectionInfo');
+                if (info) info.innerText = `Intersección 3 exchanges: ${intersectionCount} pares · listados ${alts.length} (liq. filtrada)`;
                 renderAltsTable();
             } catch (e) {
                 console.warn('loadAltsList', e);
@@ -1511,11 +1548,14 @@ let currentInterval = '1h';
                 const chgCls = chg >= 0 ? 'text-accentGreen' : 'text-accentRed';
                 const sign = chg >= 0 ? '+' : '';
                 const rowBg = active ? 'bg-accentYellow/10' : 'hover:bg-cardBg/60';
+                const tag = a.symbol === 'XAUUSDT' ? '<span class="ml-1 text-[9px] text-amber-400 font-bold">ORO</span>'
+                    : (a.featured ? '<span class="ml-1 text-[9px] text-slate-500">★</span>' : '');
                 return `<tr class="${rowBg} cursor-pointer transition" onclick="setActiveSymbol('${a.symbol}')">
                     <td class="p-2 text-slate-500">${i + 1}</td>
                     <td class="p-2">
                         <span class="font-bold text-white font-mono ${active ? 'text-accentYellow' : ''}">${base}</span>
                         <span class="text-slate-500 text-[10px]">/USDT</span>
+                        ${tag}
                         ${active ? '<span class="ml-1 text-[9px] text-accentYellow font-bold">ACTIVO</span>' : ''}
                     </td>
                     <td class="p-2 text-right font-mono text-slate-200">$${formatAltPrice(a.price)}</td>
@@ -1528,7 +1568,7 @@ let currentInterval = '1h';
 
         function updateSymbolUI() {
             const base = baseAsset(currentSymbol);
-            const label = base + '/USDT';
+            const label = currentSymbol === 'XAUUSDT' ? 'XAU/USDT (Oro)' : (base + '/USDT');
             const h = document.getElementById('headerSymbolLabel');
             if (h) h.innerText = label;
             const a = document.getElementById('altsActiveSymbol');

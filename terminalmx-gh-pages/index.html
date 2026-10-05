@@ -622,6 +622,10 @@
                             <i class="fa-solid fa-wave-square"></i>
                             <span class="hidden sm:inline">TrendiloMX</span><span class="sm:hidden">TrendiloMX</span>
                         </button>
+                        <button type="button" id="tabBtnAlts" onclick="switchBottomTab('alts')" class="font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs">
+                            <i class="fa-solid fa-coins"></i>
+                            <span class="hidden sm:inline">Altcoins</span><span class="sm:hidden">Alts</span>
+                        </button>
                         <button type="button" id="tabBtnCalendar" onclick="switchBottomTab('calendar')" class="font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs">
                             <i class="fa-solid fa-calendar-days"></i>
                             <span class="hidden sm:inline">Calendario</span><span class="sm:hidden">Cal.</span>
@@ -1056,18 +1060,19 @@
                 </div>
 
                 <!-- Tab: Altcoins TOTAL2 (intersección Binance ∩ Bybit ∩ OKX) -->
-                <div id="tabContentAlts" class="flex-1 overflow-auto p-2 sm:p-3 hidden" style="display:none!important" aria-hidden="true">
+                <div id="tabContentAlts" class="flex-1 overflow-auto p-2 sm:p-3 hidden">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
                         <div>
                             <div class="font-semibold text-accentYellow flex items-center gap-1.5 text-sm">
                                 <i class="fa-solid fa-coins"></i> Altcoins · TOTAL2
+                                <span id="altsTotalBadge" class="ml-1 px-2 py-0.5 rounded-full text-[10px] font-mono bg-borderBg text-slate-300">— tokens</span>
                             </div>
                             <p class="text-[11px] text-slate-500 mt-0.5">
-                                Pares USDT presentes en <strong class="text-slate-400">Binance + Bybit + OKX</strong>. Clic en el símbolo para cargar gráficos e indicadores.
+                                Pares USDT en los <strong class="text-slate-300">3 proveedores</strong> (Binance · Bybit · OKX). Incluye <strong class="text-accentYellow">XAUUSDT</strong> (oro). Clic para operar.
                             </p>
                         </div>
                         <div class="flex items-center gap-2 flex-wrap">
-                            <input type="search" id="altsSearch" placeholder="Buscar (ETH, SOL…)" oninput="renderAltsTable()"
+                            <input type="search" id="altsSearch" placeholder="Buscar (ETH, SOL, XAU…)" oninput="renderAltsTable()"
                                 class="bg-cardBg border border-borderBg rounded-lg px-2.5 py-1.5 text-[11px] text-white w-36 sm:w-44 focus:outline-none focus:border-accentYellow">
                             <button type="button" onclick="loadAltsList(true)" class="px-2.5 py-1.5 rounded-lg border border-borderBg bg-cardBg hover:bg-borderBg text-[11px] text-slate-300 transition flex items-center gap-1.5">
                                 <i class="fa-solid fa-rotate" id="altsRefreshIcon"></i> Actualizar
@@ -1075,10 +1080,15 @@
                             <button type="button" onclick="setActiveSymbol('BTCUSDT')" class="px-2.5 py-1.5 rounded-lg border border-accentYellow/40 bg-accentYellow/10 text-accentYellow text-[11px] font-bold transition">
                                 BTC
                             </button>
+                            <button type="button" onclick="setActiveSymbol('XAUUSDT')" class="px-2.5 py-1.5 rounded-lg border border-amber-500/40 bg-amber-500/10 text-amber-400 text-[11px] font-bold transition" title="Oro / XAUUSDT">
+                                XAU
+                            </button>
                         </div>
                     </div>
-                    <div id="altsActiveBanner" class="mb-2 text-[11px] text-slate-400">
-                        Activo actual: <span class="text-accentYellow font-mono font-bold" id="altsActiveSymbol">BTC/USDT</span>
+                    <div id="altsActiveBanner" class="mb-2 text-[11px] text-slate-400 flex flex-wrap items-center gap-x-3 gap-y-1">
+                        <span>Activo actual: <span class="text-accentYellow font-mono font-bold" id="altsActiveSymbol">BTC/USDT</span></span>
+                        <span class="text-slate-600">·</span>
+                        <span id="altsIntersectionInfo" class="text-slate-500 font-mono">Intersección 3 exchanges: —</span>
                     </div>
                     <div class="overflow-x-auto min-w-0">
                         <table class="w-full text-left text-[11px] sm:text-xs min-w-[640px]">
@@ -1097,7 +1107,7 @@
                             </tbody>
                         </table>
                     </div>
-                    <p class="text-[10px] text-slate-600 mt-2">Solo se listan activos cotizados en los tres proveedores de datos del terminal. TOTAL2 ≈ mercado de altcoins (ex-BTC).</p>
+                    <p class="text-[10px] text-slate-600 mt-2">Lista = intersección real Binance ∩ Bybit ∩ OKX (TOTAL2 ex-BTC) + XAUUSDT si está disponible. Liquidez mínima ~$100k USDT/24h.</p>
                 </div>
 
                 <!-- Tab: Mejores combinaciones TF + indicadores + estrategia (siempre 150 velas) -->
