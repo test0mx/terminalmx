@@ -514,6 +514,20 @@
                 <button type="button" onclick="chartFitContent()" class="tv-tool-btn px-2 py-1 rounded border border-borderBg bg-cardBg text-slate-300 hover:text-white hover:bg-borderBg transition shrink-0" title="Ajustar al contenido"><i class="fa-solid fa-maximize"></i></button>
                 <button type="button" onclick="chartResetZoom()" class="tv-tool-btn px-2 py-1 rounded border border-borderBg bg-cardBg text-slate-300 hover:text-white hover:bg-borderBg transition shrink-0" title="Reset zoom"><i class="fa-solid fa-clock-rotate-left"></i></button>
                 <button type="button" onclick="toggleVolumeOverlay()" id="btnToggleVol" class="tv-tool-btn px-2 py-1 rounded border border-borderBg bg-cardBg text-accentYellow hover:bg-borderBg transition shrink-0" title="Mostrar/ocultar volumen">Vol</button>
+                <div class="relative shrink-0" id="orderFlowBtnWrap">
+                    <button type="button" onclick="toggleOrderFlowMenu(event)" id="btnOrderFlow" class="tv-tool-btn px-2 py-1 rounded border border-borderBg bg-cardBg text-slate-300 hover:text-accentYellow hover:bg-borderBg transition flex items-center gap-1" title="Order Flow / footprint">
+                        <i class="fa-solid fa-table-cells"></i><span class="hidden sm:inline">Order Flow</span>
+                    </button>
+                    <div id="orderFlowMenu" class="hidden absolute left-0 top-full mt-1 z-50 min-w-[220px] rounded-lg border border-borderBg bg-panelBg shadow-xl py-1 text-[11px]">
+                        <button type="button" class="of-mode-item w-full text-left px-3 py-1.5 hover:bg-cardBg text-slate-300" data-ofmode="off" onclick="setOrderFlowMode('off')">Desactivado</button>
+                        <button type="button" class="of-mode-item w-full text-left px-3 py-1.5 hover:bg-cardBg text-slate-300" data-ofmode="footprint" onclick="setOrderFlowMode('footprint')">Bid × Ask (footprint)</button>
+                        <button type="button" class="of-mode-item w-full text-left px-3 py-1.5 hover:bg-cardBg text-slate-300" data-ofmode="delta_profile" onclick="setOrderFlowMode('delta_profile')">Escalera de delta + perfil</button>
+                        <button type="button" class="of-mode-item w-full text-left px-3 py-1.5 hover:bg-cardBg text-slate-300" data-ofmode="volume_cells" onclick="setOrderFlowMode('volume_cells')">Volumen (celdas)</button>
+                        <button type="button" class="of-mode-item w-full text-left px-3 py-1.5 hover:bg-cardBg text-slate-300" data-ofmode="delta_cells" onclick="setOrderFlowMode('delta_cells')">Delta (celdas)</button>
+                        <button type="button" class="of-mode-item w-full text-left px-3 py-1.5 hover:bg-cardBg text-slate-300" data-ofmode="bidask_hist" onclick="setOrderFlowMode('bidask_hist')">Histograma bid / ask</button>
+                        <button type="button" class="of-mode-item w-full text-left px-3 py-1.5 hover:bg-cardBg text-slate-300" data-ofmode="vp_candle" onclick="setOrderFlowMode('vp_candle')">Perfil de volumen por vela</button>
+                    </div>
+                </div>
                 <button type="button" onclick="toggleEma50Overlay()" id="btnToggleEma" class="tv-tool-btn px-2 py-1 rounded border border-borderBg bg-cardBg text-accentYellow hover:bg-borderBg transition shrink-0" title="SMMA 20 + SMMA 50">SMMA</button>
                 <button type="button" onclick="toggleHlineTool()" id="btnHlineTool" class="tv-tool-btn px-2 py-1 rounded border border-borderBg bg-cardBg text-slate-300 hover:text-white hover:bg-borderBg transition shrink-0" title="Clic en el gráfico para trazar línea horizontal"><i class="fa-solid fa-minus"></i> H-Line</button>
                 <button type="button" onclick="clearUserPriceLines()" class="tv-tool-btn px-2 py-1 rounded border border-borderBg bg-cardBg text-slate-300 hover:text-accentRed hover:bg-borderBg transition shrink-0" title="Borrar líneas de usuario"><i class="fa-solid fa-eraser"></i></button>
@@ -546,6 +560,7 @@
                 <div id="mainChartContainer" class="w-full relative overflow-hidden" style="flex: 6.5 1 0; min-height: 100px;">
                     <div id="candlestickChart" class="w-full h-full cursor-grab active:cursor-grabbing"></div>
                     <div id="yoshiObOverlay" aria-hidden="true"></div>
+                    <div id="orderFlowOverlay" class="absolute inset-0 pointer-events-none z-[5] overflow-hidden" aria-hidden="true"></div>
                     <div id="chartWatermark" class="absolute bottom-8 left-3 pointer-events-none text-slate-700/40 font-bold text-lg sm:text-2xl select-none z-[1]">
                         TerminalMX
                     </div>
