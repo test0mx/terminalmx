@@ -2502,6 +2502,14 @@ let currentInterval = '1h';
                 try { volumeSeries.applyOptions({ visible: volumeVisible }); } catch (e) {}
             }
 
+            // Order Flow overlay
+            try {
+                if (typeof scheduleOrderFlowRender === 'function') {
+                    scheduleOrderFlowRender();
+                    setTimeout(scheduleOrderFlowRender, 100);
+                }
+            } catch (e) {}
+
             // Restaurar vista del usuario (no saltar al inicio en cada refresh)
             if (preserveView && chartViewInitialized) {
                 requestAnimationFrame(() => {
@@ -3799,19 +3807,26 @@ let currentInterval = '1h';
         function scheduleYoshiObRender() {
             requestAnimationFrame(() => {
                 renderYoshiObOverlay();
-                renderOrderFlowOverlay();
+                if (typeof scheduleOrderFlowRender === 'function') scheduleOrderFlowRender();
+                else if (typeof renderOrderFlowOverlay === 'function') renderOrderFlowOverlay();
             });
         }
 
         // ========== ORDER FLOW (footprint / delta / volumen por vela) ==========
         let orderFlowMode = 'off'; // off | footprint | delta_profile | volume_cells | delta_cells | bidask_hist | vp_candle
-        const OF_LEVELS = 8; // celdas verticales por vela
+        const OF_LEVELS = 8;
+        let orderFlowRaf = 0;
 
         function toggleOrderFlowMenu(ev) {
             if (ev) { ev.preventDefault(); ev.stopPropagation(); }
             const menu = document.getElementById('orderFlowMenu');
             if (!menu) return;
+            const opening = menu.classList.contains('hidden');
             menu.classList.toggle('hidden');
+            // Al abrir el menú, si está off activa footprint para que se vea de inmediato
+            if (opening && orderFlowMode === 'off') {
+                setOrderFlowMode('footprint');
+            }
         }
         window.toggleOrderFlowMenu = toggleOrderFlowMenu;
 
@@ -3826,61 +3841,68 @@ let currentInterval = '1h';
             orderFlowMode = mode || 'off';
             try { localStorage.setItem('tmx_orderflow_mode', orderFlowMode); } catch (e) {}
             const btn = document.getElementById('btnOrderFlow');
-            if (btn) btn.classList.toggle('active', orderFlowMode !== 'off');
+            if (btn) {
+                btn.classList.toggle('active', orderFlowMode !== 'off');
+                btn.title = orderFlowMode === 'off' ? 'Order Flow / footprint' : ('Order Flow: ' + orderFlowMode);
+            }
             document.querySelectorAll('.of-mode-item').forEach(el => {
                 el.classList.toggle('active', el.getAttribute('data-ofmode') === orderFlowMode);
             });
             const menu = document.getElementById('orderFlowMenu');
-            if (menu) menu.classList.add('hidden');
-            renderOrderFlowOverlay();
+            if (menu && mode !== undefined) menu.classList.add('hidden');
+            // Redibujar en el siguiente frame (chart ya listo)
+            scheduleOrderFlowRender();
+            setTimeout(scheduleOrderFlowRender, 80);
+            setTimeout(scheduleOrderFlowRender, 250);
         }
         window.setOrderFlowMode = setOrderFlowMode;
 
+        function scheduleOrderFlowRender() {
+            if (orderFlowRaf) cancelAnimationFrame(orderFlowRaf);
+            orderFlowRaf = requestAnimationFrame(() => {
+                orderFlowRaf = 0;
+                try { renderOrderFlowOverlay(); } catch (e) { console.warn('OrderFlow', e); }
+            });
+        }
+        window.scheduleOrderFlowRender = scheduleOrderFlowRender;
+
         function ensureOrderFlowVolumes(k) {
+            if (!k) return { volume: 0, buyVol: 0, sellVol: 0, delta: 0, open: 0, high: 0, low: 0, close: 0, time: 0 };
             if (k.buyVol != null && k.sellVol != null) return k;
             const vol = k.volume || 0;
             const buyVol = vol * (k.close >= k.open ? 0.62 : 0.38);
-            const sellVol = vol - buyVol;
-            return { ...k, buyVol, sellVol, delta: buyVol - sellVol };
+            const sellVol = Math.max(0, vol - buyVol);
+            return Object.assign({}, k, { buyVol, sellVol, delta: buyVol - sellVol });
         }
 
         function fmtOfVol(v) {
-            const n = Math.abs(v);
+            const n = Math.abs(Number(v) || 0);
             if (n >= 1e6) return (v / 1e6).toFixed(1) + 'M';
             if (n >= 1e3) return (v / 1e3).toFixed(n >= 10000 ? 0 : 1) + 'K';
-            if (n >= 100) return Math.round(v).toString();
-            if (n >= 1) return v.toFixed(1);
-            return v.toFixed(2);
+            if (n >= 100) return String(Math.round(v));
+            if (n >= 1) return Number(v).toFixed(1);
+            return Number(v).toFixed(2);
         }
 
-        /** Distribuye buy/sell en niveles de precio (aprox. footprint sin ticks) */
         function buildFootprintLevels(k, levels) {
             const lo = k.low, hi = k.high;
             const range = Math.max(hi - lo, 1e-12);
             const buy = k.buyVol || 0, sell = k.sellVol || 0;
-            const mid = (k.open + k.close) / 2;
             const out = [];
             for (let i = 0; i < levels; i++) {
-                // i=0 bottom
                 const p0 = lo + (range * i) / levels;
                 const p1 = lo + (range * (i + 1)) / levels;
                 const center = (p0 + p1) / 2;
-                // más buy cerca del close si alcista, más sell si bajista
                 const wBuy = k.close >= k.open
                     ? 0.35 + 0.65 * ((center - lo) / range)
                     : 0.35 + 0.65 * ((hi - center) / range);
                 const wSell = 1 - wBuy * 0.85;
-                const levelBuy = (buy / levels) * (0.5 + wBuy);
-                const levelSell = (sell / levels) * (0.5 + wSell);
                 out.push({
                     low: p0, high: p1,
-                    buy: levelBuy,
-                    sell: levelSell,
-                    delta: levelBuy - levelSell,
-                    vol: levelBuy + levelSell
+                    buy: (buy / levels) * (0.5 + wBuy),
+                    sell: (sell / levels) * (0.5 + wSell)
                 });
             }
-            // renormalizar a totales
             const sumB = out.reduce((a, x) => a + x.buy, 0) || 1;
             const sumS = out.reduce((a, x) => a + x.sell, 0) || 1;
             out.forEach(x => {
@@ -3892,130 +3914,168 @@ let currentInterval = '1h';
             return out;
         }
 
+        function getBarXWidth(time, nextTime) {
+            if (!mainChart) return null;
+            const ts = mainChart.timeScale();
+            let x = null;
+            try { x = ts.timeToCoordinate(time); } catch (e) {}
+            if (x == null) return null;
+            let w = 8;
+            try {
+                const bs = ts.options && ts.options().barSpacing;
+                if (bs) w = Math.max(4, bs * 0.9);
+            } catch (e) {}
+            if (nextTime != null) {
+                try {
+                    const x2 = ts.timeToCoordinate(nextTime);
+                    if (x2 != null) w = Math.max(4, Math.abs(x2 - x) * 0.88);
+                } catch (e) {}
+            }
+            return { x: x - w / 2, w };
+        }
+
         function renderOrderFlowOverlay() {
             const ov = document.getElementById('orderFlowOverlay');
             if (!ov) return;
             ov.innerHTML = '';
-            if (orderFlowMode === 'off' || !mainChart || !candlestickSeries || !rawKlines || !rawKlines.length) return;
+            if (orderFlowMode === 'off') return;
+            if (!mainChart || !candlestickSeries || !rawKlines || rawKlines.length < 2) return;
 
-            let timeRange = null;
-            try { timeRange = mainChart.timeScale().getVisibleLogicalRange(); } catch (e) {}
-            if (!timeRange) return;
+            // Canvas a tamaño del contenedor
+            const rect = ov.getBoundingClientRect();
+            const W = Math.max(1, Math.floor(rect.width || ov.clientWidth || 0));
+            const H = Math.max(1, Math.floor(rect.height || ov.clientHeight || 0));
+            if (W < 20 || H < 20) return;
 
-            const from = Math.max(0, Math.floor(timeRange.from));
-            const to = Math.min(rawKlines.length - 1, Math.ceil(timeRange.to));
-            // Limitar celdas para rendimiento
-            const maxBars = orderFlowMode === 'footprint' || orderFlowMode === 'volume_cells' || orderFlowMode === 'delta_cells' || orderFlowMode === 'vp_candle' ? 40 : 60;
-            let start = Math.max(from, to - maxBars + 1);
+            const canvas = document.createElement('canvas');
+            canvas.width = W * (window.devicePixelRatio || 1);
+            canvas.height = H * (window.devicePixelRatio || 1);
+            canvas.style.width = W + 'px';
+            canvas.style.height = H + 'px';
+            canvas.style.display = 'block';
+            const ctx = canvas.getContext('2d');
+            const dpr = window.devicePixelRatio || 1;
+            ctx.setTransform(dpr, 0, 0, dpr, 0, 0);
 
-            // max vol para normalizar opacidad
-            let maxVol = 1, maxAbsDelta = 1;
-            for (let i = start; i <= to; i++) {
+            let logical = null;
+            try { logical = mainChart.timeScale().getVisibleLogicalRange(); } catch (e) {}
+            const n = rawKlines.length;
+            let from = 0, to = n - 1;
+            if (logical) {
+                from = Math.max(0, Math.floor(logical.from));
+                to = Math.min(n - 1, Math.ceil(logical.to));
+            }
+            const maxBars = 48;
+            if (to - from + 1 > maxBars) from = Math.max(0, to - maxBars + 1);
+
+            let maxVol = 1;
+            for (let i = from; i <= to; i++) {
                 const k = ensureOrderFlowVolumes(rawKlines[i]);
-                if (k.volume > maxVol) maxVol = k.volume;
-                if (Math.abs(k.delta || 0) > maxAbsDelta) maxAbsDelta = Math.abs(k.delta);
+                if ((k.volume || 0) > maxVol) maxVol = k.volume;
             }
 
-            for (let i = start; i <= to; i++) {
+            ctx.font = '9px ui-monospace, Menlo, monospace';
+            ctx.textAlign = 'center';
+            ctx.textBaseline = 'middle';
+
+            for (let i = from; i <= to; i++) {
                 const k = ensureOrderFlowVolumes(rawKlines[i]);
-                let x1 = null, x2 = null;
-                try {
-                    x1 = mainChart.timeScale().logicalToCoordinate(i);
-                    x2 = mainChart.timeScale().logicalToCoordinate(i + 1);
-                } catch (e) { continue; }
-                if (x1 == null || x2 == null) continue;
-                const left = Math.min(x1, x2);
-                const width = Math.max(4, Math.abs(x2 - x1) * 0.92);
-                if (left + width < 0) continue;
+                const nextT = i + 1 < n ? rawKlines[i + 1].time : null;
+                const pos = getBarXWidth(k.time, nextT);
+                if (!pos || pos.x + pos.w < 0 || pos.x > W) continue;
 
-                const yHigh = priceToY(k.high);
-                const yLow = priceToY(k.low);
-                if (yHigh == null || yLow == null) continue;
-                const top = Math.min(yHigh, yLow);
-                const height = Math.max(12, Math.abs(yLow - yHigh));
-
-                const col = document.createElement('div');
-                col.className = 'of-col';
-                col.style.left = left + 'px';
-                col.style.width = width + 'px';
+                const yH = priceToY(k.high);
+                const yL = priceToY(k.low);
+                if (yH == null || yL == null) continue;
+                const top = Math.min(yH, yL);
+                const bot = Math.max(yH, yL);
+                const height = Math.max(10, bot - top);
+                const left = pos.x;
+                const width = pos.w;
 
                 if (orderFlowMode === 'bidask_hist') {
-                    const buyH = Math.max(2, (k.buyVol / maxVol) * height * 0.9);
-                    const sellH = Math.max(2, (k.sellVol / maxVol) * height * 0.9);
-                    const half = Math.max(2, width / 2 - 1);
-                    const buyBar = document.createElement('div');
-                    buyBar.style.cssText = `position:absolute;bottom:0;left:0;width:${half}px;height:${buyH}px;background:rgba(14,203,129,0.55);border-radius:1px 0 0 1px;`;
-                    const sellBar = document.createElement('div');
-                    sellBar.style.cssText = `position:absolute;bottom:0;left:${half + 1}px;width:${half}px;height:${sellH}px;background:rgba(246,70,93,0.55);border-radius:0 1px 1px 0;`;
-                    col.appendChild(buyBar);
-                    col.appendChild(sellBar);
-                    const d = document.createElement('div');
-                    d.className = 'of-delta ' + ((k.delta || 0) >= 0 ? 'pos' : 'neg');
-                    d.textContent = ((k.delta || 0) >= 0 ? '+' : '') + fmtOfVol(k.delta || 0);
-                    col.appendChild(d);
-                    ov.appendChild(col);
+                    const buyH = Math.max(2, ((k.buyVol || 0) / maxVol) * height * 0.95);
+                    const sellH = Math.max(2, ((k.sellVol || 0) / maxVol) * height * 0.95);
+                    const half = Math.max(2, width / 2 - 0.5);
+                    ctx.fillStyle = 'rgba(14,203,129,0.6)';
+                    ctx.fillRect(left, bot - buyH, half, buyH);
+                    ctx.fillStyle = 'rgba(246,70,93,0.6)';
+                    ctx.fillRect(left + half + 1, bot - sellH, half, sellH);
+                    const d = k.delta || 0;
+                    ctx.fillStyle = d >= 0 ? '#0ecb81' : '#f6465d';
+                    ctx.font = 'bold 9px ui-monospace, monospace';
+                    ctx.fillText((d >= 0 ? '+' : '') + fmtOfVol(d), left + width / 2, Math.max(8, top - 8));
                     continue;
                 }
 
                 const levels = buildFootprintLevels(k, OF_LEVELS);
                 const maxCell = Math.max(1, ...levels.map(l => l.vol));
-                const stack = document.createElement('div');
-                stack.className = 'of-stack';
-                stack.style.position = 'absolute';
-                stack.style.top = top + 'px';
-                stack.style.height = height + 'px';
-                stack.style.left = '0';
-                stack.style.width = '100%';
+                const cellH = height / OF_LEVELS;
 
-                // stack from bottom
-                levels.forEach((lv, li) => {
-                    const cell = document.createElement('div');
-                    let cls = 'of-cell neutral';
+                for (let li = 0; li < levels.length; li++) {
+                    const lv = levels[li];
+                    // li 0 = bottom
+                    const cy = bot - (li + 1) * cellH;
+                    let bg = 'rgba(90,100,120,0.2)';
+                    let fg = '#c8cdd3';
                     let label = '';
+
                     if (orderFlowMode === 'delta_cells' || orderFlowMode === 'delta_profile') {
                         const hot = Math.abs(lv.delta) > maxCell * 0.35;
-                        cls = 'of-cell ' + (lv.delta >= 0 ? (hot ? 'hot-buy' : 'buy') : (hot ? 'hot-sell' : 'sell'));
+                        if (lv.delta >= 0) {
+                            bg = hot ? 'rgba(14,203,129,0.5)' : 'rgba(14,203,129,0.25)';
+                            fg = hot ? '#e8fff0' : '#7dffa8';
+                        } else {
+                            bg = hot ? 'rgba(246,70,93,0.5)' : 'rgba(246,70,93,0.25)';
+                            fg = hot ? '#ffe8ec' : '#ff8a9a';
+                        }
                         label = (lv.delta >= 0 ? '+' : '') + fmtOfVol(lv.delta);
                     } else if (orderFlowMode === 'volume_cells' || orderFlowMode === 'vp_candle') {
-                        const hot = lv.vol > maxCell * 0.55;
-                        cls = 'of-cell ' + (hot ? (k.close >= k.open ? 'hot-buy' : 'hot-sell') : 'neutral');
-                        label = fmtOfVol(lv.vol);
-                        const intensity = 0.12 + 0.5 * (lv.vol / maxCell);
-                        cell.style.background = k.close >= k.open
+                        const intensity = 0.15 + 0.55 * (lv.vol / maxCell);
+                        bg = k.close >= k.open
                             ? `rgba(14,203,129,${intensity})`
                             : `rgba(246,70,93,${intensity})`;
+                        fg = '#eaecef';
+                        label = fmtOfVol(lv.vol);
                     } else {
                         // footprint bid x ask
-                        const hotB = lv.buy > maxCell * 0.4;
-                        const hotS = lv.sell > maxCell * 0.4;
-                        if (lv.buy >= lv.sell) cls = 'of-cell ' + (hotB ? 'hot-buy' : 'buy');
-                        else cls = 'of-cell ' + (hotS ? 'hot-sell' : 'sell');
-                        if (width < 28) label = fmtOfVol(lv.vol);
-                        else label = fmtOfVol(lv.buy) + '|' + fmtOfVol(lv.sell);
+                        if (lv.buy >= lv.sell) {
+                            const hot = lv.buy > maxCell * 0.4;
+                            bg = hot ? 'rgba(14,203,129,0.5)' : 'rgba(14,203,129,0.25)';
+                            fg = '#7dffa8';
+                        } else {
+                            const hot = lv.sell > maxCell * 0.4;
+                            bg = hot ? 'rgba(246,70,93,0.5)' : 'rgba(246,70,93,0.25)';
+                            fg = '#ff8a9a';
+                        }
+                        label = width < 26 ? fmtOfVol(lv.vol) : (fmtOfVol(lv.buy) + '|' + fmtOfVol(lv.sell));
                     }
-                    cell.className = cls;
-                    cell.textContent = width < 14 ? '' : label;
-                    stack.appendChild(cell);
-                });
-                col.appendChild(stack);
 
-                const deltaEl = document.createElement('div');
-                deltaEl.className = 'of-delta ' + ((k.delta || 0) >= 0 ? 'pos' : 'neg');
-                deltaEl.style.top = Math.max(0, top - 11) + 'px';
-                deltaEl.textContent = ((k.delta || 0) >= 0 ? '+' : '') + fmtOfVol(k.delta || 0);
-                col.appendChild(deltaEl);
-
-                if (width >= 20) {
-                    const tot = document.createElement('div');
-                    tot.className = 'of-total';
-                    tot.style.top = (top + height + 1) + 'px';
-                    tot.textContent = fmtOfVol(k.volume || 0);
-                    col.appendChild(tot);
+                    ctx.fillStyle = bg;
+                    ctx.fillRect(left, cy, width, Math.max(1, cellH - 0.5));
+                    if (width >= 12 && cellH >= 8) {
+                        ctx.fillStyle = fg;
+                        ctx.font = (cellH >= 12 ? '9px' : '8px') + ' ui-monospace, monospace';
+                        ctx.fillText(label, left + width / 2, cy + cellH / 2);
+                    }
                 }
-                ov.appendChild(col);
+
+                // Delta arriba + volumen abajo
+                const d = k.delta || 0;
+                ctx.fillStyle = d >= 0 ? '#0ecb81' : '#f6465d';
+                ctx.font = 'bold 9px ui-monospace, monospace';
+                ctx.fillText((d >= 0 ? '+' : '') + fmtOfVol(d), left + width / 2, Math.max(8, top - 8));
+                if (width >= 16) {
+                    ctx.fillStyle = '#919b9b';
+                    ctx.font = '8px ui-monospace, monospace';
+                    ctx.fillText(fmtOfVol(k.volume || 0), left + width / 2, Math.min(H - 6, bot + 9));
+                }
             }
+
+            ov.appendChild(canvas);
         }
         window.renderOrderFlowOverlay = renderOrderFlowOverlay;
+
 
         /**
          * Yoshi Scanner Pro — visualización tipo TradingView:

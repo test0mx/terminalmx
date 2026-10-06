@@ -405,7 +405,14 @@ body.charts-only-mode #chartsOnlyExitBar {
 
 
 /* Order Flow footprint overlay */
-#orderFlowOverlay { font-family: ui-monospace, SFMono-Regular, Menlo, monospace; }
+#orderFlowOverlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 6;
+    overflow: hidden;
+    font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+}
 .of-col {
     position: absolute;
     top: 0;
