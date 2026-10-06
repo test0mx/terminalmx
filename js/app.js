@@ -377,6 +377,7 @@ let currentInterval = '1h';
                 confluencias: { btn: 'tabBtnConfluencias', content: 'tabContentConfluencias' },
                 trendiloProj: { btn: 'tabBtnTrendiloProj', content: 'tabContentTrendiloProj' },
                 alts: { btn: 'tabBtnAlts', content: 'tabContentAlts' },
+                orderblock: { btn: 'tabBtnOrderBlock', content: 'tabContentOrderBlock' },
                 calendar: { btn: 'tabBtnCalendar', content: 'tabContentCalendar' }
             };
             if (!map[tab]) tab = 'signals';

@@ -641,6 +641,10 @@
                             <i class="fa-solid fa-coins"></i>
                             <span class="hidden sm:inline">Altcoins</span><span class="sm:hidden">Alts</span>
                         </button>
+                        <button type="button" id="tabBtnOrderBlock" onclick="switchBottomTab('orderblock')" class="font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs">
+                            <i class="fa-solid fa-cubes"></i>
+                            <span class="hidden sm:inline">Orderblock</span><span class="sm:hidden">OB</span>
+                        </button>
                         <button type="button" id="tabBtnCalendar" onclick="switchBottomTab('calendar')" class="font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs">
                             <i class="fa-solid fa-calendar-days"></i>
                             <span class="hidden sm:inline">Calendario</span><span class="sm:hidden">Cal.</span>
@@ -982,7 +986,166 @@
                     </div>
                 </div>
 
-                <!-- Tab Content 5: Calendario económico (impacto BTC) -->
+                
+                <!-- Tab: Orderblock — guía Order Block + Order Flow -->
+                <div id="tabContentOrderBlock" class="flex-1 overflow-auto p-2 sm:p-3 hidden">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                        <div>
+                            <div class="font-semibold text-accentYellow flex items-center gap-1.5 text-sm">
+                                <i class="fa-solid fa-cubes"></i> Orderblock · guía operativa
+                            </div>
+                            <p class="text-[11px] text-slate-500 mt-0.5 max-w-3xl">
+                                Cómo leer <strong class="text-slate-300">Order Blocks (Yoshi)</strong> y <strong class="text-slate-300">Order Flow</strong> en el gráfico, señales clave y temporalidades recomendadas.
+                            </p>
+                        </div>
+                        <div class="flex items-center gap-2 flex-wrap">
+                            <button type="button" onclick="setOrderFlowMode('footprint')" class="px-2.5 py-1.5 rounded-lg border border-accentYellow/40 bg-accentYellow/10 text-accentYellow text-[11px] font-bold transition">
+                                Activar Order Flow
+                            </button>
+                            <button type="button" onclick="if(typeof changeTimeframe==='function')changeTimeframe('15m')" class="px-2.5 py-1.5 rounded-lg border border-borderBg bg-cardBg text-slate-300 text-[11px] transition">
+                                TF 15m
+                            </button>
+                        </div>
+                    </div>
+
+                    <!-- Señales principales -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-2 mb-4">
+                        <div class="rounded-xl border border-accentGreen/30 bg-accentGreen/5 p-3">
+                            <div class="text-[10px] font-bold uppercase tracking-wide text-accentGreen mb-1">Señal LONG</div>
+                            <div class="text-xs font-bold text-white mb-1">OB de compra + delta +</div>
+                            <p class="text-[11px] text-slate-400 leading-relaxed">Zona OB bull (Yoshi) + footprint con delta positivo y absorción en soporte. Entrada en retest del bloque.</p>
+                        </div>
+                        <div class="rounded-xl border border-accentRed/30 bg-accentRed/5 p-3">
+                            <div class="text-[10px] font-bold uppercase tracking-wide text-accentRed mb-1">Señal SHORT</div>
+                            <div class="text-xs font-bold text-white mb-1">OB de venta + delta −</div>
+                            <p class="text-[11px] text-slate-400 leading-relaxed">Zona OB bear + celdas rojas dominantes y rechazo en resistencia. Entrada en retest del bloque de oferta.</p>
+                        </div>
+                        <div class="rounded-xl border border-borderBg bg-cardBg p-3">
+                            <div class="text-[10px] font-bold uppercase tracking-wide text-accentYellow mb-1">Absorción</div>
+                            <div class="text-xs font-bold text-white mb-1">Alto volumen, poco avance</div>
+                            <p class="text-[11px] text-slate-400 leading-relaxed">Mucho volumen en celda pero el precio no rompe: posible defensa institucional. Esperar confirmación de vela.</p>
+                        </div>
+                        <div class="rounded-xl border border-borderBg bg-cardBg p-3">
+                            <div class="text-[10px] font-bold uppercase tracking-wide text-cyan-400 mb-1">Desequilibrio</div>
+                            <div class="text-xs font-bold text-white mb-1">Imbalance / FVG</div>
+                            <p class="text-[11px] text-slate-400 leading-relaxed">Hueco de liquidez tras un OB fuerte. El precio suele volver a rellenar antes de continuar la tendencia.</p>
+                        </div>
+                    </div>
+
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-4">
+                        <!-- Qué es -->
+                        <div class="rounded-xl border border-borderBg bg-cardBg p-3 lg:col-span-1">
+                            <div class="text-xs font-bold text-white mb-2 flex items-center gap-1.5">
+                                <i class="fa-solid fa-circle-info text-accentYellow"></i> Qué es un Order Block
+                            </div>
+                            <p class="text-[11px] text-slate-400 leading-relaxed mb-2">
+                                Un <strong class="text-slate-300">Order Block (OB)</strong> es la última zona de órdenes institucionales (compra o venta) antes de un movimiento impulsivo. En TerminalMX lo marca el escáner <strong class="text-slate-300">Yoshi</strong> como zona sombreada.
+                            </p>
+                            <ul class="text-[11px] text-slate-400 space-y-1.5 list-disc pl-4">
+                                <li><span class="text-accentGreen">OB compra</span>: última vela bajista antes del rally alcista.</li>
+                                <li><span class="text-accentRed">OB venta</span>: última vela alcista antes del dump.</li>
+                                <li>El precio suele <strong class="text-slate-300">retestear</strong> el bloque antes de continuar.</li>
+                            </ul>
+                        </div>
+
+                        <!-- Order Flow -->
+                        <div class="rounded-xl border border-borderBg bg-cardBg p-3 lg:col-span-1">
+                            <div class="text-xs font-bold text-white mb-2 flex items-center gap-1.5">
+                                <i class="fa-solid fa-table-cells text-accentYellow"></i> Order Flow en el gráfico
+                            </div>
+                            <p class="text-[11px] text-slate-400 leading-relaxed mb-2">
+                                Activa el botón <strong class="text-accentYellow">Order Flow</strong> en la toolbar. Usa volumen taker (Binance) para aproximar agresores:
+                            </p>
+                            <ul class="text-[11px] text-slate-400 space-y-1.5 list-disc pl-4">
+                                <li><span class="text-accentGreen">Verde</span> = compra agresiva (bid/ask footprint).</li>
+                                <li><span class="text-accentRed">Rojo</span> = venta agresiva.</li>
+                                <li>Número superior = <strong class="text-slate-300">delta</strong> de la vela.</li>
+                                <li>Número inferior = volumen total.</li>
+                                <li>Celdas intensas = zonas de mayor interés.</li>
+                            </ul>
+                        </div>
+
+                        <!-- Cómo operar -->
+                        <div class="rounded-xl border border-borderBg bg-cardBg p-3 lg:col-span-1">
+                            <div class="text-xs font-bold text-white mb-2 flex items-center gap-1.5">
+                                <i class="fa-solid fa-route text-accentYellow"></i> Cómo trabajarlo
+                            </div>
+                            <ol class="text-[11px] text-slate-400 space-y-2 list-decimal pl-4">
+                                <li>Identifica el <strong class="text-slate-300">OB</strong> (zona Yoshi) en TF alto (1h/4h).</li>
+                                <li>Espera el <strong class="text-slate-300">retest</strong> del bloque en TF bajo (5m/15m).</li>
+                                <li>Confirma con <strong class="text-accentYellow">Order Flow</strong>: delta a favor y absorción en el borde del OB.</li>
+                                <li>Entra con stop más allá del bloque; TP en siguiente OB o imbalance.</li>
+                                <li>Si el flujo rompe el OB con delta fuerte en contra → invalida la idea.</li>
+                            </ol>
+                        </div>
+                    </div>
+
+                    <!-- Temporalidades -->
+                    <div class="rounded-xl border border-borderBg bg-cardBg p-3 mb-4">
+                        <div class="text-xs font-bold text-white mb-3 flex items-center gap-1.5">
+                            <i class="fa-solid fa-clock text-accentYellow"></i> Temporalidades recomendadas
+                        </div>
+                        <div class="grid grid-cols-1 sm:grid-cols-3 gap-2">
+                            <div class="rounded-lg border border-borderBg bg-panelBg p-3">
+                                <div class="text-[10px] font-bold text-accentYellow uppercase mb-1">Scalp</div>
+                                <div class="text-sm font-bold text-white font-mono mb-1">1m · 5m · 15m</div>
+                                <p class="text-[11px] text-slate-400 leading-relaxed">
+                                    OB en <strong class="text-slate-300">15m</strong>, entrada en <strong class="text-slate-300">1m/5m</strong> con footprint. Mejor en Londres/NY. Evita noticias de alto impacto.
+                                </p>
+                                <button type="button" onclick="if(typeof changeTimeframe==='function')changeTimeframe('5m');setOrderFlowMode('footprint')" class="mt-2 text-[10px] font-bold text-accentYellow hover:underline">Usar 5m + Flow →</button>
+                            </div>
+                            <div class="rounded-lg border border-accentYellow/30 bg-accentYellow/5 p-3">
+                                <div class="text-[10px] font-bold text-accentYellow uppercase mb-1">Intradía (ideal)</div>
+                                <div class="text-sm font-bold text-white font-mono mb-1">15m · 1h · 4h</div>
+                                <p class="text-[11px] text-slate-400 leading-relaxed">
+                                    Estructura y OB en <strong class="text-slate-300">1h/4h</strong>, ejecución en <strong class="text-slate-300">15m</strong>. Confluencia con TrendiloMX y Palacios mejora el WR.
+                                </p>
+                                <button type="button" onclick="if(typeof changeTimeframe==='function')changeTimeframe('15m');setOrderFlowMode('delta_profile')" class="mt-2 text-[10px] font-bold text-accentYellow hover:underline">Usar 15m + Delta →</button>
+                            </div>
+                            <div class="rounded-lg border border-borderBg bg-panelBg p-3">
+                                <div class="text-[10px] font-bold text-accentGreen uppercase mb-1">Swing</div>
+                                <div class="text-sm font-bold text-white font-mono mb-1">1h · 4h · 1D</div>
+                                <p class="text-[11px] text-slate-400 leading-relaxed">
+                                    OB semanal/diario en <strong class="text-slate-300">4h/1D</strong>. Order Flow menos crítico; prioriza estructura, DMI y Trendilo. Menos ruido, stops más amplios.
+                                </p>
+                                <button type="button" onclick="if(typeof changeTimeframe==='function')changeTimeframe('4h')" class="mt-2 text-[10px] font-bold text-accentGreen hover:underline">Usar 4h →</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <!-- Checklist + invalidación -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 gap-3 mb-3">
+                        <div class="rounded-xl border border-borderBg bg-cardBg p-3">
+                            <div class="text-xs font-bold text-white mb-2 flex items-center gap-1.5">
+                                <i class="fa-solid fa-list-check text-accentGreen"></i> Checklist antes de entrar
+                            </div>
+                            <ul class="text-[11px] text-slate-400 space-y-1.5">
+                                <li>☐ OB visible y no mitigado del todo</li>
+                                <li>☐ Retest del 50%–100% del bloque</li>
+                                <li>☐ Delta / footprint a favor en la vela de rechazo</li>
+                                <li>☐ Alineado con sesgo de TF superior (1h o 4h)</li>
+                                <li>☐ R:R mínimo 1:2 hasta siguiente OB o liquidez</li>
+                                <li>☐ Sin noticia roja en los próximos 15–30 min</li>
+                            </ul>
+                        </div>
+                        <div class="rounded-xl border border-borderBg bg-cardBg p-3">
+                            <div class="text-xs font-bold text-white mb-2 flex items-center gap-1.5">
+                                <i class="fa-solid fa-ban text-accentRed"></i> Invalidación
+                            </div>
+                            <ul class="text-[11px] text-slate-400 space-y-1.5">
+                                <li>Cierre de vela <strong class="text-slate-300">más allá</strong> del OB en contra de la idea</li>
+                                <li>Delta extremo contrario en 2–3 velas seguidas</li>
+                                <li>BOS (ruptura de estructura) en TF de ejecución</li>
+                                <li>OB ya retesteado múltiples veces (agotado)</li>
+                            </ul>
+                            <p class="text-[10px] text-slate-500 mt-3 leading-relaxed">
+                                Nota: el Order Flow del terminal aproxima agresores con datos de velas (taker buy en Binance). No sustituye un book tick-a-tick profesional, pero es útil para confluencia.
+                            </p>
+                        </div>
+                    </div>
+                </div>
+
+<!-- Tab Content 5: Calendario económico (impacto BTC) -->
                 <div id="tabContentCalendar" class="flex-1 overflow-auto p-2 sm:p-3 hidden">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
                         <div>
