@@ -446,7 +446,10 @@ let currentInterval = '1h';
                 try {
                     if (mejoresConfluenciasCache && (mejoresConfluenciasCache.scalp || mejoresConfluenciasCache.intraday)) {
                         renderMejoresConfluencias(mejoresConfluenciasCache);
+                        if (confluenciasHorizonRecs) renderHorizonRecommendations(confluenciasHorizonRecs);
                     }
+                    runMejoresConfluencias(false);
+                    startConfluenciasAutoRefresh();
                 } catch (e) {}
             }
             if (tab === 'trendiloProj') {
@@ -1723,6 +1726,11 @@ let currentInterval = '1h';
                     } catch (e) {}
                     try { if (typeof runTrendiloProjection === 'function') runTrendiloProjection(true); } catch (e) {}
                 }, 35000);
+            } catch (e) {}
+            try {
+                // Primera carga de confluencias + auto cada 1 min
+                setTimeout(() => { try { runMejoresConfluencias(true); } catch (e) {} }, 4000);
+                startConfluenciasAutoRefresh();
             } catch (e) {}
             initPanelResizeHandle();
             applyPanelHeightPrefs();
@@ -6252,6 +6260,9 @@ let currentInterval = '1h';
         // ========== MEJORES CONFLUENCIAS (scalp / intradía / swing) ==========
         let mejoresConfluenciasCache = null;
         let confluenciasRunning = false;
+        let confluenciasTfDataCache = null;
+        let confluenciasHorizonRecs = { '15m': null, '1h': null, '4h': null };
+        let confluenciasAutoTimer = null;
 
         const CONFLUENCIA_COMBOS = {
             scalp: [
@@ -6397,7 +6408,16 @@ let currentInterval = '1h';
 
         async function runMejoresConfluencias(force) {
             if (confluenciasRunning) return;
+            if (!force && mejoresConfluenciasCache && altsLoadedAt) { /* no-op placeholder */ }
+            if (!force && window._confluenciasLastRun && Date.now() - window._confluenciasLastRun < 45000 && mejoresConfluenciasCache) {
+                try {
+                    renderMejoresConfluencias(mejoresConfluenciasCache);
+                    if (confluenciasTfDataCache) await updateHorizonRecommendations(confluenciasTfDataCache, mejoresConfluenciasCache);
+                } catch (e) {}
+                return;
+            }
             confluenciasRunning = true;
+            window._confluenciasLastRun = Date.now();
             const status = document.getElementById('confluenciasStatus');
             const icon = document.getElementById('confluenciasRunIcon');
             if (icon) icon.className = 'fa-solid fa-spinner fa-spin';
@@ -6428,8 +6448,10 @@ let currentInterval = '1h';
                 }
 
                 mejoresConfluenciasCache = out;
+                confluenciasTfDataCache = tfDataMap;
                 renderMejoresConfluencias(out);
-                if (status) status.innerText = `Ranking listo · 150 velas · R/R 2 · ${new Date().toLocaleTimeString()}`;
+                await updateHorizonRecommendations(tfDataMap, out);
+                if (status) status.innerText = `Actualizado · auto 1 min · 150 velas · R/R 2 · ${new Date().toLocaleTimeString()}`;
             } catch (e) {
                 console.error('Mejores confluencias', e);
                 if (status) status.innerText = 'Error: ' + (e.message || e);
@@ -6439,6 +6461,157 @@ let currentInterval = '1h';
             }
         }
         window.runMejoresConfluencias = runMejoresConfluencias;
+
+
+        function liveBiasFromData(data) {
+            if (!data || data.length < 25) return { dir: 'NEUTRAL', score: 0 };
+            const series = buildBiasSeries(data);
+            const v = series[series.length - 1] || 0;
+            if (v > 0) return { dir: 'LONG', score: 1 };
+            if (v < 0) return { dir: 'SHORT', score: 1 };
+            return { dir: 'NEUTRAL', score: 0 };
+        }
+
+        async function updateHorizonRecommendations(tfDataMap, ranking) {
+            const horizons = [
+                { id: '15m', style: 'scalp', preferTfs: ['15m', '5m', '9m', '1m'], label: '15 minutos' },
+                { id: '1h', style: 'intraday', preferTfs: ['1h', '20m', '15m'], label: '1 hora' },
+                { id: '4h', style: 'swing', preferTfs: ['4h', '1h', '1d'], label: '4 horas' }
+            ];
+            const recs = {};
+            for (const h of horizons) {
+                const rows = (ranking && ranking[h.style]) || [];
+                const top = rows[0] || null;
+                // Sesgo vivo del TF principal del horizonte
+                let primaryTf = h.preferTfs.find(tf => tfDataMap && tfDataMap[tf]) || h.preferTfs[0];
+                let bias = liveBiasFromData(tfDataMap && tfDataMap[primaryTf]);
+                // Si el top combo tiene sesgo unánime, usarlo
+                let liveSide = bias.dir;
+                let comboLabel = top ? top.label : '—';
+                let conf = top ? top.wr : 0;
+                if (top && top.tfs && tfDataMap) {
+                    const dirs = top.tfs.map(tf => liveBiasFromData(tfDataMap[tf]).dir);
+                    if (dirs.every(d => d === 'LONG')) liveSide = 'LONG';
+                    else if (dirs.every(d => d === 'SHORT')) liveSide = 'SHORT';
+                    else if (dirs.filter(d => d === 'LONG').length > dirs.filter(d => d === 'SHORT').length) liveSide = 'LONG';
+                    else if (dirs.filter(d => d === 'SHORT').length > dirs.filter(d => d === 'LONG').length) liveSide = 'SHORT';
+                    else liveSide = 'NEUTRAL';
+                }
+                let title = 'Esperar';
+                let why = 'Sin confluencia clara en este horizonte. Evita forzar entradas.';
+                if (liveSide === 'LONG') {
+                    title = 'LONG preferido';
+                    why = top
+                        ? `El combo #1 (${top.label}) lidera en ${h.style} con WR histórico ${top.wr.toFixed(0)}%. Sesgo vivo alineado al alza para ~${h.label}.`
+                        : `Sesgo alcista en ${primaryTf} para el horizonte de ${h.label}.`;
+                } else if (liveSide === 'SHORT') {
+                    title = 'SHORT preferido';
+                    why = top
+                        ? `El combo #1 (${top.label}) lidera en ${h.style} con WR histórico ${top.wr.toFixed(0)}%. Sesgo vivo alineado a la baja para ~${h.label}.`
+                        : `Sesgo bajista en ${primaryTf} para el horizonte de ${h.label}.`;
+                }
+                recs[h.id] = {
+                    side: liveSide,
+                    title,
+                    combo: comboLabel,
+                    tfs: top ? top.tfs : [primaryTf],
+                    style: h.style,
+                    wr: top ? top.wr : null,
+                    score: top ? top.score : 0,
+                    primaryTf,
+                    why,
+                    stats: top || null
+                };
+            }
+            confluenciasHorizonRecs = recs;
+            renderHorizonRecommendations(recs);
+        }
+
+        function renderHorizonRecommendations(recs) {
+            const map = { '15m': '15m', '1h': '1h', '4h': '4h' };
+            Object.keys(map).forEach(id => {
+                const r = recs[id];
+                if (!r) return;
+                const sideEl = document.getElementById('rec' + id + 'Side');
+                const titleEl = document.getElementById('rec' + id + 'Title');
+                const comboEl = document.getElementById('rec' + id + 'Combo');
+                const metaEl = document.getElementById('rec' + id + 'Meta');
+                const whyEl = document.getElementById('rec' + id + 'Why');
+                const btn = document.getElementById('rec' + id + 'Apply');
+                if (sideEl) {
+                    if (r.side === 'LONG') {
+                        sideEl.innerText = 'LONG';
+                        sideEl.className = 'px-2 py-0.5 rounded text-[10px] font-black bg-accentGreen/20 text-accentGreen';
+                    } else if (r.side === 'SHORT') {
+                        sideEl.innerText = 'SHORT';
+                        sideEl.className = 'px-2 py-0.5 rounded text-[10px] font-black bg-accentRed/20 text-accentRed';
+                    } else {
+                        sideEl.innerText = 'WAIT';
+                        sideEl.className = 'px-2 py-0.5 rounded text-[10px] font-black bg-borderBg text-slate-400';
+                    }
+                }
+                if (titleEl) {
+                    titleEl.innerText = r.title;
+                    titleEl.className = 'text-sm font-bold mb-0.5 ' + (
+                        r.side === 'LONG' ? 'text-accentGreen' : r.side === 'SHORT' ? 'text-accentRed' : 'text-slate-300'
+                    );
+                }
+                if (comboEl) comboEl.innerText = r.combo || '—';
+                if (metaEl) {
+                    metaEl.innerText = r.wr != null
+                        ? `WR ${r.wr.toFixed(0)}% · score ${(r.score || 0).toFixed(1)} · TF ${r.primaryTf}`
+                        : `TF ref. ${r.primaryTf}`;
+                }
+                if (whyEl) whyEl.innerText = r.why || '';
+                if (btn) {
+                    const can = r.side === 'LONG' || r.side === 'SHORT';
+                    btn.disabled = !can;
+                    btn.className = can
+                        ? 'mt-2 w-full px-2 py-1 rounded-lg text-[10px] font-bold border border-accentYellow/40 bg-accentYellow/10 text-accentYellow transition'
+                        : 'mt-2 w-full px-2 py-1 rounded-lg text-[10px] font-bold border border-borderBg text-slate-500 opacity-50 cursor-not-allowed';
+                    btn.innerText = can ? ('Aplicar ' + r.side) : 'Sin setup claro';
+                }
+            });
+        }
+
+        function applyHorizonRec(horizonId) {
+            const r = confluenciasHorizonRecs && confluenciasHorizonRecs[horizonId];
+            if (!r || (r.side !== 'LONG' && r.side !== 'SHORT')) {
+                alert('No hay operativa clara en este horizonte ahora mismo.');
+                return;
+            }
+            try {
+                if (r.tfs && r.tfs.length) {
+                    selectConfluencia(r.style || 'intraday', r.combo, r.tfs, r.stats || { wr: r.wr, score: r.score });
+                }
+                if (typeof changeTimeframe === 'function') changeTimeframe(r.primaryTf || (r.tfs && r.tfs[0]) || '15m');
+                if (typeof registerAppliedPosition === 'function') {
+                    registerAppliedPosition(r.side, {
+                        source: 'Confluencia ' + horizonId + ' · ' + (r.combo || ''),
+                        score: r.wr || 55,
+                        tf: r.primaryTf || '15m',
+                        note: r.why
+                    });
+                } else if (typeof setTradeSide === 'function') {
+                    setTradeSide(r.side);
+                }
+            } catch (e) {
+                console.error(e);
+                alert('Error al aplicar: ' + (e.message || e));
+            }
+        }
+        window.applyHorizonRec = applyHorizonRec;
+        window.updateHorizonRecommendations = updateHorizonRecommendations;
+
+        function startConfluenciasAutoRefresh() {
+            if (confluenciasAutoTimer) clearInterval(confluenciasAutoTimer);
+            confluenciasAutoTimer = setInterval(() => {
+                try {
+                    if (typeof runMejoresConfluencias === 'function') runMejoresConfluencias(true);
+                } catch (e) {}
+            }, 60 * 1000);
+        }
+
 
         let selectedConfluencia = null; // { style, label, tfs, ...stats }
         let confluenciaLiveLatest = { signal: 'NONE', tfs: {} };
@@ -6457,20 +6630,23 @@ let currentInterval = '1h';
                     const pnlCol = r.pnlPct >= 0 ? 'text-accentGreen' : 'text-accentRed';
                     const tfsJson = JSON.stringify(r.tfs || []).replace(/'/g, '&#39;');
                     const isSel = selectedConfluencia && selectedConfluencia.label === r.label && selectedConfluencia.style === style;
-                    const border = isSel ? 'border-accentYellow/60 bg-accentYellow/10' : 'border-borderBg bg-panelBg/80 hover:border-accentYellow/40';
+                    const border = isSel
+                        ? 'border-accentYellow/50 bg-accentYellow/10 shadow-[0_0_0_1px_rgba(240,185,11,0.15)]'
+                        : 'border-borderBg/80 bg-panelBg/60 hover:border-slate-500 hover:bg-panelBg';
+                    const rank = i === 0 ? '🥇' : i === 1 ? '🥈' : i === 2 ? '🥉' : '#' + (i + 1);
                     return `<button type="button" onclick='selectConfluencia(${JSON.stringify(style)}, ${JSON.stringify(r.label)}, ${tfsJson}, ${JSON.stringify({ trades: r.trades, wr: r.wr, pnlPct: r.pnlPct, score: r.score })})'
-                        class="w-full text-left rounded-lg border ${border} px-2 py-1.5 flex flex-col gap-0.5 transition cursor-pointer">
+                        class="w-full text-left rounded-xl border ${border} px-2.5 py-2 flex flex-col gap-1 transition cursor-pointer">
                         <div class="flex items-center justify-between gap-1">
-                            <span class="font-bold text-slate-200">#${i + 1} ${r.label}</span>
-                            <span class="font-mono text-accentYellow text-[10px]">${r.score.toFixed(1)}</span>
+                            <span class="font-bold text-slate-100 text-[11px]"><span class="mr-1">${rank}</span>${r.label}</span>
+                            <span class="font-mono text-accentYellow text-[10px] font-bold">${r.score.toFixed(1)}</span>
                         </div>
-                        <div class="flex flex-wrap gap-x-2 text-[10px] text-slate-400 font-mono">
-                            <span>${r.trades} ops</span>
-                            <span class="${wrCol}">WR ${r.wr.toFixed(0)}%</span>
-                            <span class="${pnlCol}">${r.pnlPct >= 0 ? '+' : ''}${r.pnlPct.toFixed(1)}%</span>
-                            <span class="text-accentRed">DD ${r.maxDD.toFixed(0)}%</span>
+                        <div class="flex flex-wrap gap-1.5 text-[10px] font-mono">
+                            <span class="px-1.5 py-0.5 rounded bg-borderBg/60 text-slate-400">${r.trades} ops</span>
+                            <span class="px-1.5 py-0.5 rounded bg-borderBg/60 ${wrCol}">WR ${r.wr.toFixed(0)}%</span>
+                            <span class="px-1.5 py-0.5 rounded bg-borderBg/60 ${pnlCol}">${r.pnlPct >= 0 ? '+' : ''}${r.pnlPct.toFixed(1)}%</span>
+                            <span class="px-1.5 py-0.5 rounded bg-borderBg/60 text-accentRed">DD ${r.maxDD.toFixed(0)}%</span>
                         </div>
-                        <span class="text-[9px] text-accentYellow/80 mt-0.5">${isSel ? '● Activa' : 'Clic para activar →'}</span>
+                        <span class="text-[9px] ${isSel ? 'text-accentYellow' : 'text-slate-600'}">${isSel ? '● Confluencia activa' : 'Toca para ver sesgo en vivo'}</span>
                     </button>`;
                 }).join('');
             };

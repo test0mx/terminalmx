@@ -1244,18 +1244,66 @@
                         <div>
                             <div class="font-semibold text-accentYellow flex items-center gap-1.5 text-sm">
                                 <i class="fa-solid fa-chart-pie"></i> Mejores confluencias
+                                <span id="confluenciasLiveDot" class="ml-1 inline-flex items-center gap-1 text-[10px] font-mono text-slate-500">
+                                    <span class="w-1.5 h-1.5 rounded-full bg-accentGreen animate-pulse"></span> auto 1 min
+                                </span>
                             </div>
                             <p class="text-[11px] text-slate-500 mt-0.5 max-w-2xl">
-                                Ranking estadístico de <strong class="text-slate-300">combinaciones de temporalidades</strong> con mejor rendimiento histórico (150 velas) para <strong class="text-accentYellow">Scalp</strong>, <strong class="text-accentYellow">Intradía</strong> y <strong class="text-accentYellow">Swing</strong>.
+                                Ranking vivo de combos multi-TF (150 velas). Se <strong class="text-slate-300">recalcula cada minuto</strong>. Abajo: operativa ideal para 15m, 1h y 4h.
                             </p>
                         </div>
                         <button type="button" onclick="runMejoresConfluencias(true)"
                             class="px-3 py-1.5 rounded-lg border border-accentYellow/40 bg-accentYellow/15 text-accentYellow text-[11px] font-bold transition flex items-center gap-1.5 shrink-0">
-                            <i class="fa-solid fa-play" id="confluenciasRunIcon"></i> Calcular ranking
+                            <i class="fa-solid fa-rotate" id="confluenciasRunIcon"></i> Actualizar ahora
                         </button>
                     </div>
-                    <p id="confluenciasStatus" class="text-[10px] text-slate-500 font-mono mb-3">Pulsa «Calcular ranking» para evaluar confluencias multi-TF (150 velas).</p>
+                    <p id="confluenciasStatus" class="text-[10px] text-slate-500 font-mono mb-3">Cargando ranking de confluencias…</p>
 
+                    <!-- Operativa ideal por horizonte -->
+                    <div class="mb-4">
+                        <div class="text-xs font-bold text-white mb-2 flex items-center gap-1.5">
+                            <i class="fa-solid fa-compass text-accentYellow"></i> Operativa ideal recomendada
+                        </div>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-2" id="confluenciasHorizonRecs">
+                            <div class="rounded-xl border border-borderBg bg-gradient-to-b from-cardBg to-panelBg p-3" data-horizon="15m">
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="text-[10px] font-bold uppercase tracking-wide text-accentYellow">Próximos 15 min</span>
+                                    <span id="rec15mSide" class="px-2 py-0.5 rounded text-[10px] font-black bg-borderBg text-slate-400">—</span>
+                                </div>
+                                <div id="rec15mTitle" class="text-sm font-bold text-white mb-0.5">Calculando…</div>
+                                <div id="rec15mCombo" class="text-[11px] font-mono text-slate-400 mb-1">—</div>
+                                <div id="rec15mMeta" class="text-[10px] text-slate-500 font-mono">—</div>
+                                <p id="rec15mWhy" class="text-[10px] text-slate-400 mt-2 leading-relaxed">—</p>
+                                <button type="button" id="rec15mApply" onclick="applyHorizonRec('15m')" class="mt-2 w-full px-2 py-1 rounded-lg text-[10px] font-bold border border-borderBg text-slate-400 hover:text-white transition">Aplicar setup</button>
+                            </div>
+                            <div class="rounded-xl border border-borderBg bg-gradient-to-b from-cardBg to-panelBg p-3" data-horizon="1h">
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="text-[10px] font-bold uppercase tracking-wide text-cyan-400">Próxima 1 hora</span>
+                                    <span id="rec1hSide" class="px-2 py-0.5 rounded text-[10px] font-black bg-borderBg text-slate-400">—</span>
+                                </div>
+                                <div id="rec1hTitle" class="text-sm font-bold text-white mb-0.5">Calculando…</div>
+                                <div id="rec1hCombo" class="text-[11px] font-mono text-slate-400 mb-1">—</div>
+                                <div id="rec1hMeta" class="text-[10px] text-slate-500 font-mono">—</div>
+                                <p id="rec1hWhy" class="text-[10px] text-slate-400 mt-2 leading-relaxed">—</p>
+                                <button type="button" id="rec1hApply" onclick="applyHorizonRec('1h')" class="mt-2 w-full px-2 py-1 rounded-lg text-[10px] font-bold border border-borderBg text-slate-400 hover:text-white transition">Aplicar setup</button>
+                            </div>
+                            <div class="rounded-xl border border-borderBg bg-gradient-to-b from-cardBg to-panelBg p-3" data-horizon="4h">
+                                <div class="flex items-center justify-between mb-1">
+                                    <span class="text-[10px] font-bold uppercase tracking-wide text-accentGreen">Próximas 4 horas</span>
+                                    <span id="rec4hSide" class="px-2 py-0.5 rounded text-[10px] font-black bg-borderBg text-slate-400">—</span>
+                                </div>
+                                <div id="rec4hTitle" class="text-sm font-bold text-white mb-0.5">Calculando…</div>
+                                <div id="rec4hCombo" class="text-[11px] font-mono text-slate-400 mb-1">—</div>
+                                <div id="rec4hMeta" class="text-[10px] text-slate-500 font-mono">—</div>
+                                <p id="rec4hWhy" class="text-[10px] text-slate-400 mt-2 leading-relaxed">—</p>
+                                <button type="button" id="rec4hApply" onclick="applyHorizonRec('4h')" class="mt-2 w-full px-2 py-1 rounded-lg text-[10px] font-bold border border-borderBg text-slate-400 hover:text-white transition">Aplicar setup</button>
+                            </div>
+                        </div>
+                    </div>
+
+                    <div class="text-xs font-bold text-white mb-2 flex items-center gap-1.5">
+                        <i class="fa-solid fa-ranking-star text-accentYellow"></i> Ranking por estilo
+                    </div>
                     <div class="grid grid-cols-1 lg:grid-cols-3 gap-3">
                         <!-- Scalp -->
                         <div class="rounded-xl border border-borderBg bg-cardBg overflow-hidden">
