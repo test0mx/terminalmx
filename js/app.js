@@ -557,6 +557,123 @@ let currentInterval = '1h';
             });
         }
 
+
+        /** TrendiloMX estrategia ratio ALMA/RMS */
+        const TRENDILO_EXTREME = 0.85;
+        const TRENDILO_BIAS = 0.50;
+
+        function trendiloRatio(alma, rms) {
+            const r = Math.abs(rms) < 1e-12 ? 0 : alma / rms;
+            return r;
+        }
+
+        /**
+         * Evalúa zona y señales Bounce/Reversal sobre series ALMA/RMS alineadas.
+         * almaLine/rmsUp: arrays {time,value}
+         */
+        function evaluateTrendiloRatioStrategy(almaLine, rmsUp) {
+            const markers = [];
+            let last = {
+                ratio: 0, zone: 'NONE', signal: 'NONE', conf: 40,
+                extreme: false, slope: 0, alma: 0, rms: 0
+            };
+            if (!almaLine || !rmsUp || almaLine.length < 3) return { markers, last };
+
+            for (let i = 0; i < almaLine.length; i++) {
+                const alma = almaLine[i].value;
+                const rms = Math.abs(rmsUp[i] ? rmsUp[i].value : 0);
+                const ratio = trendiloRatio(alma, rms);
+                const t = almaLine[i].time;
+                const prev = i > 0 ? almaLine[i - 1].value : alma;
+                const slope = alma - prev;
+                const extreme = Math.abs(ratio) >= TRENDILO_EXTREME;
+
+                // Círculo rojo en zona extrema
+                if (extreme) {
+                    markers.push({
+                        time: t,
+                        position: 'inBar',
+                        color: '#f6465d',
+                        shape: 'circle',
+                        text: '',
+                        size: 1.5
+                    });
+                }
+
+                // Giro en zona extrema → Bounce / Reversal
+                if (i >= 2) {
+                    const a1 = almaLine[i - 1].value;
+                    const a2 = almaLine[i - 2].value;
+                    const wasDown = a1 < a2;
+                    const wasUp = a1 > a2;
+                    const ratioPrev = trendiloRatio(a1, Math.abs(rmsUp[i - 1] ? rmsUp[i - 1].value : rms));
+                    if (ratio <= -TRENDILO_EXTREME && wasDown && slope > 0) {
+                        markers.push({
+                            time: t, position: 'belowBar', color: '#0ecb81',
+                            shape: 'arrowUp', text: 'Bounce', size: 1.5
+                        });
+                    } else if (ratio >= TRENDILO_EXTREME && wasUp && slope < 0) {
+                        markers.push({
+                            time: t, position: 'aboveBar', color: '#f6465d',
+                            shape: 'arrowDown', text: 'Rev', size: 1.5
+                        });
+                    } else if (ratioPrev <= -TRENDILO_EXTREME && ratio > -TRENDILO_EXTREME && slope > 0) {
+                        markers.push({
+                            time: t, position: 'belowBar', color: '#0ecb81',
+                            shape: 'arrowUp', text: 'Bounce', size: 1.2
+                        });
+                    } else if (ratioPrev >= TRENDILO_EXTREME && ratio < TRENDILO_EXTREME && slope < 0) {
+                        markers.push({
+                            time: t, position: 'aboveBar', color: '#f6465d',
+                            shape: 'arrowDown', text: 'Rev', size: 1.2
+                        });
+                    }
+                }
+            }
+
+            // Último estado
+            const n = almaLine.length;
+            const alma = almaLine[n - 1].value;
+            const rms = Math.abs(rmsUp[n - 1] ? rmsUp[n - 1].value : 0);
+            const ratio = trendiloRatio(alma, rms);
+            const slope = alma - almaLine[n - 2].value;
+            let zone = 'NEUTRAL', signal = 'NONE', conf = 42;
+            if (ratio <= -TRENDILO_EXTREME) {
+                zone = 'EXTREME_BEAR';
+                if (slope > 0) { signal = 'BUY'; conf = 78; zone = 'BOUNCE'; }
+                else { signal = 'BUY'; conf = 62; } // potencial bounce
+            } else if (ratio >= TRENDILO_EXTREME) {
+                zone = 'EXTREME_BULL';
+                if (slope < 0) { signal = 'SELL'; conf = 78; zone = 'REVERSAL'; }
+                else { signal = 'SELL'; conf = 62; }
+            } else if (ratio >= TRENDILO_BIAS) {
+                zone = 'BULL_BIAS'; signal = 'BUY'; conf = 52;
+            } else if (ratio <= -TRENDILO_BIAS) {
+                zone = 'BEAR_BIAS'; signal = 'SELL'; conf = 52;
+            }
+
+            last = { ratio, zone, signal, conf, extreme: Math.abs(ratio) >= TRENDILO_EXTREME, slope, alma, rms };
+
+            // Deduplicar markers por time+shape (quedarse con el de señal si hay círculo)
+            const byKey = new Map();
+            markers.forEach(m => {
+                const key = String(m.time) + '|' + m.shape + '|' + (m.text || '');
+                byKey.set(key, m);
+            });
+            return { markers: Array.from(byKey.values()).sort((a, b) => a.time - b.time), last };
+        }
+
+        function applyTrendiloMarkers(series, markers) {
+            if (!series) return;
+            try {
+                if (typeof series.setMarkers === 'function') {
+                    series.setMarkers(markers || []);
+                }
+            } catch (e) {
+                console.warn('Trendilo markers', e);
+            }
+        }
+
         function computeTrendiloSeriesFromKlines(klines) {
             const almaLen = 20, almaOffset = 0.85, almaSigma = 6, rmsLen = 20, smoothLen = 3;
             if (!klines || klines.length < almaLen + 5) return null;
@@ -611,17 +728,14 @@ let currentInterval = '1h';
                 proj.push({ time: tNext, value: y2 + slope * k });
             }
             const projEnd = proj[proj.length - 1].value;
-            let signal = 'NONE', conf = 40;
+            const strat = evaluateTrendiloRatioStrategy(almaLine, rmsUp);
+            let signal = strat.last.signal;
+            let conf = strat.last.conf;
             const alma = y2;
-            if (alma > lastRms * 0.45 && projEnd > alma * 0.5) {
-                signal = 'BUY'; conf = Math.min(88, 55 + Math.abs(alma / (lastRms || 0.01)) * 15);
-            } else if (alma < -lastRms * 0.45 && projEnd < alma * 0.5) {
-                signal = 'SELL'; conf = Math.min(88, 55 + Math.abs(alma / (lastRms || 0.01)) * 15);
-            } else if (alma > 0 && slope > 0) {
-                signal = 'BUY'; conf = 48;
-            } else if (alma < 0 && slope < 0) {
-                signal = 'SELL'; conf = 48;
-            }
+            const ratio = strat.last.ratio;
+            const zone = strat.last.zone;
+            const extreme = strat.last.extreme;
+            const markers = strat.markers;
             // Acierto histórico: señal en barra i vs movimiento de precio en las siguientes 3 velas
             let hits = 0, total = 0;
             const look = 3;
@@ -660,6 +774,7 @@ let currentInterval = '1h';
             return {
                 almaLine, rmsUp, rmsDn, zero, proj,
                 alma: y2, rms: lastRms, projEnd, slope, signal, conf,
+                ratio, zone, extreme, markers,
                 hitRate, hitSamples, hits
             };
         }
@@ -703,12 +818,16 @@ let currentInterval = '1h';
                     proj: series.projEnd,
                     slope: series.slope,
                     conf: series.conf,
+                    ratio: series.ratio,
+                    zone: series.zone,
+                    extreme: series.extreme,
                     tf: trendiloProjTf,
                     hitRate: series.hitRate,
                     hitSamples: series.hitSamples,
                     hits: series.hits,
                     updatedAt: Date.now()
                 };
+                if (tpAlmaSeries) applyTrendiloMarkers(tpAlmaSeries, series.markers || []);
                 trendiloProjCacheAt = Date.now();
                 renderTrendiloProjUI(trendiloProjLatest);
                 const hitTxt = series.hitRate != null
@@ -723,6 +842,49 @@ let currentInterval = '1h';
                 if (icon) icon.className = 'fa-solid fa-rotate';
             }
         }
+
+        function renderTrendiloConfluenceList(p) {
+            const el = document.getElementById('tpConfluenceList');
+            if (!el) return;
+            let stochK = null;
+            try {
+                if (typeof stochRsiLatest !== 'undefined' && stochRsiLatest && stochRsiLatest.k != null) stochK = stochRsiLatest.k;
+            } catch (e) {}
+            let yoshiBuy = false, yoshiSell = false;
+            try {
+                if (typeof yoshiLatest !== 'undefined' && yoshiLatest) {
+                    yoshiBuy = /buy|long|compra/i.test(String(yoshiLatest.signal || yoshiLatest.bias || ''));
+                    yoshiSell = /sell|short|venta/i.test(String(yoshiLatest.signal || yoshiLatest.bias || ''));
+                }
+            } catch (e) {}
+            let dmiNeg = false, dmiPos = false;
+            try {
+                if (typeof dmiLatest !== 'undefined' && dmiLatest) {
+                    dmiNeg = (dmiLatest.minusDI || 0) >= (dmiLatest.plusDI || 0);
+                    dmiPos = (dmiLatest.plusDI || 0) > (dmiLatest.minusDI || 0);
+                }
+            } catch (e) {}
+
+            const items = [];
+            if (stochK != null) {
+                const ok = (p.signal === 'BUY' && stochK < 30) || (p.signal === 'SELL' && stochK > 70);
+                items.push(`${ok ? '✓' : '○'} StochRSI K=${Number(stochK).toFixed(0)} (ideal ${p.signal === 'BUY' ? '<30' : p.signal === 'SELL' ? '>70' : 'extremo'})`);
+            } else {
+                items.push('○ StochRSI (sin dato aún)');
+            }
+            if (p.signal === 'BUY') {
+                items.push(`${yoshiBuy ? '✓' : '○'} Yoshi OB compra / señal BUY`);
+                items.push(`${dmiNeg ? '✓' : '○'} DMI aún −DI≥+DI (contexto bajista)`);
+            } else if (p.signal === 'SELL') {
+                items.push(`${yoshiSell ? '✓' : '○'} Yoshi CHoCH/ST sell`);
+                items.push(`${dmiPos ? '✓' : '○'} DMI +DI perdiendo / aún dominante`);
+            } else {
+                items.push('○ Yoshi / DMI — esperando zona extrema');
+            }
+            items.push(`TF actual: ${p.tf || trendiloProjTf} · Mejor en 15m / 1H / 4H / 1D`);
+            el.innerHTML = items.map(s => `<li class="${s.charAt(0) === '✓' ? 'text-accentGreen' : 'text-slate-400'}">${s}</li>`).join('');
+        }
+
         window.runTrendiloProjection = runTrendiloProjection;
 
         function renderTrendiloProjUI(p) {
@@ -737,6 +899,45 @@ let currentInterval = '1h';
             setTxt('tpRmsVal', '±' + Number(p.rms).toFixed(4));
             setTxt('tpProjVal', Number(p.proj).toFixed(4) + (p.slope >= 0 ? ' ↑' : ' ↓'));
             setTxt('tpConfVal', Math.round(p.conf) + '%');
+            const ratio = p.ratio != null ? p.ratio : trendiloRatio(p.alma, p.rms);
+            setTxt('tpRatioVal', (ratio >= 0 ? '+' : '') + Number(ratio).toFixed(3));
+            const zoneEl = document.getElementById('tpZoneVal');
+            const barFill = document.getElementById('tpZoneBarFill');
+            const absR = Math.abs(ratio);
+            const barPct = Math.min(100, (absR / TRENDILO_EXTREME) * 100);
+            if (barFill) {
+                barFill.style.width = barPct + '%';
+                barFill.className = 'h-full rounded-full transition-all ' + (
+                    absR >= TRENDILO_EXTREME ? 'bg-accentRed' : absR >= TRENDILO_BIAS ? 'bg-accentYellow' : 'bg-slate-500'
+                );
+            }
+            if (zoneEl) {
+                let ztxt = 'Neutral · |ratio| < 0.50';
+                let zcls = 'text-sm font-black text-slate-300';
+                if (p.zone === 'BOUNCE' || (p.zone === 'EXTREME_BEAR' && p.slope > 0)) {
+                    ztxt = 'BOUNCE · buscar long (rebote)';
+                    zcls = 'text-sm font-black text-accentGreen';
+                } else if (p.zone === 'REVERSAL' || (p.zone === 'EXTREME_BULL' && p.slope < 0)) {
+                    ztxt = 'REVERSAL · buscar short';
+                    zcls = 'text-sm font-black text-accentRed';
+                } else if (p.zone === 'EXTREME_BEAR' || ratio <= -TRENDILO_EXTREME) {
+                    ztxt = 'Zona extrema BAJISTA (rebote potencial)';
+                    zcls = 'text-sm font-black text-accentRed';
+                } else if (p.zone === 'EXTREME_BULL' || ratio >= TRENDILO_EXTREME) {
+                    ztxt = 'Zona extrema ALCISTA (reversal potencial)';
+                    zcls = 'text-sm font-black text-accentRed';
+                } else if (p.zone === 'BULL_BIAS' || ratio >= TRENDILO_BIAS) {
+                    ztxt = 'Sesgo alcista (|ratio| ≥ 0.50)';
+                    zcls = 'text-sm font-black text-accentGreen';
+                } else if (p.zone === 'BEAR_BIAS' || ratio <= -TRENDILO_BIAS) {
+                    ztxt = 'Sesgo bajista (|ratio| ≤ −0.50)';
+                    zcls = 'text-sm font-black text-accentRed';
+                }
+                zoneEl.innerText = ztxt;
+                zoneEl.className = zcls;
+            }
+            // Confluencia checklist
+            try { renderTrendiloConfluenceList(p); } catch (e) {}
             // % acierto proyección vs movimiento real del precio
             const hrEl = document.getElementById('tpHitRateVal');
             const hrBar = document.getElementById('tpHitRateBar');
@@ -765,15 +966,17 @@ let currentInterval = '1h';
             }
 
             if (p.signal === 'BUY') {
-                if (badge) { badge.innerText = 'LONG'; badge.className = 'px-2.5 py-0.5 rounded text-[10px] font-black bg-accentGreen text-slate-950'; }
-                if (main) { main.innerText = 'PROYECCIÓN ALCISTA'; main.className = 'text-2xl font-black text-accentGreen mb-1'; }
-                if (hint) hint.innerText = `ALMA ${p.alma.toFixed(3)} sobre zona positiva · proyección 3 barras → ${p.proj.toFixed(3)}. Busca LONG en pullback a 0 o −RMS.`;
+                const isBounce = p.zone === 'BOUNCE' || (p.extreme && p.ratio < 0);
+                if (badge) { badge.innerText = isBounce ? 'BOUNCE' : 'LONG'; badge.className = 'px-2.5 py-0.5 rounded text-[10px] font-black bg-accentGreen text-slate-950'; }
+                if (main) { main.innerText = isBounce ? 'ZONA EXTREMA · REBOTE' : 'PROYECCIÓN ALCISTA'; main.className = 'text-2xl font-black text-accentGreen mb-1'; }
+                if (hint) hint.innerText = `ratio ${Number(p.ratio).toFixed(3)} · ALMA ${Number(p.alma).toFixed(3)} · RMS ${Number(p.rms).toFixed(3)}. ${isBounce ? 'Buscar LONG (rebote) con confluencia StochRSI/Yoshi/DMI.' : 'Sesgo alcista; confirma en 15m/1H/4H/1D.'}`;
                 if (btnL) { btnL.disabled = false; btnL.classList.remove('opacity-40', 'cursor-not-allowed'); }
                 if (btnS) { btnS.disabled = true; btnS.classList.add('opacity-40', 'cursor-not-allowed'); }
             } else if (p.signal === 'SELL') {
-                if (badge) { badge.innerText = 'SHORT'; badge.className = 'px-2.5 py-0.5 rounded text-[10px] font-black bg-accentRed text-white'; }
-                if (main) { main.innerText = 'PROYECCIÓN BAJISTA'; main.className = 'text-2xl font-black text-accentRed mb-1'; }
-                if (hint) hint.innerText = `ALMA ${p.alma.toFixed(3)} en zona negativa · proyección → ${p.proj.toFixed(3)}. Busca SHORT en rechazo de 0 o +RMS.`;
+                const isRev = p.zone === 'REVERSAL' || (p.extreme && p.ratio > 0);
+                if (badge) { badge.innerText = isRev ? 'REVERSAL' : 'SHORT'; badge.className = 'px-2.5 py-0.5 rounded text-[10px] font-black bg-accentRed text-white'; }
+                if (main) { main.innerText = isRev ? 'ZONA EXTREMA · REVERSAL' : 'PROYECCIÓN BAJISTA'; main.className = 'text-2xl font-black text-accentRed mb-1'; }
+                if (hint) hint.innerText = `ratio ${Number(p.ratio).toFixed(3)} · ALMA ${Number(p.alma).toFixed(3)} · RMS ${Number(p.rms).toFixed(3)}. ${isRev ? 'Buscar SHORT (cambio de tendencia) con confluencia.' : 'Sesgo bajista; confirma en TF altos.'}`;
                 if (btnS) { btnS.disabled = false; btnS.classList.remove('opacity-40', 'cursor-not-allowed'); }
                 if (btnL) { btnL.disabled = true; btnL.classList.add('opacity-40', 'cursor-not-allowed'); }
             } else {
@@ -3537,24 +3740,38 @@ let currentInterval = '1h';
             if (trendiloRmsLower) trendiloRmsLower.setData(rmsDn);
             if (trendiloZeroSeries) trendiloZeroSeries.setData(zeroLine);
 
+            // Estrategia ratio + círculo rojo en extremos
+            const strat = evaluateTrendiloRatioStrategy(almaLine, rmsUp);
+            applyTrendiloMarkers(trendiloAlmaSeries, strat.markers || []);
+
             const lastVal = almaLine.length ? almaLine[almaLine.length - 1].value : 0;
+            const ratio = strat.last.ratio;
             let dir = 'Consolidación';
-            if (lastVal > lastRms * 0.5) dir = 'Alcista (Bullish)';
-            else if (lastVal < -lastRms * 0.5) dir = 'Bajista (Bearish)';
+            if (strat.last.zone === 'BOUNCE') dir = 'BOUNCE (rebote)';
+            else if (strat.last.zone === 'REVERSAL') dir = 'REVERSAL';
+            else if (strat.last.zone === 'EXTREME_BEAR') dir = 'Extremo bajista';
+            else if (strat.last.zone === 'EXTREME_BULL') dir = 'Extremo alcista';
+            else if (ratio >= TRENDILO_BIAS) dir = 'Alcista (Bullish)';
+            else if (ratio <= -TRENDILO_BIAS) dir = 'Bajista (Bearish)';
 
             trendiloLatest = {
                 value: lastVal.toFixed(4),
                 direction: dir,
                 zScore: lastVal,
-                rms: lastRms
+                rms: lastRms,
+                ratio: ratio,
+                zone: strat.last.zone,
+                signal: strat.last.signal,
+                extreme: strat.last.extreme
             };
 
             const indEl = document.getElementById('indTrendilo');
             if (indEl) {
-                indEl.innerText = `${trendiloLatest.direction} (${trendiloLatest.value})`;
+                const rTxt = Number.isFinite(ratio) ? ` r=${ratio.toFixed(2)}` : '';
+                indEl.innerText = `${trendiloLatest.direction} (${trendiloLatest.value})${rTxt}`;
                 indEl.className = `font-mono font-bold ${
-                    dir.includes('Alcista') ? 'text-accentGreen' :
-                    dir.includes('Bajista') ? 'text-accentRed' : 'text-accentYellow'
+                    dir.includes('BOUNCE') || dir.includes('Alcista') ? 'text-accentGreen' :
+                    dir.includes('REVERSAL') || dir.includes('Bajista') || dir.includes('Extremo') ? 'text-accentRed' : 'text-accentYellow'
                 }`;
             }
         }

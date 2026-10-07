@@ -1624,7 +1624,7 @@
                                 <i class="fa-solid fa-wave-square"></i> TrendiloMX
                             </div>
                             <p class="text-[11px] text-slate-500 mt-0.5 max-w-2xl">
-                                ALMA(%chg) + bandas ±RMS con <strong class="text-slate-300">proyección</strong> del sesgo. Elige temporalidad y aplica LONG/SHORT cuando ALMA cruza o se apoya en las bandas.
+                                Estrategia <strong class="text-accentYellow">ratio = ALMA ÷ RMS</strong>. Extremo si |ratio| ≥ 0.85 (círculo rojo). Bounce / Reversal con giro de pendiente. Mejor en 15m · 1H · 4H · 1D.
                             </p>
                         </div>
                         <div class="flex items-center gap-2 flex-wrap">
@@ -1661,12 +1661,33 @@
                                     <div id="tpRmsVal" class="text-purple-400 font-bold">—</div>
                                 </div>
                                 <div class="bg-panelBg rounded border border-borderBg p-2">
+                                    <div class="text-slate-500">ratio ALMA/RMS</div>
+                                    <div id="tpRatioVal" class="text-accentYellow font-bold">—</div>
+                                </div>
+                                <div class="bg-panelBg rounded border border-borderBg p-2">
+                                    <div class="text-slate-500">Umbral extremo</div>
+                                    <div class="text-slate-300 font-bold">±0.85</div>
+                                </div>
+                                <div class="bg-panelBg rounded border border-borderBg p-2">
                                     <div class="text-slate-500">Proy. 3 barras</div>
                                     <div id="tpProjVal" class="text-accentYellow font-bold">—</div>
                                 </div>
                                 <div class="bg-panelBg rounded border border-borderBg p-2">
                                     <div class="text-slate-500">Confianza</div>
                                     <div id="tpConfVal" class="text-slate-200 font-bold">—</div>
+                                </div>
+                                <div class="bg-panelBg rounded border border-borderBg p-2 col-span-2" id="tpZoneBox">
+                                    <div class="text-slate-500 mb-0.5">Zona / señal</div>
+                                    <div id="tpZoneVal" class="text-sm font-black text-slate-300">—</div>
+                                    <div id="tpZoneBar" class="mt-1.5 h-1.5 rounded-full bg-borderBg overflow-hidden">
+                                        <div id="tpZoneBarFill" class="h-full rounded-full bg-accentYellow" style="width:0%"></div>
+                                    </div>
+                                </div>
+                                <div class="bg-panelBg rounded border border-borderBg p-2 col-span-2">
+                                    <div class="text-slate-500 mb-1">Confluencia ahora</div>
+                                    <ul id="tpConfluenceList" class="space-y-0.5 text-[10px] text-slate-400">
+                                        <li>— Cargando indicadores…</li>
+                                    </ul>
                                 </div>
                                 <div class="bg-panelBg rounded border border-borderBg p-2 col-span-2">
                                     <div class="flex items-center justify-between gap-2">
@@ -1698,34 +1719,37 @@
                         </div>
                     </div>
 
-                    <!-- Cómo aplicar -->
+                    <!-- Cómo aplicar · estrategia ratio ALMA/RMS -->
                     <div class="rounded-xl border border-borderBg bg-cardBg p-3 space-y-2">
                         <div class="text-xs font-bold text-accentYellow flex items-center gap-1.5">
-                            <i class="fa-solid fa-book-open"></i> Cómo aplicar la estrategia Trendilo
+                            <i class="fa-solid fa-book-open"></i> TrendiloMX · zonas ALMA / RMS
                         </div>
-                        <div class="grid grid-cols-1 md:grid-cols-2 gap-3 text-[11px] text-slate-400 leading-relaxed">
+                        <p class="text-[11px] text-slate-400 leading-relaxed">
+                            Señal basada en <strong class="text-slate-200">ratio = ALMA ÷ RMS</strong>. Cuando <strong class="text-accentRed">|ratio| ≥ 0.85</strong>, ALMA está en el borde de la banda RMS (círculo rojo en el panel Trendilo): extremo de momentum y posible rebote o cambio de tendencia.
+                        </p>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] text-slate-400 leading-relaxed">
                             <div>
-                                <p class="font-semibold text-slate-200 mb-1">Lectura del gráfico</p>
+                                <p class="font-semibold text-slate-200 mb-1">Umbrales</p>
                                 <ul class="list-disc list-inside space-y-1">
-                                    <li><strong class="text-slate-300">Línea gris (ALMA)</strong>: momentum del % cambio suavizado.</li>
-                                    <li><strong class="text-purple-400">Bandas ±RMS moradas</strong>: rango “normal” de ruido. Fuera de banda = impulso fuerte.</li>
-                                    <li><strong class="text-accentGreen">Relleno verde</strong> sobre 0 = sesgo alcista; <strong class="text-accentRed">rojo/naranja</strong> bajo 0 = bajista.</li>
-                                    <li><strong class="text-accentYellow">Línea discontinua</strong>: proyección lineal de las próximas 3 barras del ALMA.</li>
+                                    <li><strong class="text-accentRed">ratio ≤ −0.85</strong> → zona extrema bajista (sobreventa de momentum)</li>
+                                    <li><strong class="text-accentRed">ratio ≥ +0.85</strong> → zona extrema alcista (sobrecompra de momentum)</li>
+                                    <li><strong class="text-slate-300">|ratio| ≥ 0.50</strong> → sesgo direccional</li>
+                                    <li><strong class="text-accentYellow">Giro</strong>: ALMA cambia de pendiente dentro de la zona</li>
                                 </ul>
                             </div>
                             <div>
-                                <p class="font-semibold text-slate-200 mb-1">Reglas de entrada</p>
-                                <ol class="list-decimal list-inside space-y-1">
-                                    <li><strong class="text-accentGreen">LONG</strong>: ALMA cruza por encima de 0 o rebota desde −RMS hacia arriba, y la proyección sigue positiva.</li>
-                                    <li><strong class="text-accentRed">SHORT</strong>: ALMA cruza por debajo de 0 o rechaza +RMS hacia abajo, y la proyección sigue negativa.</li>
-                                    <li>Confirma con el TF del filtro (arriba). En scalp usa 5m/15m; swing 4h/1d.</li>
-                                    <li>SL más allá de la banda RMS opuesta; TP1 en 0 (si vienes de banda), TP2 en la banda contraria.</li>
-                                    <li>Evita entrar si ALMA está plano entre ±0.3×RMS (consolidación).</li>
-                                </ol>
+                                <p class="font-semibold text-accentGreen mb-1">Mercado bajista → rebote (BOUNCE)</p>
+                                <p class="mb-1">Buscar <strong class="text-slate-200">ratio ≤ −0.85</strong> y luego ALMA subiendo (delta &gt; 0) o cruce de vuelta por encima de −0.85.</p>
+                                <p class="text-[10px] text-slate-500">Confluencia: StochRSI OS, Yoshi OB compra, DMI −DI dominante pero estrecho, precio en soporte/OB.</p>
+                            </div>
+                            <div>
+                                <p class="font-semibold text-accentRed mb-1">Mercado alcista → reversal</p>
+                                <p class="mb-1">Buscar <strong class="text-slate-200">ratio ≥ +0.85</strong> y ALMA bajando o cruce bajo +0.85.</p>
+                                <p class="text-[10px] text-slate-500">Confluencia: StochRSI OB, Yoshi CHoCH/ST sell, +DI perdiendo dominio, rechazo de resistencia/OB venta.</p>
                             </div>
                         </div>
                         <p class="text-[10px] text-slate-500 border-t border-borderBg pt-2">
-                            Al pulsar Aplicar se registra en <strong class="text-slate-400">Historial</strong> con entrada, SL, TP1/TP2/TP3, apalancamiento y vigencia según el TF elegido.
+                            TF recomendados: <strong class="text-slate-400">15m · 1H · 4H · 1D</strong> (más fiables que 1–5m). Los marcadores <span class="text-accentGreen">▲ Bounce</span> / <span class="text-accentRed">▼ Reversal</span> y el <span class="text-accentRed">círculo rojo</span> se dibujan en el panel Trendilo al cumplirse la estrategia.
                         </p>
                     </div>
                 </div>
