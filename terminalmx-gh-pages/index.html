@@ -1620,13 +1620,8 @@
                 <!-- Tab: TrendiloMX -->
                 <div id="tabContentTrendiloProj" class="flex-1 overflow-auto p-2 sm:p-3 hidden">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
-                        <div>
-                            <div class="font-semibold text-accentYellow flex items-center gap-1.5 text-sm">
-                                <i class="fa-solid fa-wave-square"></i> TrendiloMX
-                            </div>
-                            <p class="text-[11px] text-slate-500 mt-0.5 max-w-2xl">
-                                Estrategia <strong class="text-accentYellow">ratio = ALMA ÷ RMS</strong>. Extremo si |ratio| ≥ 0.85 (círculo rojo). Bounce / Reversal con giro de pendiente. Mejor en 15m · 1H · 4H · 1D.
-                            </p>
+                        <div class="font-semibold text-accentYellow flex items-center gap-1.5 text-sm">
+                            <i class="fa-solid fa-wave-square"></i> TrendiloMX · zonas ALMA / RMS
                         </div>
                         <div class="flex items-center gap-2 flex-wrap">
                             <div class="flex flex-wrap gap-1" id="trendiloProjTfFilters">
@@ -1636,125 +1631,150 @@
                                 <button type="button" data-tptf="4h" onclick="setTrendiloProjTf('4h')" class="tptf-btn px-2 py-1 rounded text-[10px] font-mono border border-borderBg text-slate-400 hover:text-white">4h</button>
                                 <button type="button" data-tptf="1d" onclick="setTrendiloProjTf('1d')" class="tptf-btn px-2 py-1 rounded text-[10px] font-mono border border-borderBg text-slate-400 hover:text-white">1d</button>
                             </div>
-                            <button type="button" onclick="runTrendiloProjection(true)"
-                                class="px-2.5 py-1 rounded-lg border border-accentYellow/40 bg-accentYellow/15 text-accentYellow text-[11px] font-bold transition flex items-center gap-1.5">
+                            <button type="button" onclick="runTrendiloProjection(true)" class="px-2.5 py-1 rounded-lg border border-accentYellow/40 bg-accentYellow/15 text-accentYellow text-[11px] font-bold transition flex items-center gap-1.5">
                                 <i class="fa-solid fa-rotate" id="trendiloProjIcon"></i> Recalcular
                             </button>
                         </div>
                     </div>
 
-                    <!-- Señal + métricas -->
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-3">
-                        <div class="lg:col-span-1 rounded-xl border border-borderBg bg-cardBg p-3">
-                            <div class="flex items-center justify-between mb-2">
-                                <span class="text-[11px] text-slate-500 font-mono">Sesgo proyectado · <span id="tpTfLabel">1h</span></span>
-                                <span id="tpBiasBadge" class="px-2.5 py-0.5 rounded text-[10px] font-black bg-accentYellow text-slate-950">—</span>
+                    <div class="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3">
+                        <div class="space-y-3">
+                            <div class="rounded-2xl border border-borderBg bg-[#12151c] p-4">
+                                <p class="text-[12px] text-slate-400 leading-relaxed">
+                                    Señal basada en la <strong class="text-white">distancia relativa</strong>
+                                    <span class="text-accentYellow font-mono">ratio = ALMA ÷ RMS</span>.
+                                    Cuando <span class="text-white font-mono">|ratio| ≥ 0.85</span>, ALMA está en el borde de la banda RMS
+                                    <strong class="text-accentRed">(zona del círculo)</strong>: extremo de momentum y posible rebote o cambio de tendencia.
+                                </p>
                             </div>
-                            <div id="tpBiasMain" class="text-2xl font-black text-accentYellow mb-1">Cargando…</div>
-                            <p id="tpBiasHint" class="text-[11px] text-slate-400 leading-relaxed mb-3">—</p>
-                            <div class="grid grid-cols-2 gap-2 text-[10px] font-mono mb-3">
-                                <div class="bg-panelBg rounded border border-borderBg p-2">
-                                    <div class="text-slate-500">ALMA</div>
-                                    <div id="tpAlmaVal" class="text-slate-200 font-bold">—</div>
-                                </div>
-                                <div class="bg-panelBg rounded border border-borderBg p-2">
-                                    <div class="text-slate-500">RMS</div>
-                                    <div id="tpRmsVal" class="text-purple-400 font-bold">—</div>
-                                </div>
-                                <div class="bg-panelBg rounded border border-borderBg p-2">
-                                    <div class="text-slate-500">ratio ALMA/RMS</div>
-                                    <div id="tpRatioVal" class="text-accentYellow font-bold">—</div>
-                                </div>
-                                <div class="bg-panelBg rounded border border-borderBg p-2">
-                                    <div class="text-slate-500">Umbral extremo</div>
-                                    <div class="text-slate-300 font-bold">±0.85</div>
-                                </div>
-                                <div class="bg-panelBg rounded border border-borderBg p-2">
-                                    <div class="text-slate-500">Proy. 3 barras</div>
-                                    <div id="tpProjVal" class="text-accentYellow font-bold">—</div>
-                                </div>
-                                <div class="bg-panelBg rounded border border-borderBg p-2">
-                                    <div class="text-slate-500">Confianza</div>
-                                    <div id="tpConfVal" class="text-slate-200 font-bold">—</div>
-                                </div>
-                                <div class="bg-panelBg rounded border border-borderBg p-2 col-span-2" id="tpZoneBox">
-                                    <div class="text-slate-500 mb-0.5">Zona / señal</div>
-                                    <div id="tpZoneVal" class="text-sm font-black text-slate-300">—</div>
-                                    <div id="tpZoneBar" class="mt-1.5 h-1.5 rounded-full bg-borderBg overflow-hidden">
-                                        <div id="tpZoneBarFill" class="h-full rounded-full bg-accentYellow" style="width:0%"></div>
-                                    </div>
-                                </div>
-                                <div class="bg-panelBg rounded border border-borderBg p-2 col-span-2">
-                                    <div class="text-slate-500 mb-1">Confluencia ahora</div>
-                                    <ul id="tpConfluenceList" class="space-y-0.5 text-[10px] text-slate-400">
-                                        <li>— Cargando indicadores…</li>
-                                    </ul>
-                                </div>
-                                <div class="bg-panelBg rounded border border-borderBg p-2 col-span-2">
-                                    <div class="flex items-center justify-between gap-2">
-                                        <div>
-                                            <div class="text-slate-500">Acierto vs precio real</div>
-                                            <div id="tpHitRateDetail" class="text-[9px] text-slate-500 mt-0.5">Proyección vs movimiento real (N barras)</div>
-                                        </div>
-                                        <div id="tpHitRateVal" class="text-lg font-black text-accentYellow">—</div>
-                                    </div>
-                                    <div class="mt-1.5 h-1.5 rounded-full bg-borderBg overflow-hidden">
-                                        <div id="tpHitRateBar" class="h-full rounded-full bg-accentYellow transition-all" style="width:0%"></div>
-                                    </div>
-                                </div>
+                            <div class="rounded-2xl border border-borderBg bg-[#12151c] p-4">
+                                <div class="text-[12px] font-bold text-white mb-2">Umbrales</div>
+                                <ul class="text-[12px] text-slate-400 space-y-2 leading-relaxed">
+                                    <li><span class="text-accentRed font-mono">ratio ≤ −0.85</span> → zona extrema bajista (sobreventa de momentum)</li>
+                                    <li><span class="text-accentRed font-mono">ratio ≥ +0.85</span> → zona extrema alcista (sobrecompra de momentum)</li>
+                                    <li><span class="text-slate-200 font-mono">|ratio| ≥ 0.50</span> → sesgo direccional (como Trendilo OS)</li>
+                                    <li><span class="text-accentYellow">Giro:</span> ALMA deja de extenderse y cambia de pendiente dentro de la zona</li>
+                                    <li class="text-[11px] text-slate-500">Círculo de aviso desde <span class="font-mono text-slate-400">|ratio| ≥ 0.75</span> (cerca de ±RMS)</li>
+                                </ul>
                             </div>
-                            <div class="flex flex-wrap gap-2">
-                                <button type="button" id="btnTpApplyLong" onclick="applyTrendiloProjection('LONG')" disabled
-                                    class="flex-1 px-3 py-1.5 rounded-lg text-[11px] font-bold border border-accentGreen/40 bg-accentGreen/10 text-accentGreen opacity-40 cursor-not-allowed">Aplicar LONG</button>
-                                <button type="button" id="btnTpApplyShort" onclick="applyTrendiloProjection('SHORT')" disabled
-                                    class="flex-1 px-3 py-1.5 rounded-lg text-[11px] font-bold border border-accentRed/40 bg-accentRed/10 text-accentRed opacity-40 cursor-not-allowed">Aplicar SHORT</button>
+                            <div class="rounded-2xl border border-borderBg bg-[#12151c] p-4">
+                                <div class="text-[12px] font-bold text-white mb-2">Mercado bajista → rebote</div>
+                                <p class="text-[12px] text-slate-400 leading-relaxed mb-2">
+                                    En <strong class="text-slate-200">15m / 1H / 4H / 1D</strong>: buscar
+                                    <span class="text-accentRed font-mono">ratio ≤ −0.85</span> y luego
+                                    <span class="text-accentGreen font-semibold">ALMA subiendo</span> (delta &gt; 0) o cruce de vuelta por encima de −0.85.
+                                </p>
+                                <p class="text-[11px] text-slate-500 leading-relaxed">
+                                    Confluencia ideal: StochRSI sobreventa, Yoshi ST↓ pero BOS/OB compra, DMI −DI dominante pero estrecho, precio en soporte/OB.
+                                </p>
                             </div>
-                            <p id="tpStatus" class="text-[10px] text-slate-600 font-mono mt-2">—</p>
+                            <div class="rounded-2xl border border-borderBg bg-[#12151c] p-4">
+                                <div class="text-[12px] font-bold text-white mb-2">Mercado alcista → cambio de tendencia</div>
+                                <p class="text-[12px] text-slate-400 leading-relaxed mb-2">
+                                    Buscar <span class="text-accentRed font-mono">ratio ≥ +0.85</span> y
+                                    <span class="text-accentRed font-semibold">ALMA bajando</span> o cruce bajo +0.85.
+                                </p>
+                                <p class="text-[11px] text-slate-500 leading-relaxed">
+                                    Confluencia: StochRSI sobrecompra, Yoshi CHoCH↓ / ST flip sell, DMI +DI perdiendo dominio, rechazo de resistencia/OB venta.
+                                </p>
+                            </div>
                         </div>
-                        <div class="lg:col-span-2 rounded-xl border border-borderBg bg-black overflow-hidden relative flex flex-col" id="trendiloProjChartWrap" style="min-height: 200px; height: 280px;">
-                            <div class="absolute top-1.5 left-2 z-10 text-[10px] text-slate-500 pointer-events-none">TrendiloMX · proyección (línea discontinua)</div>
-                            <div id="trendiloProjChart" class="w-full flex-1" style="min-height: 160px;"></div>
-                            <div id="trendiloProjResizeHandle" class="tmx-inline-resize" title="Arrastra para redimensionar TrendiloMX">
-                                <span class="resize-grip"></span>
+
+                        <div class="rounded-2xl border border-borderBg bg-[#12151c] p-4 flex flex-col">
+                            <div class="flex flex-wrap items-center gap-2 mb-3">
+                                <span id="tpBiasBadge" class="px-3 py-1 rounded-lg text-[11px] font-bold border border-rose-500/40 bg-rose-500/10 text-rose-300">Sesgo —</span>
+                                <span id="tpBiasMain" class="px-3 py-1 rounded-lg text-[11px] font-black bg-emerald-500 text-slate-950">Cargando…</span>
                             </div>
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
+                                <div class="rounded-xl bg-[#0b0e11] border border-borderBg p-2.5 text-center">
+                                    <div class="text-[10px] text-slate-500 mb-0.5">ALMA</div>
+                                    <div id="tpAlmaVal" class="text-sm font-bold font-mono text-slate-100">—</div>
+                                </div>
+                                <div class="rounded-xl bg-[#0b0e11] border border-borderBg p-2.5 text-center">
+                                    <div class="text-[10px] text-slate-500 mb-0.5">RMS</div>
+                                    <div id="tpRmsVal" class="text-sm font-bold font-mono text-purple-400">—</div>
+                                </div>
+                                <div class="rounded-xl bg-[#0b0e11] border border-borderBg p-2.5 text-center">
+                                    <div class="text-[10px] text-slate-500 mb-0.5">ratio ALMA/RMS</div>
+                                    <div id="tpRatioVal" class="text-sm font-bold font-mono text-accentYellow">—</div>
+                                </div>
+                                <div class="rounded-xl bg-[#0b0e11] border border-borderBg p-2.5 text-center">
+                                    <div class="text-[10px] text-slate-500 mb-0.5">Umbral extremo</div>
+                                    <div class="text-sm font-bold font-mono text-accentYellow">±0.85</div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="flex justify-between text-[10px] text-slate-500 font-mono mb-1">
+                                    <span>0</span>
+                                    <span id="tpZoneVal">|ratio| vs umbral 0.85</span>
+                                    <span>ext</span>
+                                </div>
+                                <div class="h-2 rounded-full bg-[#0b0e11] border border-borderBg overflow-hidden">
+                                    <div id="tpZoneBarFill" class="h-full rounded-full bg-accentRed transition-all duration-300" style="width:0%"></div>
+                                </div>
+                            </div>
+                            <div class="mb-3">
+                                <div class="text-[11px] font-bold text-slate-300 mb-1.5">Confluencia ahora</div>
+                                <ul id="tpConfluenceList" class="space-y-1 text-[12px] text-slate-400">
+                                    <li class="text-slate-500">— Cargando indicadores…</li>
+                                </ul>
+                                <p class="text-[10px] text-slate-600 font-mono mt-2">TF actual: <span id="tpTfLabel" class="text-slate-400">1h</span> · Mejor en 15m / 1H / 4H / 1D</p>
+                            </div>
+                            <p id="tpBiasHint" class="text-[11px] text-slate-500 leading-relaxed mb-3 flex-1">—</p>
+                            <div class="flex flex-wrap gap-2 mb-2">
+                                <button type="button" id="btnTpApplyLong" onclick="applyTrendiloProjection('LONG')" disabled
+                                    class="flex-1 min-w-[120px] px-3 py-2 rounded-xl text-[11px] font-bold border border-accentGreen/40 bg-accentGreen/10 text-accentGreen opacity-40 cursor-not-allowed">Aplicar LONG</button>
+                                <button type="button" id="btnTpApplyShort" onclick="applyTrendiloProjection('SHORT')" disabled
+                                    class="flex-1 min-w-[120px] px-3 py-2 rounded-xl text-[11px] font-bold border border-accentRed/40 bg-accentRed/10 text-accentRed opacity-40 cursor-not-allowed">Aplicar SHORT</button>
+                            </div>
+                            <p id="tpStatus" class="text-[10px] text-slate-600 font-mono">—</p>
                         </div>
                     </div>
 
-                    <!-- Cómo aplicar · estrategia ratio ALMA/RMS -->
-                    <div class="rounded-xl border border-borderBg bg-cardBg p-3 space-y-2">
-                        <div class="text-xs font-bold text-accentYellow flex items-center gap-1.5">
-                            <i class="fa-solid fa-book-open"></i> TrendiloMX · zonas ALMA / RMS
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-3">
+                        <div class="lg:col-span-2 rounded-2xl border border-borderBg bg-black overflow-hidden relative flex flex-col" id="trendiloProjChartWrap" style="min-height:200px;height:280px;">
+                            <div class="absolute top-1.5 left-2 z-10 text-[10px] text-slate-500 pointer-events-none">TrendiloMX · ALMA + ±RMS · proyección</div>
+                            <div id="trendiloProjChart" class="w-full flex-1" style="min-height:160px;"></div>
+                            <div id="trendiloProjResizeHandle" class="tmx-inline-resize" title="Redimensionar"><span class="resize-grip"></span></div>
                         </div>
-                        <p class="text-[11px] text-slate-400 leading-relaxed">
-                            Señal basada en <strong class="text-slate-200">ratio = ALMA ÷ RMS</strong>. Cuando <strong class="text-accentRed">|ratio| ≥ 0.75</strong> (extremo ≥ 0.85), ALMA está cerca/en la banda RMS: se pinta el <strong class="text-accentRed">círculo</strong> en el panel Trendilo: extremo de momentum y posible rebote o cambio de tendencia.
-                        </p>
-                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] text-slate-400 leading-relaxed">
-                            <div>
-                                <p class="font-semibold text-slate-200 mb-1">Umbrales</p>
-                                <ul class="list-disc list-inside space-y-1">
-                                    <li><strong class="text-accentRed">|ratio| ≥ 0.75</strong> → zona de círculo (cerca de ±RMS)</li>
-                                    <li><strong class="text-accentRed">|ratio| ≥ 0.85</strong> → extremo fuerte de momentum</li>
-                                    <li><strong class="text-slate-300">dist ≈ |ALMA|−RMS ≈ 0</strong> → toque de banda (como en TV)</li>
-                                    <li><strong class="text-slate-300">|ratio| ≥ 0.50</strong> → sesgo direccional</li>
-                                    <li><strong class="text-accentYellow">Giro</strong>: ALMA cambia de pendiente dentro de la zona</li>
-                                </ul>
-                            </div>
-                            <div>
-                                <p class="font-semibold text-accentGreen mb-1">Mercado bajista → rebote (BOUNCE)</p>
-                                <p class="mb-1">Buscar <strong class="text-slate-200">ratio ≤ −0.85</strong> y luego ALMA subiendo (delta &gt; 0) o cruce de vuelta por encima de −0.85.</p>
-                                <p class="text-[10px] text-slate-500">Confluencia: StochRSI OS, Yoshi OB compra, DMI −DI dominante pero estrecho, precio en soporte/OB.</p>
-                            </div>
-                            <div>
-                                <p class="font-semibold text-accentRed mb-1">Mercado alcista → reversal</p>
-                                <p class="mb-1">Buscar <strong class="text-slate-200">ratio ≥ +0.85</strong> y ALMA bajando o cruce bajo +0.85.</p>
-                                <p class="text-[10px] text-slate-500">Confluencia: StochRSI OB, Yoshi CHoCH/ST sell, +DI perdiendo dominio, rechazo de resistencia/OB venta.</p>
+                        <div class="rounded-2xl border border-borderBg bg-[#12151c] p-4">
+                            <div class="text-[11px] font-bold text-slate-300 mb-2">Confluencia recomendada</div>
+                            <p class="text-[12px] text-slate-400 leading-relaxed mb-2">
+                                <strong class="text-slate-200">TrendiloMX (ratio)</strong> + <strong class="text-slate-200">StochRSI</strong> +
+                                <strong class="text-slate-200">Yoshi</strong> (estructura/ST) + <strong class="text-slate-200">DMI</strong> + S/R u OB.
+                            </p>
+                            <p class="text-[11px] text-slate-500 leading-relaxed mb-2">
+                                En temporalidades <strong class="text-slate-300">15 · 1H · 4H · 1D</strong> la señal de zona extrema es más fiable que en 1–5m (más ruido).
+                            </p>
+                            <p class="text-[11px] text-slate-500 leading-relaxed mb-3">
+                                Marcadores <span class="text-accentGreen font-semibold">▲ Bounce</span> /
+                                <span class="text-accentRed font-semibold">▼ Reversal</span> y el
+                                <span class="text-accentRed font-semibold">círculo</span> en el panel Trendilo.
+                            </p>
+                            <div class="grid grid-cols-2 gap-2 text-[10px] font-mono">
+                                <div class="rounded-lg bg-[#0b0e11] border border-borderBg p-2">
+                                    <div class="text-slate-500">Proy. 3 barras</div>
+                                    <div id="tpProjVal" class="text-accentYellow font-bold">—</div>
+                                </div>
+                                <div class="rounded-lg bg-[#0b0e11] border border-borderBg p-2">
+                                    <div class="text-slate-500">Confianza</div>
+                                    <div id="tpConfVal" class="text-slate-200 font-bold">—</div>
+                                </div>
+                                <div class="rounded-lg bg-[#0b0e11] border border-borderBg p-2 col-span-2">
+                                    <div class="text-slate-500">Acierto vs precio</div>
+                                    <div class="flex items-center justify-between gap-2 mt-0.5">
+                                        <div id="tpHitRateDetail" class="text-[9px] text-slate-500">—</div>
+                                        <div id="tpHitRateVal" class="text-sm font-black text-accentYellow">—</div>
+                                    </div>
+                                    <div class="mt-1 h-1.5 rounded-full bg-borderBg overflow-hidden">
+                                        <div id="tpHitRateBar" class="h-full rounded-full bg-accentYellow" style="width:0%"></div>
+                                    </div>
+                                </div>
                             </div>
                         </div>
-                        <p class="text-[10px] text-slate-500 border-t border-borderBg pt-2">
-                            TF recomendados: <strong class="text-slate-400">15m · 1H · 4H · 1D</strong> (más fiables que 1–5m). Los marcadores <span class="text-accentGreen">▲ Bounce</span> / <span class="text-accentRed">▼ Reversal</span> y el <span class="text-accentRed">círculo rojo</span> se dibujan en el panel Trendilo al cumplirse la estrategia.
-                        </p>
                     </div>
                 </div>
+
             </section>
         </main>
     </div>

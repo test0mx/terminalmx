@@ -1060,24 +1060,46 @@ let currentInterval = '1h';
                 if (hrDet) hrDet.innerText = 'Calculando acierto vs movimiento real…';
             }
 
+            // Badge izquierdo = sesgo | tpBiasMain = acción (estilo panel referencia)
+            const ratioN = Number(p.ratio);
+            const absRn = Math.abs(ratioN);
+            if (badge) {
+                if (ratioN <= -0.50) {
+                    badge.innerText = 'Sesgo bajista (|r|≥0.50)';
+                    badge.className = 'px-3 py-1 rounded-lg text-[11px] font-bold border border-rose-500/40 bg-rose-500/10 text-rose-300';
+                } else if (ratioN >= 0.50) {
+                    badge.innerText = 'Sesgo alcista (|r|≥0.50)';
+                    badge.className = 'px-3 py-1 rounded-lg text-[11px] font-bold border border-emerald-500/40 bg-emerald-500/10 text-emerald-300';
+                } else {
+                    badge.innerText = 'Sin sesgo fuerte';
+                    badge.className = 'px-3 py-1 rounded-lg text-[11px] font-bold border border-borderBg bg-borderBg/40 text-slate-400';
+                }
+            }
+
             if (p.signal === 'BUY') {
-                const isBounce = p.zone === 'BOUNCE' || (p.extreme && p.ratio < 0);
-                if (badge) { badge.innerText = isBounce ? 'BOUNCE' : 'LONG'; badge.className = 'px-2.5 py-0.5 rounded text-[10px] font-black bg-accentGreen text-slate-950'; }
-                if (main) { main.innerText = isBounce ? 'ZONA EXTREMA · REBOTE' : 'PROYECCIÓN ALCISTA'; main.className = 'text-2xl font-black text-accentGreen mb-1'; }
-                if (hint) hint.innerText = `ratio ${Number(p.ratio).toFixed(3)} · ALMA ${Number(p.alma).toFixed(3)} · RMS ${Number(p.rms).toFixed(3)}. ${isBounce ? 'Buscar LONG (rebote) con confluencia StochRSI/Yoshi/DMI.' : 'Sesgo alcista; confirma en 15m/1H/4H/1D.'}`;
+                const isBounce = p.zone === 'BOUNCE' || (p.extreme && ratioN < 0) || (ratioN <= -0.75 && (p.slope || 0) > 0);
+                if (main) {
+                    main.innerText = isBounce ? 'BOUNCE · buscar long (rebote)' : 'LONG · sesgo alcista';
+                    main.className = 'px-3 py-1 rounded-lg text-[11px] font-black bg-emerald-500 text-slate-950';
+                }
+                if (hint) hint.innerText = `ratio ${ratioN.toFixed(3)} · ALMA ${Number(p.alma).toFixed(3)} · RMS ${Number(p.rms).toFixed(3)}. ${isBounce ? 'Zona extrema bajista con giro al alza: prioriza long con StochRSI/Yoshi/DMI.' : 'Momentum alcista; confirma en 15m/1H/4H/1D.'}`;
                 if (btnL) { btnL.disabled = false; btnL.classList.remove('opacity-40', 'cursor-not-allowed'); }
                 if (btnS) { btnS.disabled = true; btnS.classList.add('opacity-40', 'cursor-not-allowed'); }
             } else if (p.signal === 'SELL') {
-                const isRev = p.zone === 'REVERSAL' || (p.extreme && p.ratio > 0);
-                if (badge) { badge.innerText = isRev ? 'REVERSAL' : 'SHORT'; badge.className = 'px-2.5 py-0.5 rounded text-[10px] font-black bg-accentRed text-white'; }
-                if (main) { main.innerText = isRev ? 'ZONA EXTREMA · REVERSAL' : 'PROYECCIÓN BAJISTA'; main.className = 'text-2xl font-black text-accentRed mb-1'; }
-                if (hint) hint.innerText = `ratio ${Number(p.ratio).toFixed(3)} · ALMA ${Number(p.alma).toFixed(3)} · RMS ${Number(p.rms).toFixed(3)}. ${isRev ? 'Buscar SHORT (cambio de tendencia) con confluencia.' : 'Sesgo bajista; confirma en TF altos.'}`;
+                const isRev = p.zone === 'REVERSAL' || (p.extreme && ratioN > 0) || (ratioN >= 0.75 && (p.slope || 0) < 0);
+                if (main) {
+                    main.innerText = isRev ? 'REVERSAL · buscar short' : 'SHORT · sesgo bajista';
+                    main.className = 'px-3 py-1 rounded-lg text-[11px] font-black bg-rose-500 text-white';
+                }
+                if (hint) hint.innerText = `ratio ${ratioN.toFixed(3)} · ALMA ${Number(p.alma).toFixed(3)} · RMS ${Number(p.rms).toFixed(3)}. ${isRev ? 'Zona extrema alcista con giro a la baja: prioriza short con confluencia.' : 'Momentum bajista; confirma en TF altos.'}`;
                 if (btnS) { btnS.disabled = false; btnS.classList.remove('opacity-40', 'cursor-not-allowed'); }
                 if (btnL) { btnL.disabled = true; btnL.classList.add('opacity-40', 'cursor-not-allowed'); }
             } else {
-                if (badge) { badge.innerText = 'NEUTRAL'; badge.className = 'px-2.5 py-0.5 rounded text-[10px] font-black bg-accentYellow text-slate-950'; }
-                if (main) { main.innerText = 'SIN IMPULSO CLARO'; main.className = 'text-2xl font-black text-accentYellow mb-1'; }
-                if (hint) hint.innerText = `ALMA cerca de 0 o dentro de ±RMS. Esperar cruce o rechazo de banda antes de operar.`;
+                if (main) {
+                    main.innerText = 'Esperar · sin setup claro';
+                    main.className = 'px-3 py-1 rounded-lg text-[11px] font-black bg-slate-600 text-slate-100';
+                }
+                if (hint) hint.innerText = 'ALMA entre bandas o sin giro. Esperar |ratio| ≥ 0.75 y cambio de pendiente.';
                 if (btnL) { btnL.disabled = true; btnL.classList.add('opacity-40', 'cursor-not-allowed'); }
                 if (btnS) { btnS.disabled = true; btnS.classList.add('opacity-40', 'cursor-not-allowed'); }
             }
