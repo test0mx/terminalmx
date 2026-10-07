@@ -489,3 +489,42 @@ body.charts-only-mode #chartsOnlyExitBar {
     color: #f0b90b;
     background: rgba(240, 185, 11, 0.1);
 }
+
+
+/* Círculo rojo TrendiloMX · zona ALMA/RMS (como anotación TradingView) */
+#trendiloSignalOverlay {
+    position: absolute;
+    inset: 0;
+    pointer-events: none;
+    z-index: 8;
+    overflow: hidden;
+}
+.trendilo-signal-circle {
+    position: absolute;
+    border: 2.5px solid #f6465d;
+    border-radius: 50%;
+    box-shadow: 0 0 0 1px rgba(246, 70, 93, 0.25), 0 0 12px rgba(246, 70, 93, 0.35);
+    transform: translate(-50%, -50%);
+    pointer-events: none;
+    animation: trendiloPulse 2.2s ease-in-out infinite;
+}
+.trendilo-signal-circle.bounce {
+    border-color: #0ecb81;
+    box-shadow: 0 0 0 1px rgba(14, 203, 129, 0.25), 0 0 12px rgba(14, 203, 129, 0.35);
+}
+.trendilo-signal-label {
+    position: absolute;
+    left: 50%;
+    top: -18px;
+    transform: translateX(-50%);
+    font-size: 9px;
+    font-weight: 800;
+    white-space: nowrap;
+    color: #f6465d;
+    text-shadow: 0 1px 3px rgba(0,0,0,0.9);
+}
+.trendilo-signal-circle.bounce .trendilo-signal-label { color: #0ecb81; }
+@keyframes trendiloPulse {
+    0%, 100% { opacity: 0.95; }
+    50% { opacity: 0.55; }
+}

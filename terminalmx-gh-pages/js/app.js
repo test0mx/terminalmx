@@ -558,8 +558,18 @@ let currentInterval = '1h';
         }
 
 
-        /** TrendiloMX estrategia ratio ALMA/RMS */
+        /**
+         * TrendiloMX · zonas ALMA / RMS (como círculo TradingView)
+         * ratio = ALMA ÷ RMS
+         * Distancia a banda: dist = |ALMA| − RMS  (≈0 cuando ALMA toca ±RMS)
+         * Zona de señal (círculo): |ratio| ≥ 0.75  OR  dist ≥ −0.15×RMS (cerca de la banda)
+         * Extremo fuerte: |ratio| ≥ 0.85
+         * Bounce (mercado bajista): ratio ≤ −0.75 y pendiente ALMA > 0 (o sale de −0.85)
+         * Reversal (mercado alcista): ratio ≥ +0.75 y pendiente ALMA < 0
+         * TFs fiables: 15m · 1H · 4H · 1D
+         */
         const TRENDILO_EXTREME = 0.85;
+        const TRENDILO_ZONE = 0.75;   // activa círculo (como en la imagen)
         const TRENDILO_BIAS = 0.50;
 
         function trendiloRatio(alma, rms) {
@@ -567,100 +577,132 @@ let currentInterval = '1h';
             return r;
         }
 
-        /**
-         * Evalúa zona y señales Bounce/Reversal sobre series ALMA/RMS alineadas.
-         * almaLine/rmsUp: arrays {time,value}
-         */
+        /** Distancia firmada a la banda RMS más cercana del mismo lado */
+        function trendiloBandDistance(alma, rms) {
+            const R = Math.abs(rms);
+            if (R < 1e-12) return { dist: 0, side: 'mid' };
+            if (alma <= 0) {
+                // banda inferior en −RMS; dist>0 = por debajo de la banda (más extremo)
+                return { dist: (-alma) - R, side: 'lower' };
+            }
+            return { dist: alma - R, side: 'upper' };
+        }
+
         function evaluateTrendiloRatioStrategy(almaLine, rmsUp) {
             const markers = [];
             let last = {
                 ratio: 0, zone: 'NONE', signal: 'NONE', conf: 40,
-                extreme: false, slope: 0, alma: 0, rms: 0
+                extreme: false, slope: 0, alma: 0, rms: 0, dist: 0, circleTime: null
             };
-            if (!almaLine || !rmsUp || almaLine.length < 3) return { markers, last };
+            if (!almaLine || !rmsUp || almaLine.length < 3) return { markers, last, circleEvents: [] };
+
+            const circleEvents = [];
 
             for (let i = 0; i < almaLine.length; i++) {
                 const alma = almaLine[i].value;
                 const rms = Math.abs(rmsUp[i] ? rmsUp[i].value : 0);
                 const ratio = trendiloRatio(alma, rms);
+                const { dist } = trendiloBandDistance(alma, rms);
                 const t = almaLine[i].time;
                 const prev = i > 0 ? almaLine[i - 1].value : alma;
                 const slope = alma - prev;
-                const extreme = Math.abs(ratio) >= TRENDILO_EXTREME;
+                const absR = Math.abs(ratio);
+                // Zona del círculo: cerca o fuera de la banda RMS
+                const nearBand = absR >= TRENDILO_ZONE || dist >= -0.12 * Math.max(rms, 1e-8);
+                const extreme = absR >= TRENDILO_EXTREME;
 
-                // Círculo rojo en zona extrema
-                if (extreme) {
+                if (nearBand && (extreme || absR >= TRENDILO_ZONE)) {
                     markers.push({
                         time: t,
                         position: 'inBar',
                         color: '#f6465d',
                         shape: 'circle',
                         text: '',
-                        size: 1.5
+                        size: 2
                     });
                 }
 
-                // Giro en zona extrema → Bounce / Reversal
                 if (i >= 2) {
                     const a1 = almaLine[i - 1].value;
                     const a2 = almaLine[i - 2].value;
-                    const wasDown = a1 < a2;
-                    const wasUp = a1 > a2;
+                    const wasDown = a1 <= a2;
+                    const wasUp = a1 >= a2;
                     const ratioPrev = trendiloRatio(a1, Math.abs(rmsUp[i - 1] ? rmsUp[i - 1].value : rms));
-                    if (ratio <= -TRENDILO_EXTREME && wasDown && slope > 0) {
+                    const absPrev = Math.abs(ratioPrev);
+
+                    // Bounce: estaba en zona bajista y ALMA gira al alza
+                    if ((ratio <= -TRENDILO_ZONE || ratioPrev <= -TRENDILO_ZONE) && wasDown && slope > 0) {
                         markers.push({
                             time: t, position: 'belowBar', color: '#0ecb81',
                             shape: 'arrowUp', text: 'Bounce', size: 1.5
                         });
-                    } else if (ratio >= TRENDILO_EXTREME && wasUp && slope < 0) {
+                        circleEvents.push({ time: t, alma, rms, ratio, type: 'BOUNCE' });
+                    } else if ((ratio >= TRENDILO_ZONE || ratioPrev >= TRENDILO_ZONE) && wasUp && slope < 0) {
                         markers.push({
                             time: t, position: 'aboveBar', color: '#f6465d',
                             shape: 'arrowDown', text: 'Rev', size: 1.5
                         });
+                        circleEvents.push({ time: t, alma, rms, ratio, type: 'REVERSAL' });
                     } else if (ratioPrev <= -TRENDILO_EXTREME && ratio > -TRENDILO_EXTREME && slope > 0) {
                         markers.push({
                             time: t, position: 'belowBar', color: '#0ecb81',
                             shape: 'arrowUp', text: 'Bounce', size: 1.2
                         });
+                        circleEvents.push({ time: t, alma, rms, ratio, type: 'BOUNCE' });
                     } else if (ratioPrev >= TRENDILO_EXTREME && ratio < TRENDILO_EXTREME && slope < 0) {
                         markers.push({
                             time: t, position: 'aboveBar', color: '#f6465d',
                             shape: 'arrowDown', text: 'Rev', size: 1.2
                         });
+                        circleEvents.push({ time: t, alma, rms, ratio, type: 'REVERSAL' });
+                    } else if (extreme && nearBand) {
+                        // Solo zona extrema sin giro aún
+                        circleEvents.push({ time: t, alma, rms, ratio, type: ratio < 0 ? 'EXTREME_BEAR' : 'EXTREME_BULL' });
                     }
                 }
             }
 
-            // Último estado
             const n = almaLine.length;
             const alma = almaLine[n - 1].value;
             const rms = Math.abs(rmsUp[n - 1] ? rmsUp[n - 1].value : 0);
             const ratio = trendiloRatio(alma, rms);
+            const { dist } = trendiloBandDistance(alma, rms);
             const slope = alma - almaLine[n - 2].value;
             let zone = 'NEUTRAL', signal = 'NONE', conf = 42;
-            if (ratio <= -TRENDILO_EXTREME) {
+            if (ratio <= -TRENDILO_ZONE) {
                 zone = 'EXTREME_BEAR';
-                if (slope > 0) { signal = 'BUY'; conf = 78; zone = 'BOUNCE'; }
-                else { signal = 'BUY'; conf = 62; } // potencial bounce
-            } else if (ratio >= TRENDILO_EXTREME) {
+                if (slope > 0) { signal = 'BUY'; conf = 80; zone = 'BOUNCE'; }
+                else { signal = 'BUY'; conf = 64; }
+            } else if (ratio >= TRENDILO_ZONE) {
                 zone = 'EXTREME_BULL';
-                if (slope < 0) { signal = 'SELL'; conf = 78; zone = 'REVERSAL'; }
-                else { signal = 'SELL'; conf = 62; }
+                if (slope < 0) { signal = 'SELL'; conf = 80; zone = 'REVERSAL'; }
+                else { signal = 'SELL'; conf = 64; }
             } else if (ratio >= TRENDILO_BIAS) {
                 zone = 'BULL_BIAS'; signal = 'BUY'; conf = 52;
             } else if (ratio <= -TRENDILO_BIAS) {
                 zone = 'BEAR_BIAS'; signal = 'SELL'; conf = 52;
             }
 
-            last = { ratio, zone, signal, conf, extreme: Math.abs(ratio) >= TRENDILO_EXTREME, slope, alma, rms };
+            const lastCircle = circleEvents.length ? circleEvents[circleEvents.length - 1] : null;
+            last = {
+                ratio, zone, signal, conf,
+                extreme: Math.abs(ratio) >= TRENDILO_EXTREME,
+                nearBand: Math.abs(ratio) >= TRENDILO_ZONE,
+                slope, alma, rms, dist,
+                circleTime: lastCircle ? lastCircle.time : (Math.abs(ratio) >= TRENDILO_ZONE ? almaLine[n - 1].time : null),
+                circleType: lastCircle ? lastCircle.type : (Math.abs(ratio) >= TRENDILO_ZONE ? (ratio < 0 ? 'EXTREME_BEAR' : 'EXTREME_BULL') : null)
+            };
 
-            // Deduplicar markers por time+shape (quedarse con el de señal si hay círculo)
             const byKey = new Map();
             markers.forEach(m => {
                 const key = String(m.time) + '|' + m.shape + '|' + (m.text || '');
                 byKey.set(key, m);
             });
-            return { markers: Array.from(byKey.values()).sort((a, b) => a.time - b.time), last };
+            return {
+                markers: Array.from(byKey.values()).sort((a, b) => (a.time > b.time ? 1 : -1)),
+                last,
+                circleEvents
+            };
         }
 
         function applyTrendiloMarkers(series, markers) {
@@ -673,6 +715,51 @@ let currentInterval = '1h';
                 console.warn('Trendilo markers', e);
             }
         }
+
+        /** Dibuja círculo rojo/verde en el panel Trendilo (estilo anotación TV) */
+        function renderTrendiloSignalCircle(strat) {
+            const ov = document.getElementById('trendiloSignalOverlay');
+            if (!ov) return;
+            ov.innerHTML = '';
+            if (!strat || !trendiloChart || !trendiloAlmaSeries) return;
+            const last = strat.last;
+            if (!last || !last.circleTime || !last.nearBand) return;
+
+            let x = null, y = null;
+            try {
+                x = trendiloChart.timeScale().timeToCoordinate(last.circleTime);
+            } catch (e) {}
+            try {
+                y = trendiloAlmaSeries.priceToCoordinate(last.alma);
+            } catch (e) {}
+            if (x == null || y == null) return;
+
+            // Radio según distancia a banda RMS en coordenadas de precio
+            let yRms = y;
+            try {
+                const rmsPrice = last.alma <= 0 ? -Math.abs(last.rms) : Math.abs(last.rms);
+                yRms = trendiloAlmaSeries.priceToCoordinate(rmsPrice);
+            } catch (e) {}
+            const distPx = yRms != null ? Math.abs(y - yRms) : 28;
+            const radius = Math.max(22, Math.min(56, distPx * 2.2 + 16));
+
+            const isBounce = last.circleType === 'BOUNCE' || last.zone === 'BOUNCE';
+            const div = document.createElement('div');
+            div.className = 'trendilo-signal-circle' + (isBounce ? ' bounce' : '');
+            div.style.left = x + 'px';
+            div.style.top = y + 'px';
+            div.style.width = (radius * 2) + 'px';
+            div.style.height = (radius * 2) + 'px';
+            const lab = document.createElement('div');
+            lab.className = 'trendilo-signal-label';
+            if (isBounce) lab.textContent = 'BOUNCE';
+            else if (last.circleType === 'REVERSAL' || last.zone === 'REVERSAL') lab.textContent = 'REVERSAL';
+            else lab.textContent = '|r|≥0.75';
+            div.appendChild(lab);
+            ov.appendChild(div);
+        }
+        window.renderTrendiloSignalCircle = renderTrendiloSignalCircle;
+
 
         function computeTrendiloSeriesFromKlines(klines) {
             const almaLen = 20, almaOffset = 0.85, almaSigma = 6, rmsLen = 20, smoothLen = 3;
@@ -775,6 +862,7 @@ let currentInterval = '1h';
                 almaLine, rmsUp, rmsDn, zero, proj,
                 alma: y2, rms: lastRms, projEnd, slope, signal, conf,
                 ratio, zone, extreme, markers,
+                dist: strat.last.dist, nearBand: strat.last.nearBand,
                 hitRate, hitSamples, hits
             };
         }
@@ -821,6 +909,8 @@ let currentInterval = '1h';
                     ratio: series.ratio,
                     zone: series.zone,
                     extreme: series.extreme,
+                    dist: series.dist != null ? series.dist : (Math.abs(series.alma) - Math.abs(series.rms)),
+                    nearBand: series.nearBand,
                     tf: trendiloProjTf,
                     hitRate: series.hitRate,
                     hitSamples: series.hitSamples,
@@ -864,24 +954,29 @@ let currentInterval = '1h';
                     dmiPos = (dmiLatest.plusDI || 0) > (dmiLatest.minusDI || 0);
                 }
             } catch (e) {}
+            const ratio = p.ratio != null ? p.ratio : 0;
+            const absR = Math.abs(ratio);
+            const dist = p.dist != null ? p.dist : (Math.abs(p.alma || 0) - Math.abs(p.rms || 0));
 
             const items = [];
+            items.push(`${absR >= TRENDILO_ZONE ? '✓' : '○'} |ratio|=${absR.toFixed(2)} (zona ≥0.75 · extremo ≥0.85)`);
+            items.push(`${'○'} dist a banda RMS: ${Number(dist).toFixed(4)} (≈0 = toque de banda)`);
             if (stochK != null) {
-                const ok = (p.signal === 'BUY' && stochK < 30) || (p.signal === 'SELL' && stochK > 70);
-                items.push(`${ok ? '✓' : '○'} StochRSI K=${Number(stochK).toFixed(0)} (ideal ${p.signal === 'BUY' ? '<30' : p.signal === 'SELL' ? '>70' : 'extremo'})`);
+                const ok = (p.signal === 'BUY' && stochK < 35) || (p.signal === 'SELL' && stochK > 65);
+                items.push(`${ok ? '✓' : '○'} StochRSI K=${Number(stochK).toFixed(0)} (rebote <35 · reversal >65)`);
             } else {
-                items.push('○ StochRSI (sin dato aún)');
+                items.push('○ StochRSI (confluencia de extremo)');
             }
             if (p.signal === 'BUY') {
-                items.push(`${yoshiBuy ? '✓' : '○'} Yoshi OB compra / señal BUY`);
-                items.push(`${dmiNeg ? '✓' : '○'} DMI aún −DI≥+DI (contexto bajista)`);
+                items.push(`${yoshiBuy ? '✓' : '○'} Yoshi OB compra / BOS↑ (confirma rebote)`);
+                items.push(`${dmiNeg ? '✓' : '○'} DMI −DI≥+DI (contexto bajista previo)`);
             } else if (p.signal === 'SELL') {
-                items.push(`${yoshiSell ? '✓' : '○'} Yoshi CHoCH/ST sell`);
-                items.push(`${dmiPos ? '✓' : '○'} DMI +DI perdiendo / aún dominante`);
+                items.push(`${yoshiSell ? '✓' : '○'} Yoshi CHoCH↓ / ST sell (confirma reversal)`);
+                items.push(`${dmiPos ? '✓' : '○'} DMI +DI aún alto / perdiendo dominio`);
             } else {
-                items.push('○ Yoshi / DMI — esperando zona extrema');
+                items.push('○ Yoshi + DMI — esperar zona |ratio|≥0.75');
             }
-            items.push(`TF actual: ${p.tf || trendiloProjTf} · Mejor en 15m / 1H / 4H / 1D`);
+            items.push(`TF: ${p.tf || trendiloProjTf} · Fiable en 15m · 1H · 4H · 1D (evitar 1–5m)`);
             el.innerHTML = items.map(s => `<li class="${s.charAt(0) === '✓' ? 'text-accentGreen' : 'text-slate-400'}">${s}</li>`).join('');
         }
 
@@ -3743,6 +3838,11 @@ let currentInterval = '1h';
             // Estrategia ratio + círculo rojo en extremos
             const strat = evaluateTrendiloRatioStrategy(almaLine, rmsUp);
             applyTrendiloMarkers(trendiloAlmaSeries, strat.markers || []);
+            try {
+                renderTrendiloSignalCircle(strat);
+                setTimeout(() => renderTrendiloSignalCircle(strat), 80);
+            } catch (e) {}
+            window._lastTrendiloStrat = strat;
 
             const lastVal = almaLine.length ? almaLine[almaLine.length - 1].value : 0;
             const ratio = strat.last.ratio;

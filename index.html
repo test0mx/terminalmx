@@ -589,6 +589,7 @@
                         Trendilo · ALMA + ±RMS · <a href="https://es.tradingview.com/script/h5kMWewu-Trendilo-OPEN-SOURCE/" target="_blank" rel="noopener" class="text-accentYellow/80 hover:underline pointer-events-auto">dudeowns OS</a> · estilo TradingView
                     </div>
                     <div id="trendiloChart" class="w-full h-full"></div>
+                    <div id="trendiloSignalOverlay" class="absolute inset-0 pointer-events-none z-[8] overflow-hidden" aria-hidden="true"></div>
                 </div>
             </div>
 
@@ -1725,14 +1726,15 @@
                             <i class="fa-solid fa-book-open"></i> TrendiloMX · zonas ALMA / RMS
                         </div>
                         <p class="text-[11px] text-slate-400 leading-relaxed">
-                            Señal basada en <strong class="text-slate-200">ratio = ALMA ÷ RMS</strong>. Cuando <strong class="text-accentRed">|ratio| ≥ 0.85</strong>, ALMA está en el borde de la banda RMS (círculo rojo en el panel Trendilo): extremo de momentum y posible rebote o cambio de tendencia.
+                            Señal basada en <strong class="text-slate-200">ratio = ALMA ÷ RMS</strong>. Cuando <strong class="text-accentRed">|ratio| ≥ 0.75</strong> (extremo ≥ 0.85), ALMA está cerca/en la banda RMS: se pinta el <strong class="text-accentRed">círculo</strong> en el panel Trendilo: extremo de momentum y posible rebote o cambio de tendencia.
                         </p>
                         <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-[11px] text-slate-400 leading-relaxed">
                             <div>
                                 <p class="font-semibold text-slate-200 mb-1">Umbrales</p>
                                 <ul class="list-disc list-inside space-y-1">
-                                    <li><strong class="text-accentRed">ratio ≤ −0.85</strong> → zona extrema bajista (sobreventa de momentum)</li>
-                                    <li><strong class="text-accentRed">ratio ≥ +0.85</strong> → zona extrema alcista (sobrecompra de momentum)</li>
+                                    <li><strong class="text-accentRed">|ratio| ≥ 0.75</strong> → zona de círculo (cerca de ±RMS)</li>
+                                    <li><strong class="text-accentRed">|ratio| ≥ 0.85</strong> → extremo fuerte de momentum</li>
+                                    <li><strong class="text-slate-300">dist ≈ |ALMA|−RMS ≈ 0</strong> → toque de banda (como en TV)</li>
                                     <li><strong class="text-slate-300">|ratio| ≥ 0.50</strong> → sesgo direccional</li>
                                     <li><strong class="text-accentYellow">Giro</strong>: ALMA cambia de pendiente dentro de la zona</li>
                                 </ul>
