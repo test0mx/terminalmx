@@ -57,6 +57,7 @@ let currentInterval = '1h';
         let lastConfirmedTrade = null;
         let chartPriceLines = [];
         const LS_JOURNAL = 'terminalmx_journal';
+        const LS_PORTFOLIO = 'terminalmx_portfolio_v1';
         const LS_LAST_TRADE = 'terminalmx_last_trade';
         const LS_CHART_PREFS = 'terminalmx_chart_prefs';
 
@@ -416,6 +417,7 @@ let currentInterval = '1h';
             if (tab === 'journal' && statsHeader) {
                 statsHeader.classList.remove('hidden');
                 statsHeader.style.display = 'flex';
+                try { loadPortfolioSettings(); renderJournal(); } catch (e) {}
             }
             if (tab === 'backtest' && btStatsHeader) {
                 btStatsHeader.classList.remove('hidden');
@@ -6394,6 +6396,334 @@ let currentInterval = '1h';
          * Registra posición en Historial al aplicar LONG/SHORT desde Palacios o Confluencias.
          * meta: { source, score, tf, note }
          */
+        
+        // ========== CARTERA DE INVERSIONES ==========
+        function getPortfolioSettings() {
+            const capital = parseFloat(document.getElementById('pfCapital')?.value) || 10000;
+            const riskPct = parseFloat(document.getElementById('pfRiskPct')?.value) || 1;
+            const dailyLimit = parseFloat(document.getElementById('pfDailyLimit')?.value) || 2;
+            const monthlyLimit = parseFloat(document.getElementById('pfMonthlyLimit')?.value) || 6;
+            const maxLev = parseInt(document.getElementById('pfMaxLev')?.value, 10) || 10;
+            const maxTradesDay = parseInt(document.getElementById('pfMaxTradesDay')?.value, 10) || 3;
+            return { capital, riskPct, dailyLimit, monthlyLimit, maxLev, maxTradesDay };
+        }
+
+        function savePortfolioSettings() {
+            try {
+                localStorage.setItem(LS_PORTFOLIO, JSON.stringify(getPortfolioSettings()));
+            } catch (e) {}
+        }
+        window.savePortfolioSettings = savePortfolioSettings;
+
+        function loadPortfolioSettings() {
+            try {
+                const raw = localStorage.getItem(LS_PORTFOLIO);
+                if (!raw) return;
+                const s = JSON.parse(raw);
+                const set = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = v; };
+                set('pfCapital', s.capital);
+                set('pfRiskPct', s.riskPct);
+                set('pfDailyLimit', s.dailyLimit);
+                set('pfMonthlyLimit', s.monthlyLimit);
+                set('pfMaxLev', s.maxLev);
+                set('pfMaxTradesDay', s.maxTradesDay);
+            } catch (e) {}
+        }
+
+        function tradeRealizedPnl(t) {
+            if (t.pnl != null && Number.isFinite(Number(t.pnl))) return Number(t.pnl);
+            if (t.closed && t.exit != null && t.entry != null && t.size != null) {
+                const side = (t.side || '').toUpperCase();
+                const diff = side === 'LONG' ? (t.exit - t.entry) : (t.entry - t.exit);
+                return diff * Number(t.size);
+            }
+            return 0;
+        }
+
+        function isSameDay(ts, now) {
+            const d = new Date(ts);
+            return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth() && d.getDate() === now.getDate();
+        }
+        function isSameMonth(ts, now) {
+            const d = new Date(ts);
+            return d.getFullYear() === now.getFullYear() && d.getMonth() === now.getMonth();
+        }
+
+        function computePortfolioStats() {
+            const s = getPortfolioSettings();
+            const now = new Date();
+            let equity = s.capital;
+            let realized = 0;
+            let dayPnl = 0;
+            let monthPnl = 0;
+            let dayTrades = 0;
+            let wins = 0;
+            let closedN = 0;
+            const rows = [];
+
+            // chronological for equity curve
+            const sorted = journalHistory.slice().reverse(); // journal is newest first typically
+            // Ensure oldest first
+            const chrono = journalHistory.slice().sort((a, b) => {
+                const ta = a.openedAt || a.ts || 0;
+                const tb = b.openedAt || b.ts || 0;
+                return ta - tb;
+            });
+
+            chrono.forEach(t => {
+                const pnl = tradeRealizedPnl(t);
+                const ts = t.openedAt || t.ts || Date.now();
+                if (t.closed || (t.pnl != null && Number.isFinite(Number(t.pnl)))) {
+                    equity += pnl;
+                    realized += pnl;
+                    closedN++;
+                    if (pnl > 0) wins++;
+                    if (isSameDay(ts, now)) { dayPnl += pnl; dayTrades++; }
+                    if (isSameMonth(ts, now)) monthPnl += pnl;
+                } else if (isSameDay(ts, now)) {
+                    dayTrades++;
+                }
+                rows.push({ ...t, _equityAfter: equity, _pnl: pnl });
+            });
+
+            const dayLimitUsd = s.capital * (s.dailyLimit / 100);
+            const monthLimitUsd = s.capital * (s.monthlyLimit / 100);
+            // Use equity-based limits for remaining room (breakout-style: stop when daily loss hits %)
+            const dayLossUsed = Math.max(0, -dayPnl);
+            const monthLossUsed = Math.max(0, -monthPnl);
+            const dayBlocked = dayLossUsed >= dayLimitUsd || dayTrades >= s.maxTradesDay;
+            const monthBlocked = monthLossUsed >= monthLimitUsd;
+
+            // Risk $ for next trade on current equity
+            const riskUsd = equity * (s.riskPct / 100);
+            // Suggested leverage: keep liquidación lejos del SL típico 1% → lev max min(user, floor(1/slPct))
+            const suggestedLev = Math.min(s.maxLev, 10);
+
+            return {
+                settings: s,
+                equity,
+                realized,
+                dayPnl,
+                monthPnl,
+                dayTrades,
+                dayLimitUsd,
+                monthLimitUsd,
+                dayLossUsed,
+                monthLossUsed,
+                dayBlocked,
+                monthBlocked,
+                riskUsd,
+                suggestedLev,
+                wins,
+                closedN,
+                wr: closedN ? (wins / closedN) * 100 : 0,
+                rowsNewestFirst: rows.slice().reverse()
+            };
+        }
+
+        function calcSuggestedLot(entry, sl, riskUsd) {
+            entry = Number(entry);
+            sl = Number(sl);
+            if (!Number.isFinite(entry) || !Number.isFinite(sl) || entry <= 0) return null;
+            const dist = Math.abs(entry - sl);
+            if (dist < 1e-12) return null;
+            // size in units of asset (e.g. BTC amount) such that |pnl at SL| = riskUsd
+            const size = riskUsd / dist;
+            return size;
+        }
+
+        function recalcPortfolio() {
+            const st = computePortfolioStats();
+            const fmt = (n) => (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const eqEl = document.getElementById('pfEquityDisplay');
+            if (eqEl) eqEl.innerText = '$' + fmt(st.equity);
+            const pnlEl = document.getElementById('pfPnlDisplay');
+            if (pnlEl) {
+                const pct = st.settings.capital ? (st.realized / st.settings.capital) * 100 : 0;
+                const sign = st.realized >= 0 ? '+' : '';
+                pnlEl.innerText = `P&L: ${sign}$${fmt(st.realized)} (${sign}${pct.toFixed(2)}%)`;
+                pnlEl.className = 'text-[11px] font-mono mt-0.5 ' + (st.realized >= 0 ? 'text-accentGreen' : 'text-accentRed');
+            }
+            const daySt = document.getElementById('pfDailyStatus');
+            if (daySt) daySt.innerText = `$${fmt(st.dayLossUsed)} / $${fmt(st.dayLimitUsd)}`;
+            const dayFill = document.getElementById('pfDailyBarFill');
+            if (dayFill) {
+                const pct = st.dayLimitUsd > 0 ? Math.min(100, (st.dayLossUsed / st.dayLimitUsd) * 100) : 0;
+                dayFill.style.width = pct + '%';
+                dayFill.className = 'h-full rounded-full ' + (pct >= 100 ? 'bg-accentRed' : pct >= 70 ? 'bg-accentYellow' : 'bg-accentGreen');
+            }
+            const dayMsg = document.getElementById('pfDailyMsg');
+            if (dayMsg) {
+                if (st.dayBlocked) {
+                    dayMsg.innerText = st.dayTrades >= st.settings.maxTradesDay
+                        ? `STOP: máx. ${st.settings.maxTradesDay} trades/día`
+                        : 'STOP diario: no operar más hoy';
+                    dayMsg.className = 'text-[10px] text-accentRed mt-1 font-bold';
+                } else {
+                    dayMsg.innerText = `OK · ${st.dayTrades}/${st.settings.maxTradesDay} trades hoy · P&L día $${fmt(st.dayPnl)}`;
+                    dayMsg.className = 'text-[10px] text-slate-500 mt-1';
+                }
+            }
+            const mSt = document.getElementById('pfMonthlyStatus');
+            if (mSt) mSt.innerText = `$${fmt(st.monthLossUsed)} / $${fmt(st.monthLimitUsd)}`;
+            const mFill = document.getElementById('pfMonthlyBarFill');
+            if (mFill) {
+                const pct = st.monthLimitUsd > 0 ? Math.min(100, (st.monthLossUsed / st.monthLimitUsd) * 100) : 0;
+                mFill.style.width = pct + '%';
+                mFill.className = 'h-full rounded-full ' + (pct >= 100 ? 'bg-accentRed' : pct >= 70 ? 'bg-accentYellow' : 'bg-accentGreen');
+            }
+            const mMsg = document.getElementById('pfMonthlyMsg');
+            if (mMsg) {
+                if (st.monthBlocked) {
+                    mMsg.innerText = 'STOP mensual: proteger capital';
+                    mMsg.className = 'text-[10px] text-accentRed mt-1 font-bold';
+                } else {
+                    mMsg.innerText = `OK · P&L mes $${fmt(st.monthPnl)}`;
+                    mMsg.className = 'text-[10px] text-slate-500 mt-1';
+                }
+            }
+
+            // Next entry suggestion
+            let entry = null, sl = null;
+            try {
+                entry = parseFloat(document.getElementById('pfTradeEntry')?.value);
+                sl = parseFloat(document.getElementById('pfTradeSl')?.value);
+            } catch (e) {}
+            if (!Number.isFinite(entry) || !Number.isFinite(sl)) {
+                try {
+                    if (rawKlines && rawKlines.length) {
+                        entry = rawKlines[rawKlines.length - 1].close;
+                        sl = entry * 0.99; // 1% default for sizing preview
+                    }
+                } catch (e) {}
+            }
+            const lot = calcSuggestedLot(entry, sl, st.riskUsd);
+            const nextLot = document.getElementById('pfNextLot');
+            const nextRisk = document.getElementById('pfNextRisk');
+            const nextHint = document.getElementById('pfNextHint');
+            if (st.dayBlocked || st.monthBlocked) {
+                if (nextLot) nextLot.innerText = 'Lotaje: 0 (stop activo)';
+                if (nextRisk) nextRisk.innerText = 'No abrir nuevas posiciones';
+                if (nextHint) nextHint.innerText = 'Espera al próximo día/mes o reduce riesgo.';
+            } else if (lot != null) {
+                if (nextLot) nextLot.innerText = 'Lotaje: ' + (lot >= 1 ? lot.toFixed(4) : lot.toPrecision(4));
+                if (nextRisk) nextRisk.innerText = `Riesgo $${fmt(st.riskUsd)} · Lev. ≤ ${st.suggestedLev}x`;
+                if (nextHint) nextHint.innerText = `Con SL a ${((Math.abs(entry - sl) / entry) * 100).toFixed(2)}% del precio. No superes el límite diario.`;
+                const sizeInput = document.getElementById('pfTradeSize');
+                if (sizeInput && !sizeInput.value) sizeInput.placeholder = lot >= 1 ? lot.toFixed(4) : lot.toPrecision(4);
+                const levInput = document.getElementById('pfTradeLev');
+                if (levInput) levInput.value = String(Math.min(st.suggestedLev, parseInt(levInput.value, 10) || st.suggestedLev));
+            } else {
+                if (nextLot) nextLot.innerText = 'Lotaje: —';
+                if (nextRisk) nextRisk.innerText = `Riesgo $${fmt(st.riskUsd)} · Lev. ≤ ${st.suggestedLev}x`;
+                if (nextHint) nextHint.innerText = 'Indica entrada y SL para calcular lotaje exacto.';
+            }
+
+            // Header stats
+            const he = document.getElementById('statPortfolioEquity');
+            if (he) he.innerText = '$' + fmt(st.equity);
+            const hp = document.getElementById('statPortfolioPnl');
+            if (hp) {
+                hp.innerText = (st.realized >= 0 ? '+' : '') + '$' + fmt(st.realized);
+                hp.className = 'font-mono ' + (st.realized >= 0 ? 'text-accentGreen' : 'text-accentRed');
+            }
+            const stTrades = document.getElementById('statTotalTrades');
+            if (stTrades) stTrades.innerText = String(journalHistory.length);
+            const stWr = document.getElementById('statWinRate');
+            if (stWr) stWr.innerText = st.wr.toFixed(0) + '%';
+
+            return st;
+        }
+        window.recalcPortfolio = recalcPortfolio;
+
+        function addPortfolioTradeManual() {
+            const st = computePortfolioStats();
+            if (st.dayBlocked || st.monthBlocked) {
+                alert('Límite diario o mensual alcanzado. No registres más riesgo hasta resetear el período.');
+                return;
+            }
+            const side = (document.getElementById('pfTradeSide')?.value || 'LONG').toUpperCase();
+            const entry = parseFloat(document.getElementById('pfTradeEntry')?.value);
+            const sl = parseFloat(document.getElementById('pfTradeSl')?.value);
+            const tp = parseFloat(document.getElementById('pfTradeTp')?.value);
+            let size = parseFloat(document.getElementById('pfTradeSize')?.value);
+            const lev = parseInt(document.getElementById('pfTradeLev')?.value, 10) || st.suggestedLev;
+            const pnlRaw = document.getElementById('pfTradePnl')?.value;
+            const pnl = pnlRaw !== '' && pnlRaw != null ? parseFloat(pnlRaw) : null;
+
+            if (!Number.isFinite(entry)) {
+                alert('Indica precio de entrada.');
+                return;
+            }
+            if (!Number.isFinite(size) || size <= 0) {
+                size = calcSuggestedLot(entry, Number.isFinite(sl) ? sl : entry * 0.99, st.riskUsd);
+                if (!size) {
+                    alert('No se pudo calcular lotaje. Indica SL o lotaje manual.');
+                    return;
+                }
+            }
+            if (lev > st.settings.maxLev) {
+                if (!confirm(`Apalancamiento ${lev}x supera el máximo sugerido (${st.settings.maxLev}x). ¿Continuar?`)) return;
+            }
+
+            const trade = {
+                id: 'pf_' + Date.now(),
+                time: new Date().toLocaleTimeString(),
+                date: new Date().toLocaleDateString(),
+                side,
+                entry,
+                sl: Number.isFinite(sl) ? sl : null,
+                tp: Number.isFinite(tp) ? tp : null,
+                tp1: Number.isFinite(tp) ? tp : null,
+                tp2: Number.isFinite(tp) ? tp : null,
+                tp3: null,
+                leverage: Math.min(lev, 125),
+                size,
+                source: 'Manual',
+                note: '',
+                score: 50,
+                openedAt: Date.now(),
+                expiresAt: Date.now() + 24 * 3600 * 1000,
+                tf: currentInterval || '1h',
+                closed: pnl != null && Number.isFinite(pnl),
+                pnl: pnl != null && Number.isFinite(pnl) ? pnl : null,
+                ts: Date.now()
+            };
+            addJournalEntry(trade);
+            ['pfTradeEntry','pfTradeSl','pfTradeTp','pfTradeSize','pfTradePnl'].forEach(id => {
+                const el = document.getElementById(id);
+                if (el) el.value = '';
+            });
+            recalcPortfolio();
+            renderJournal();
+        }
+        window.addPortfolioTradeManual = addPortfolioTradeManual;
+
+        function updateTradePnl(id, value) {
+            const t = journalHistory.find(x => x.id === id);
+            if (!t) return;
+            const pnl = parseFloat(value);
+            if (!Number.isFinite(pnl)) {
+                t.pnl = null;
+                t.closed = false;
+            } else {
+                t.pnl = pnl;
+                t.closed = true;
+            }
+            saveJournalToStorage();
+            recalcPortfolio();
+            renderJournal();
+        }
+        window.updateTradePnl = updateTradePnl;
+
+        function removeJournalTrade(id) {
+            journalHistory = journalHistory.filter(x => x.id !== id);
+            saveJournalToStorage();
+            recalcPortfolio();
+            renderJournal();
+        }
+        window.removeJournalTrade = removeJournalTrade;
+
         function registerAppliedPosition(side, meta) {
             meta = meta || {};
             const tf = meta.tf || currentInterval || '1h';
@@ -6430,9 +6760,22 @@ let currentInterval = '1h';
                 tp2: plan.tp2,
                 tp3: plan.tp3,
                 rr: plan.rr,
-                leverage: plan.leverage,
-                size: 1,
+                leverage: (function() {
+                    try {
+                        const st = computePortfolioStats();
+                        return Math.min(plan.leverage || 5, st.suggestedLev || 10, st.settings.maxLev || 10);
+                    } catch (e) { return plan.leverage; }
+                })(),
+                size: (function() {
+                    try {
+                        const st = computePortfolioStats();
+                        const lot = calcSuggestedLot(plan.entry, plan.sl, st.riskUsd);
+                        return lot != null ? lot : 1;
+                    } catch (e) { return 1; }
+                })(),
                 source: meta.source || 'Señal',
+                pnl: null,
+                ts: Date.now(),
                 note: meta.note || '',
                 trendilo: (trendiloLatest && trendiloLatest.direction) || '—',
                 stoch: (stochRsiLatest && stochRsiLatest.k) != null ? Number(stochRsiLatest.k).toFixed(1) : '—',
@@ -6516,54 +6859,57 @@ let currentInterval = '1h';
 
         function renderJournal() {
             const tbody = document.getElementById('journalTableBody');
-            if (journalHistory.length === 0) {
-                tbody.innerHTML = `<tr><td colspan="12" class="text-center py-6 text-slate-500 italic">No hay operaciones. Usa «Aplicar LONG/SHORT» en Palacios o Mejores confluencias.</td></tr>`;
+            if (!tbody) return;
+            const st = recalcPortfolio();
+            const fmt = (n) => (Number(n) || 0).toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: 2 });
+            const fmtSize = (n) => {
+                const v = Number(n);
+                if (!Number.isFinite(v)) return '—';
+                if (v >= 1) return v.toFixed(4);
+                return v.toPrecision(4);
+            };
+
+            if (!journalHistory.length) {
+                tbody.innerHTML = `<tr><td colspan="12" class="text-center py-6 text-slate-500 italic">Sin operaciones. Registra una o usa «Aplicar LONG/SHORT» en señales.</td></tr>`;
                 return;
             }
 
+            // Map id -> equity after from chrono calc
+            const eqMap = {};
+            (st.rowsNewestFirst || []).forEach(r => { eqMap[r.id] = r._equityAfter; });
+
             tbody.innerHTML = journalHistory.map((t) => {
-                const tp1 = t.tp1 != null ? t.tp1 : t.tp;
-                const tp2 = t.tp2 != null ? t.tp2 : (t.tp ? t.tp : '—');
-                const tp3 = t.tp3 != null ? t.tp3 : '—';
-                const fmt = (v) => (v == null || v === '—') ? '—' : ('$' + Number(v).toFixed(1));
-                return `
-                <tr onclick="selectJournalTrade('${t.id}')" class="hover:bg-cardBg/80 cursor-pointer transition select-none" title="Clic para detalles">
-                    <td class="p-2 text-slate-400 whitespace-nowrap">${t.time || '—'}</td>
-                    <td class="p-2 font-bold ${t.side === 'LONG' ? 'text-accentGreen' : 'text-accentRed'}">${t.side}</td>
-                    <td class="p-2 text-[10px] text-slate-400 max-w-[7rem] truncate" title="${t.source || ''}">${t.source || 'Manual'}</td>
-                    <td class="p-2 font-mono text-accentYellow">${t.tf || '—'}</td>
-                    <td class="p-2 font-mono">$${Number(t.entry).toFixed(1)}</td>
-                    <td class="p-2 font-mono text-accentRed">$${Number(t.sl).toFixed(1)}</td>
-                    <td class="p-2 font-mono text-accentGreen">${fmt(tp1)}</td>
-                    <td class="p-2 font-mono text-accentGreen/90">${fmt(tp2)}</td>
-                    <td class="p-2 font-mono text-emerald-400/80">${fmt(tp3)}</td>
-                    <td class="p-2 font-mono text-slate-300">${t.leverage ? t.leverage + 'x' : '—'}</td>
+                const side = (t.side || '').toUpperCase();
+                const sideCls = side === 'LONG' ? 'text-accentGreen' : 'text-accentRed';
+                const pnl = tradeRealizedPnl(t);
+                const hasPnl = t.closed || (t.pnl != null && Number.isFinite(Number(t.pnl)));
+                const pnlCls = !hasPnl ? 'text-slate-500' : (pnl >= 0 ? 'text-accentGreen' : 'text-accentRed');
+                const eq = eqMap[t.id];
+                const status = hasPnl ? (pnl >= 0 ? 'Win' : 'Loss') : 'Abierta';
+                const statusCls = hasPnl ? (pnl >= 0 ? 'text-accentGreen' : 'text-accentRed') : 'text-accentYellow';
+                return `<tr class="hover:bg-cardBg/40">
+                    <td class="p-2 text-slate-400 whitespace-nowrap">${t.date || ''} ${t.time || ''}</td>
+                    <td class="p-2 font-bold ${sideCls}">${side}</td>
+                    <td class="p-2 text-slate-400 max-w-[100px] truncate" title="${(t.source || '').replace(/"/g, '')}">${t.source || '—'}</td>
+                    <td class="p-2">${t.entry != null ? Number(t.entry).toFixed(2) : '—'}</td>
+                    <td class="p-2 text-accentRed">${t.sl != null ? Number(t.sl).toFixed(2) : '—'}</td>
+                    <td class="p-2 text-accentGreen">${(t.tp2 || t.tp || t.tp1) != null ? Number(t.tp2 || t.tp || t.tp1).toFixed(2) : '—'}</td>
+                    <td class="p-2">${fmtSize(t.size)}</td>
+                    <td class="p-2">${t.leverage || '—'}x</td>
                     <td class="p-2 text-right">
-                        <span class="px-1.5 py-0.5 rounded text-[10px] font-bold font-mono ${t.score >= 60 ? 'bg-accentGreen/20 text-accentGreen' : t.score >= 45 ? 'bg-accentYellow/20 text-accentYellow' : 'bg-accentRed/20 text-accentRed'}">
-                            ${t.score != null ? t.score + '%' : '—'}
-                        </span>
+                        <input type="number" step="0.01" value="${hasPnl ? pnl : ''}" placeholder="±$"
+                            onchange="updateTradePnl('${t.id}', this.value)"
+                            class="w-20 bg-panelBg border border-borderBg rounded px-1 py-0.5 text-right font-mono ${pnlCls} focus:outline-none focus:border-accentYellow">
                     </td>
-                    <td class="p-2 text-right whitespace-nowrap" onclick="event.stopPropagation()">
-                        ${journalCountdownHtml(t)}
+                    <td class="p-2 text-right text-slate-400">${eq != null ? '$' + fmt(eq) : '—'}</td>
+                    <td class="p-2 text-right font-bold ${statusCls}">${status}</td>
+                    <td class="p-2 text-right">
+                        <button type="button" onclick="removeJournalTrade('${t.id}')" class="text-slate-500 hover:text-accentRed" title="Eliminar"><i class="fa-solid fa-xmark"></i></button>
                     </td>
                 </tr>`;
             }).join('');
-
-            const st = document.getElementById('statTotalTrades');
-            if (st) st.innerText = journalHistory.length;
-            const highConf = journalHistory.filter(h => h.score >= 60).length;
-            const winRate = journalHistory.length > 0 ? ((highConf / journalHistory.length) * 100).toFixed(0) : 0;
-            const wr = document.getElementById('statWinRate');
-            if (wr) wr.innerText = `${winRate}% (Est.)`;
-            updateJournalCountdowns();
         }
 
-        function selectJournalTrade(tradeId) {
-            const found = journalHistory.find(h => h.id === tradeId);
-            if (found) {
-                openPositionDetailsModal(found);
-            }
-        }
 
         function clearJournal() {
             journalHistory = [];

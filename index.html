@@ -624,7 +624,7 @@
                         </button>
                         <button type="button" id="tabBtnJournal" onclick="switchBottomTab('journal')" class="font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs">
                             <i class="fa-solid fa-list-check"></i>
-                            <span class="hidden sm:inline">Historial</span><span class="sm:hidden">Hist.</span>
+                            <span class="hidden sm:inline">Cartera</span><span class="sm:hidden">Cartera</span>
                         </button>
                         <button type="button" id="tabBtnPalacios" onclick="switchBottomTab('palacios')" class="font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs">
                             <i class="fa-solid fa-layer-group"></i>
@@ -652,13 +652,15 @@
                         </button>
                     </div>
 
-                    <div id="journalStatsHeader" class="hidden flex items-center space-x-4">
-                        <div class="flex space-x-3 text-slate-400">
+                    <div id="journalStatsHeader" class="hidden flex items-center space-x-2 sm:space-x-4 text-[10px] sm:text-xs">
+                        <div class="flex flex-wrap gap-x-3 gap-y-1 text-slate-400">
+                            <span>Equity: <strong id="statPortfolioEquity" class="text-accentYellow font-mono">$0</strong></span>
                             <span>Trades: <strong id="statTotalTrades" class="text-white">0</strong></span>
-                            <span>Win Rate: <strong id="statWinRate" class="text-accentGreen">0%</strong></span>
+                            <span>WR: <strong id="statWinRate" class="text-accentGreen">0%</strong></span>
+                            <span>P&L: <strong id="statPortfolioPnl" class="text-white font-mono">$0</strong></span>
                         </div>
-                        <button onclick="clearJournal()" class="text-slate-400 hover:text-accentRed transition">
-                            <i class="fa-solid fa-trash-can mr-1"></i> Limpiar
+                        <button onclick="clearJournal()" class="text-slate-400 hover:text-accentRed transition shrink-0" title="Limpiar operaciones">
+                            <i class="fa-solid fa-trash-can"></i>
                         </button>
                     </div>
                     <div id="backtestStatsHeader" class="hidden flex items-center space-x-3 text-slate-400">
@@ -764,33 +766,166 @@
                     </div>
                 </div>
 
-                <!-- Tab Content 2: Trading Log Journal -->
-                <div id="tabContentJournal" class="flex-1 overflow-auto p-2 hidden">
-                    <div class="overflow-x-auto">
-                    <table class="w-full min-w-[720px] text-left text-[10px] sm:text-xs font-mono">
-                        <thead class="text-slate-400 border-b border-borderBg sticky top-0 bg-panelBg">
-                            <tr>
-                                <th class="p-2">Hora</th>
-                                <th class="p-2">Tipo</th>
-                                <th class="p-2">Fuente</th>
-                                <th class="p-2">TF</th>
-                                <th class="p-2">Entrada</th>
-                                <th class="p-2">SL</th>
-                                <th class="p-2">TP1</th>
-                                <th class="p-2">TP2</th>
-                                <th class="p-2">TP3</th>
-                                <th class="p-2">Apalan.</th>
-                                <th class="p-2 text-right">Prob.</th>
-                                <th class="p-2 text-right">Vigencia</th>
-                            </tr>
-                        </thead>
-                        <tbody id="journalTableBody" class="divide-y divide-borderBg/50 text-slate-300">
-                            <tr>
-                                <td colspan="12" class="text-center py-6 text-slate-500 italic">No hay operaciones. Usa «Aplicar LONG/SHORT» en Palacios o Mejores confluencias.</td>
-                            </tr>
-                        </tbody>
-                    </table>
+                <!-- Tab: Cartera de Inversiones -->
+                <div id="tabContentJournal" class="flex-1 overflow-auto p-2 sm:p-3 hidden">
+                    <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
+                        <div>
+                            <div class="font-semibold text-accentYellow flex items-center gap-1.5 text-sm">
+                                <i class="fa-solid fa-wallet"></i> Cartera de Inversiones
+                            </div>
+                            <p class="text-[11px] text-slate-500 mt-0.5 max-w-2xl">
+                                Capital, límites diarios/mensuales (reglas breakout) y lotaje sugerido para no liquidar la cuenta. Todo se guarda en este navegador.
+                            </p>
+                        </div>
                     </div>
+
+                    <!-- Configuración de cuenta -->
+                    <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mb-3">
+                        <div class="rounded-xl border border-borderBg bg-cardBg p-2.5">
+                            <label class="text-[10px] text-slate-500 block mb-1">Capital cuenta ($)</label>
+                            <input type="number" id="pfCapital" value="10000" step="100" min="1"
+                                onchange="savePortfolioSettings(); recalcPortfolio()"
+                                class="w-full bg-panelBg border border-borderBg rounded-lg px-2 py-1.5 text-sm font-mono text-white focus:outline-none focus:border-accentYellow">
+                        </div>
+                        <div class="rounded-xl border border-borderBg bg-cardBg p-2.5">
+                            <label class="text-[10px] text-slate-500 block mb-1">Riesgo / trade (%)</label>
+                            <input type="number" id="pfRiskPct" value="1" step="0.1" min="0.1" max="5"
+                                onchange="savePortfolioSettings(); recalcPortfolio()"
+                                class="w-full bg-panelBg border border-borderBg rounded-lg px-2 py-1.5 text-sm font-mono text-white focus:outline-none focus:border-accentYellow">
+                        </div>
+                        <div class="rounded-xl border border-borderBg bg-cardBg p-2.5">
+                            <label class="text-[10px] text-slate-500 block mb-1">Límite pérdida diaria (%)</label>
+                            <input type="number" id="pfDailyLimit" value="2" step="0.5" min="0.5" max="10"
+                                onchange="savePortfolioSettings(); recalcPortfolio()"
+                                class="w-full bg-panelBg border border-borderBg rounded-lg px-2 py-1.5 text-sm font-mono text-white focus:outline-none focus:border-accentYellow">
+                        </div>
+                        <div class="rounded-xl border border-borderBg bg-cardBg p-2.5">
+                            <label class="text-[10px] text-slate-500 block mb-1">Límite pérdida mensual (%)</label>
+                            <input type="number" id="pfMonthlyLimit" value="6" step="0.5" min="1" max="20"
+                                onchange="savePortfolioSettings(); recalcPortfolio()"
+                                class="w-full bg-panelBg border border-borderBg rounded-lg px-2 py-1.5 text-sm font-mono text-white focus:outline-none focus:border-accentYellow">
+                        </div>
+                        <div class="rounded-xl border border-borderBg bg-cardBg p-2.5">
+                            <label class="text-[10px] text-slate-500 block mb-1">Apalan. máx. sugerido</label>
+                            <input type="number" id="pfMaxLev" value="10" step="1" min="1" max="125"
+                                onchange="savePortfolioSettings(); recalcPortfolio()"
+                                class="w-full bg-panelBg border border-borderBg rounded-lg px-2 py-1.5 text-sm font-mono text-white focus:outline-none focus:border-accentYellow">
+                        </div>
+                        <div class="rounded-xl border border-borderBg bg-cardBg p-2.5">
+                            <label class="text-[10px] text-slate-500 block mb-1">Máx. trades / día</label>
+                            <input type="number" id="pfMaxTradesDay" value="3" step="1" min="1" max="20"
+                                onchange="savePortfolioSettings(); recalcPortfolio()"
+                                class="w-full bg-panelBg border border-borderBg rounded-lg px-2 py-1.5 text-sm font-mono text-white focus:outline-none focus:border-accentYellow">
+                        </div>
+                    </div>
+
+                    <!-- Resumen + próxima entrada -->
+                    <div class="grid grid-cols-1 md:grid-cols-2 xl:grid-cols-4 gap-2 mb-3">
+                        <div class="rounded-xl border border-borderBg bg-[#12151c] p-3">
+                            <div class="text-[10px] text-slate-500 mb-1">Equity actual</div>
+                            <div id="pfEquityDisplay" class="text-xl font-black font-mono text-accentYellow">$10,000</div>
+                            <div id="pfPnlDisplay" class="text-[11px] font-mono text-slate-400 mt-0.5">P&L: $0 (0%)</div>
+                        </div>
+                        <div class="rounded-xl border border-borderBg bg-[#12151c] p-3">
+                            <div class="text-[10px] text-slate-500 mb-1">Pérdida diaria / límite</div>
+                            <div id="pfDailyStatus" class="text-sm font-bold font-mono text-slate-200">$0 / $200</div>
+                            <div id="pfDailyBar" class="mt-1.5 h-1.5 rounded-full bg-borderBg overflow-hidden">
+                                <div id="pfDailyBarFill" class="h-full rounded-full bg-accentGreen" style="width:0%"></div>
+                            </div>
+                            <div id="pfDailyMsg" class="text-[10px] text-slate-500 mt-1">OK para operar</div>
+                        </div>
+                        <div class="rounded-xl border border-borderBg bg-[#12151c] p-3">
+                            <div class="text-[10px] text-slate-500 mb-1">Pérdida mensual / límite</div>
+                            <div id="pfMonthlyStatus" class="text-sm font-bold font-mono text-slate-200">$0 / $600</div>
+                            <div id="pfMonthlyBar" class="mt-1.5 h-1.5 rounded-full bg-borderBg overflow-hidden">
+                                <div id="pfMonthlyBarFill" class="h-full rounded-full bg-accentGreen" style="width:0%"></div>
+                            </div>
+                            <div id="pfMonthlyMsg" class="text-[10px] text-slate-500 mt-1">OK para operar</div>
+                        </div>
+                        <div class="rounded-xl border border-accentYellow/30 bg-accentYellow/5 p-3">
+                            <div class="text-[10px] text-accentYellow font-bold mb-1">Próxima entrada sugerida</div>
+                            <div id="pfNextLot" class="text-sm font-black font-mono text-white">Lotaje: —</div>
+                            <div id="pfNextRisk" class="text-[11px] font-mono text-slate-400 mt-0.5">Riesgo $— · Lev. —x</div>
+                            <div id="pfNextHint" class="text-[10px] text-slate-500 mt-1 leading-relaxed">Define capital y registra operaciones.</div>
+                        </div>
+                    </div>
+
+                    <!-- Formulario alta operación -->
+                    <div class="rounded-xl border border-borderBg bg-cardBg p-3 mb-3">
+                        <div class="text-[11px] font-bold text-slate-300 mb-2 flex items-center gap-1.5">
+                            <i class="fa-solid fa-plus text-accentYellow"></i> Registrar operación
+                        </div>
+                        <div class="grid grid-cols-2 sm:grid-cols-4 lg:grid-cols-8 gap-2 text-[11px]">
+                            <div>
+                                <label class="text-slate-500 block mb-0.5">Lado</label>
+                                <select id="pfTradeSide" class="w-full bg-panelBg border border-borderBg rounded-lg px-2 py-1.5 text-white font-mono">
+                                    <option value="LONG">LONG</option>
+                                    <option value="SHORT">SHORT</option>
+                                </select>
+                            </div>
+                            <div>
+                                <label class="text-slate-500 block mb-0.5">Entrada</label>
+                                <input type="number" id="pfTradeEntry" step="0.01" class="w-full bg-panelBg border border-borderBg rounded-lg px-2 py-1.5 text-white font-mono" placeholder="0.00">
+                            </div>
+                            <div>
+                                <label class="text-slate-500 block mb-0.5">SL</label>
+                                <input type="number" id="pfTradeSl" step="0.01" class="w-full bg-panelBg border border-borderBg rounded-lg px-2 py-1.5 text-white font-mono" placeholder="0.00">
+                            </div>
+                            <div>
+                                <label class="text-slate-500 block mb-0.5">TP / salida</label>
+                                <input type="number" id="pfTradeTp" step="0.01" class="w-full bg-panelBg border border-borderBg rounded-lg px-2 py-1.5 text-white font-mono" placeholder="0.00">
+                            </div>
+                            <div>
+                                <label class="text-slate-500 block mb-0.5">Lotaje</label>
+                                <input type="number" id="pfTradeSize" step="0.001" min="0" class="w-full bg-panelBg border border-borderBg rounded-lg px-2 py-1.5 text-white font-mono" placeholder="auto">
+                            </div>
+                            <div>
+                                <label class="text-slate-500 block mb-0.5">Apalan.</label>
+                                <input type="number" id="pfTradeLev" step="1" min="1" value="5" class="w-full bg-panelBg border border-borderBg rounded-lg px-2 py-1.5 text-white font-mono">
+                            </div>
+                            <div>
+                                <label class="text-slate-500 block mb-0.5">Resultado $</label>
+                                <input type="number" id="pfTradePnl" step="0.01" class="w-full bg-panelBg border border-borderBg rounded-lg px-2 py-1.5 text-white font-mono" placeholder="opcional">
+                            </div>
+                            <div class="flex items-end">
+                                <button type="button" onclick="addPortfolioTradeManual()"
+                                    class="w-full px-2 py-1.5 rounded-lg border border-accentYellow/40 bg-accentYellow/15 text-accentYellow text-[11px] font-bold">
+                                    Guardar
+                                </button>
+                            </div>
+                        </div>
+                        <p class="text-[10px] text-slate-600 mt-2">Si dejas lotaje vacío se calcula con el riesgo %. Si pones Resultado $ se cierra la op con ese P&amp;L.</p>
+                    </div>
+
+                    <!-- Tabla -->
+                    <div class="overflow-x-auto">
+                        <table class="w-full min-w-[900px] text-left text-[10px] sm:text-xs font-mono">
+                            <thead class="text-slate-400 border-b border-borderBg sticky top-0 bg-panelBg">
+                                <tr>
+                                    <th class="p-2">Fecha</th>
+                                    <th class="p-2">Tipo</th>
+                                    <th class="p-2">Fuente</th>
+                                    <th class="p-2">Entrada</th>
+                                    <th class="p-2">SL</th>
+                                    <th class="p-2">TP</th>
+                                    <th class="p-2">Lotaje</th>
+                                    <th class="p-2">Lev.</th>
+                                    <th class="p-2 text-right">P&amp;L $</th>
+                                    <th class="p-2 text-right">Equity</th>
+                                    <th class="p-2 text-right">Estado</th>
+                                    <th class="p-2 text-right">Acción</th>
+                                </tr>
+                            </thead>
+                            <tbody id="journalTableBody" class="divide-y divide-borderBg/50 text-slate-300">
+                                <tr>
+                                    <td colspan="12" class="text-center py-6 text-slate-500 italic">Sin operaciones. Registra una o usa «Aplicar LONG/SHORT» en señales.</td>
+                                </tr>
+                            </tbody>
+                        </table>
+                    </div>
+                    <p class="text-[10px] text-slate-600 mt-2">
+                        Reglas breakout: stop diario al alcanzar el % de pérdida diaria; stop mensual al % mensual. Riesgo fijo por trade sobre equity actual. Lotaje = riesgo $ ÷ distancia SL.
+                    </p>
                 </div>
 
                 <!-- Tab Content 3: Strategy Backtest -->
