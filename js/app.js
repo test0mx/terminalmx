@@ -417,7 +417,12 @@ let currentInterval = '1h';
             if (tab === 'journal' && statsHeader) {
                 statsHeader.classList.remove('hidden');
                 statsHeader.style.display = 'flex';
-                try { loadPortfolioSettings(); renderJournal(); } catch (e) {}
+                try {
+                    loadPortfolioSettings();
+                    renderJournal();
+                    // Rellenar precios de mercado al abrir Cartera
+                    setTimeout(() => { try { refreshPortfolioMarket(true); } catch (e) {} }, 100);
+                } catch (e) {}
             }
             if (tab === 'backtest' && btStatsHeader) {
                 btStatsHeader.classList.remove('hidden');
@@ -6455,65 +6460,165 @@ let currentInterval = '1h';
         }
 
         function getMarketPrice() {
-            if (rawKlines && rawKlines.length) return rawKlines[rawKlines.length - 1].close;
+            // 1) Última vela cargada
+            if (rawKlines && rawKlines.length) {
+                const c = Number(rawKlines[rawKlines.length - 1].close);
+                if (Number.isFinite(c) && c > 0) return c;
+            }
+            // 2) Header UI (puede venir con $ y comas)
             try {
                 const el = document.getElementById('currentPriceDisplay');
-                const v = parseFloat(el && el.innerText);
-                if (Number.isFinite(v) && v > 0) return v;
+                if (el) {
+                    const raw = String(el.innerText || el.textContent || '').replace(/[^0-9.]/g, '');
+                    const v = parseFloat(raw);
+                    if (Number.isFinite(v) && v > 0) return v;
+                }
+            } catch (e) {}
+            // 3) Cache de último precio de cartera
+            if (window._pfLastMarketPrice && window._pfLastMarketPrice > 0) return window._pfLastMarketPrice;
+            return 0;
+        }
+
+        async function fetchSpotPriceForPortfolio() {
+            const sym = (typeof currentSymbol !== 'undefined' && currentSymbol) ? currentSymbol : 'BTCUSDT';
+            const pair = String(sym).replace(/[^A-Z0-9]/gi, '').toUpperCase() || 'BTCUSDT';
+            // Binance
+            try {
+                const res = await fetch('https://api.binance.com/api/v3/ticker/price?symbol=' + encodeURIComponent(pair));
+                if (res.ok) {
+                    const j = await res.json();
+                    const p = parseFloat(j.price);
+                    if (Number.isFinite(p) && p > 0) return p;
+                }
+            } catch (e) {}
+            // Bybit
+            try {
+                const res = await fetch('https://api.bybit.com/v5/market/tickers?category=spot&symbol=' + encodeURIComponent(pair));
+                if (res.ok) {
+                    const j = await res.json();
+                    const p = parseFloat(j?.result?.list?.[0]?.lastPrice);
+                    if (Number.isFinite(p) && p > 0) return p;
+                }
+            } catch (e) {}
+            // OKX
+            try {
+                const inst = pair.replace('USDT', '-USDT');
+                const res = await fetch('https://www.okx.com/api/v5/market/ticker?instId=' + encodeURIComponent(inst));
+                if (res.ok) {
+                    const j = await res.json();
+                    const p = parseFloat(j?.data?.[0]?.last);
+                    if (Number.isFinite(p) && p > 0) return p;
+                }
             } catch (e) {}
             return 0;
         }
 
-        function preparePortfolioSide(side) {
+        async function refreshPortfolioMarket(forceFill) {
+            const icon = document.getElementById('pfRefreshIcon');
+            if (icon) icon.className = 'fa-solid fa-spinner fa-spin';
+            let price = getMarketPrice();
+            try {
+                const live = await fetchSpotPriceForPortfolio();
+                if (live > 0) price = live;
+            } catch (e) {}
+            if (price > 0) window._pfLastMarketPrice = price;
+            const pxEl = document.getElementById('pfMarketPrice');
+            if (pxEl) {
+                pxEl.innerText = price > 0
+                    ? price.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: price < 1 ? 6 : 2 })
+                    : '—';
+                pxEl.className = 'text-sm font-bold font-mono ' + (price > 0 ? 'text-accentGreen' : 'text-accentRed');
+            }
+            if (icon) icon.className = 'fa-solid fa-rotate';
+            if (forceFill !== false) {
+                const side = document.getElementById('pfTradeSide')?.value || 'LONG';
+                preparePortfolioSide(side, price > 0 ? price : null);
+            } else {
+                recalcPortfolio();
+            }
+            return price;
+        }
+        window.refreshPortfolioMarket = refreshPortfolioMarket;
+
+        function preparePortfolioSide(side, overridePrice) {
             side = (side || 'LONG').toUpperCase();
             const sideEl = document.getElementById('pfTradeSide');
             if (sideEl) sideEl.value = side;
             const s = getPortfolioSettings();
-            const tf = s.tf || currentInterval || '1h';
-            const plan = recommendTradePlan(side, tf);
-            const price = getMarketPrice();
-            if (!plan && !price) {
-                alert('No hay precio de mercado. Espera a que carguen las velas.');
+            const tf = s.tf || (typeof currentInterval !== 'undefined' ? currentInterval : null) || '1h';
+
+            let price = Number(overridePrice);
+            if (!(price > 0)) price = getMarketPrice();
+            if (!(price > 0) && window._pfLastMarketPrice) price = window._pfLastMarketPrice;
+
+            // recommendTradePlan usa rawKlines; si no hay, armamos plan local con precio
+            let plan = null;
+            try { plan = recommendTradePlan(side, tf); } catch (e) {}
+
+            if (!(price > 0) && plan && plan.entry > 0) price = plan.entry;
+            if (!(price > 0)) {
+                // Disparar fetch async y reintentar
+                refreshPortfolioMarket(true);
                 return;
             }
-            const entry = plan ? plan.entry : price;
-            const sl = plan ? plan.sl : (side === 'LONG' ? entry * 0.99 : entry * 1.01);
-            const riskDist = Math.abs(entry - sl);
+            window._pfLastMarketPrice = price;
+
+            const entry = price;
+            // SL: preferir plan ATR; si no, 1% del precio
+            let sl;
+            if (plan && plan.sl && Number.isFinite(plan.sl)) sl = plan.sl;
+            else sl = side === 'LONG' ? entry * 0.99 : entry * 1.01;
+
+            const riskDist = Math.abs(entry - sl) || entry * 0.01;
+            // Recalcular SL simétrico si dist quedó 0
+            if (!Number.isFinite(sl) || Math.abs(entry - sl) < 1e-12) {
+                sl = side === 'LONG' ? entry - riskDist : entry + riskDist;
+            }
+
             const rr = s.rewardRatio || 2;
             let tp1, tp2, tp3;
             if (side === 'LONG') {
                 tp1 = entry + riskDist * Math.max(1, rr * 0.6);
                 tp2 = entry + riskDist * rr;
-                tp3 = entry + riskDist * rr * 1.6;
+                tp3 = entry + riskDist * (rr * 1.6);
             } else {
                 tp1 = entry - riskDist * Math.max(1, rr * 0.6);
                 tp2 = entry - riskDist * rr;
-                tp3 = entry - riskDist * rr * 1.6;
+                tp3 = entry - riskDist * (rr * 1.6);
             }
+
             const st = computePortfolioStats();
             const lot = calcSuggestedLot(entry, sl, st.riskUsd) || 0;
-            const lev = Math.min(plan ? plan.leverage : s.maxLev, s.maxLev);
+            const lev = Math.min((plan && plan.leverage) ? plan.leverage : s.maxLev, s.maxLev);
 
-            const setv = (id, v, dig) => {
+            const dig = entry >= 100 ? 2 : entry >= 1 ? 4 : 6;
+            const setv = (id, v, d) => {
                 const el = document.getElementById(id);
                 if (!el) return;
-                el.value = dig != null ? Number(v).toFixed(dig) : v;
+                if (typeof v === 'number' && d != null) el.value = Number(v).toFixed(d);
+                else el.value = v;
             };
             setv('pfTradeTf', tf);
-            setv('pfTradeEntry', entry, 2);
-            setv('pfTradeSl', sl, 2);
-            setv('pfTradeTp1', tp1, 2);
-            setv('pfTradeTp', tp2, 2);
-            setv('pfTradeTp3', tp3, 2);
-            setv('pfTradeSize', lot >= 1 ? lot.toFixed(4) : lot.toPrecision(4));
+            setv('pfTradeEntry', entry, dig);
+            setv('pfTradeSl', sl, dig);
+            setv('pfTradeTp1', tp1, dig);
+            setv('pfTradeTp', tp2, dig);
+            setv('pfTradeTp3', tp3, dig);
+            setv('pfTradeSize', lot >= 1 ? Number(lot).toFixed(4) : Number(lot).toPrecision(4));
             setv('pfTradeLev', lev);
+
+            const pxEl = document.getElementById('pfMarketPrice');
+            if (pxEl) {
+                pxEl.innerText = entry.toLocaleString('en-US', { minimumFractionDigits: 2, maximumFractionDigits: dig });
+                pxEl.className = 'text-sm font-bold font-mono text-accentGreen';
+            }
             const rrLab = document.getElementById('pfRrLabel');
             if (rrLab) rrLab.innerText = '1:' + Number(rr).toFixed(1);
             const estP = document.getElementById('pfEstProfit');
             if (estP) estP.innerText = '$' + (lot * riskDist * rr).toFixed(2);
             const estL = document.getElementById('pfEstLoss');
             if (estL) estL.innerText = '$' + (lot * riskDist).toFixed(2);
-            recalcPortfolio();
+            try { recalcPortfolio(); } catch (e) {}
         }
         window.preparePortfolioSide = preparePortfolioSide;
 

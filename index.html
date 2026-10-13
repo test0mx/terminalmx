@@ -826,8 +826,8 @@
                             <div class="text-[9px] text-slate-500 mb-0.5">TF operativa</div>
                             <div id="pfSugTf" class="text-sm font-bold font-mono text-accentYellow">1h</div>
                         </div>
-                        <div class="rounded-xl border border-borderBg bg-[#12151c] p-2.5">
-                            <div class="text-[9px] text-slate-500 mb-0.5">Precio mercado</div>
+                        <div class="rounded-xl border border-borderBg bg-[#12151c] p-2.5 cursor-pointer hover:border-accentYellow/40 transition" onclick="refreshPortfolioMarket(true)" title="Clic para actualizar precio">
+                            <div class="text-[9px] text-slate-500 mb-0.5 flex items-center gap-1">Precio mercado <i class="fa-solid fa-rotate text-[8px] text-slate-600"></i></div>
                             <div id="pfMarketPrice" class="text-sm font-bold font-mono text-white">—</div>
                         </div>
                     </div>
@@ -869,7 +869,12 @@
                             <div class="text-[11px] font-bold text-slate-300 flex items-center gap-1.5">
                                 <i class="fa-solid fa-bolt text-accentYellow"></i> Registrar operación (precios de mercado)
                             </div>
-                            <div class="flex gap-2">
+                            <div class="flex flex-wrap gap-2">
+                                <button type="button" onclick="refreshPortfolioMarket(true)"
+                                    class="px-3 py-1.5 rounded-lg border border-borderBg bg-panelBg text-slate-200 text-[11px] font-bold hover:border-accentYellow/50 hover:text-accentYellow transition flex items-center gap-1.5"
+                                    title="Trae precio de mercado y recalcula SL/TP/lotaje">
+                                    <i class="fa-solid fa-rotate" id="pfRefreshIcon"></i> Precio mercado
+                                </button>
                                 <button type="button" onclick="preparePortfolioSide('LONG')"
                                     class="px-3 py-1.5 rounded-lg border border-accentGreen/40 bg-accentGreen/10 text-accentGreen text-[11px] font-bold">
                                     LONG
