@@ -762,13 +762,19 @@
                                 <i class="fa-solid fa-wallet"></i> Cartera de Inversiones
                             </div>
                             <p class="text-[11px] text-slate-500 mt-0.5 max-w-2xl">
-                                Solo defines <strong class="text-slate-300">capital</strong>, <strong class="text-slate-300">ratio de riesgo</strong> y <strong class="text-slate-300">R:R</strong>.
-                                Apalancamiento, límites diarios/mensuales, TF, SL/TP y lotaje se calculan solos con el precio de mercado.
+                                Define el <strong class="text-slate-300">capital</strong> y elige escenario
+                                (<strong class="text-slate-300">Pesimista / Conservador / Optimista</strong>).
+                                Riesgo, R:R, apalancamiento y límites de pérdida se ajustan a valores recomendados.
                             </p>
+                        </div>
+                        <div class="flex flex-wrap gap-1" id="pfScenarioFilters">
+                            <button type="button" data-pfscen="pesimista" onclick="setPortfolioScenario('pesimista')" class="pfscen-btn px-2.5 py-1.5 rounded-lg text-[10px] font-bold border border-borderBg text-slate-400 hover:text-white">Pesimista</button>
+                            <button type="button" data-pfscen="conservador" onclick="setPortfolioScenario('conservador')" class="pfscen-btn px-2.5 py-1.5 rounded-lg text-[10px] font-bold border border-accentYellow/50 bg-accentYellow/15 text-accentYellow">Conservador</button>
+                            <button type="button" data-pfscen="optimista" onclick="setPortfolioScenario('optimista')" class="pfscen-btn px-2.5 py-1.5 rounded-lg text-[10px] font-bold border border-borderBg text-slate-400 hover:text-white">Optimista</button>
                         </div>
                     </div>
 
-                    <!-- Solo lo que define el usuario -->
+                    <!-- Capital + ratios (escenario rellena riesgo y R:R) -->
                     <div class="grid grid-cols-1 sm:grid-cols-3 gap-2 mb-3">
                         <div class="rounded-xl border border-accentYellow/30 bg-accentYellow/5 p-3">
                             <label class="text-[10px] text-accentYellow font-bold block mb-1">1. Capital inicial ($)</label>
@@ -781,16 +787,19 @@
                             <input type="number" id="pfRiskPct" value="1" step="0.1" min="0.25" max="5"
                                 onchange="savePortfolioSettings(); recalcPortfolio()"
                                 class="w-full bg-panelBg border border-borderBg rounded-lg px-2 py-2 text-base font-mono text-white focus:outline-none focus:border-accentYellow">
-                            <p class="text-[9px] text-slate-600 mt-1">% del capital que arriesgas en cada trade</p>
+                            <p class="text-[9px] text-slate-600 mt-1" id="pfRiskHint">Ajustado por escenario (editable)</p>
                         </div>
                         <div class="rounded-xl border border-borderBg bg-cardBg p-3">
                             <label class="text-[10px] text-slate-400 font-bold block mb-1">3. Ratio ganancia (R:R)</label>
                             <input type="number" id="pfRewardRatio" value="2" step="0.5" min="1" max="10"
                                 onchange="savePortfolioSettings(); onPortfolioRrChange()"
                                 class="w-full bg-panelBg border border-borderBg rounded-lg px-2 py-2 text-base font-mono text-white focus:outline-none focus:border-accentYellow">
-                            <p class="text-[9px] text-slate-600 mt-1">TP principal = riesgo × este ratio (ej. 2 = 1:2)</p>
+                            <p class="text-[9px] text-slate-600 mt-1" id="pfRrHint">TP = riesgo × R:R del escenario</p>
                         </div>
                     </div>
+                    <p id="pfScenarioNote" class="text-[11px] text-slate-500 mb-3 leading-relaxed">
+                        Escenario <strong class="text-accentYellow">Conservador</strong>: riesgo 1% · R:R 1:2 · lev. ≤5x · stop diario 2% · mensual 6%.
+                    </p>
 
                     <!-- Sugerencias automáticas (solo lectura) -->
                     <div class="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-6 gap-2 mb-3">
@@ -803,8 +812,8 @@
                             <div id="pfSugMonthly" class="text-sm font-bold font-mono text-slate-200">6%</div>
                         </div>
                         <div class="rounded-xl border border-borderBg bg-[#12151c] p-2.5">
-                            <div class="text-[9px] text-slate-500 mb-0.5">Apalan. sugerido</div>
-                            <div id="pfSugLev" class="text-sm font-bold font-mono text-accentYellow">5x</div>
+                            <div class="text-[9px] text-slate-500 mb-0.5">Apalan. (rango)</div>
+                            <div id="pfSugLev" class="text-sm font-bold font-mono text-accentYellow">3–5x</div>
                         </div>
                         <div class="rounded-xl border border-borderBg bg-[#12151c] p-2.5">
                             <div class="text-[9px] text-slate-500 mb-0.5">Máx. trades / día</div>

@@ -6661,24 +6661,136 @@ let currentInterval = '1h';
          */
         
         // ========== CARTERA DE INVERSIONES ==========
+        /** Escenarios de cartera: riesgo, R:R, límites y apalancamiento recomendados */
+        const PORTFOLIO_SCENARIOS = {
+            pesimista: {
+                label: 'Pesimista',
+                riskPct: 0.5,
+                rewardRatio: 1.5,
+                dailyLimit: 1.0,      // % pérdida máx. día
+                monthlyLimit: 3.0,    // % pérdida máx. mes
+                levMin: 1,
+                levMax: 3,
+                maxTradesDay: 2,
+                note: 'Máxima protección: poco riesgo por trade, poco apalancamiento, stops diarios/mensuales estrictos.'
+            },
+            conservador: {
+                label: 'Conservador',
+                riskPct: 1.0,
+                rewardRatio: 2.0,
+                dailyLimit: 2.0,
+                monthlyLimit: 6.0,
+                levMin: 2,
+                levMax: 5,
+                maxTradesDay: 3,
+                note: 'Balance típico breakout: 1% riesgo, R:R 1:2, lev. moderado, stop diario 2% y mensual 6%.'
+            },
+            optimista: {
+                label: 'Optimista',
+                riskPct: 1.5,
+                rewardRatio: 3.0,
+                dailyLimit: 3.0,
+                monthlyLimit: 8.0,
+                levMin: 3,
+                levMax: 8,
+                maxTradesDay: 4,
+                note: 'Más agresivo: mayor riesgo y R:R, más trades/día; respeta igual los stops de pérdida.'
+            }
+        };
+
+        let portfolioScenario = 'conservador';
+        try {
+            const ps = localStorage.getItem('tmx_portfolio_scenario');
+            if (ps && PORTFOLIO_SCENARIOS[ps]) portfolioScenario = ps;
+        } catch (e) {}
+
+        function getPortfolioScenario() {
+            return PORTFOLIO_SCENARIOS[portfolioScenario] || PORTFOLIO_SCENARIOS.conservador;
+        }
+
+        function setPortfolioScenario(name) {
+            if (!PORTFOLIO_SCENARIOS[name]) name = 'conservador';
+            portfolioScenario = name;
+            const sc = getPortfolioScenario();
+            try { localStorage.setItem('tmx_portfolio_scenario', name); } catch (e) {}
+
+            // Aplicar ratios recomendados del escenario
+            const riskEl = document.getElementById('pfRiskPct');
+            const rrEl = document.getElementById('pfRewardRatio');
+            if (riskEl) riskEl.value = sc.riskPct;
+            if (rrEl) rrEl.value = sc.rewardRatio;
+
+            document.querySelectorAll('.pfscen-btn').forEach(btn => {
+                const on = btn.getAttribute('data-pfscen') === portfolioScenario;
+                btn.className = on
+                    ? 'pfscen-btn px-2.5 py-1.5 rounded-lg text-[10px] font-bold border border-accentYellow/50 bg-accentYellow/15 text-accentYellow'
+                    : 'pfscen-btn px-2.5 py-1.5 rounded-lg text-[10px] font-bold border border-borderBg text-slate-400 hover:text-white';
+            });
+
+            const note = document.getElementById('pfScenarioNote');
+            if (note) {
+                note.innerHTML = `Escenario <strong class="text-accentYellow">${sc.label}</strong>: riesgo ${sc.riskPct}% · R:R 1:${sc.rewardRatio} · lev. ${sc.levMin}–${sc.levMax}x · stop diario ${sc.dailyLimit}% · mensual ${sc.monthlyLimit}%. <span class="text-slate-600">${sc.note}</span>`;
+            }
+            const rh = document.getElementById('pfRiskHint');
+            if (rh) rh.innerText = `Recomendado ${sc.label}: ${sc.riskPct}% (editable)`;
+            const rrh = document.getElementById('pfRrHint');
+            if (rrh) rrh.innerText = `Recomendado ${sc.label}: 1:${sc.rewardRatio}`;
+
+            savePortfolioSettings();
+            recalcPortfolio();
+            // Refrescar plan de operación con nuevo R:R / lev
+            try {
+                const side = document.getElementById('pfTradeSide')?.value || 'LONG';
+                if (typeof preparePortfolioSide === 'function') preparePortfolioSide(side);
+            } catch (e) {}
+        }
+        window.setPortfolioScenario = setPortfolioScenario;
+
         function suggestPortfolioRules(riskPct, tf) {
-            const r = Math.max(0.25, Math.min(5, Number(riskPct) || 1));
+            const sc = getPortfolioScenario();
+            const r = Math.max(0.25, Math.min(5, Number(riskPct) || sc.riskPct));
             const isScalp = ['1m', '3m', '5m', '9m', '15m'].includes(tf);
             const isSwing = ['4h', '1d', '1w'].includes(tf);
-            // Breakout-style: daily ≈ 2× risk, monthly ≈ 6× risk (clamped)
-            const dailyLimit = Math.min(8, Math.max(1, +(r * 2).toFixed(1)));
-            const monthlyLimit = Math.min(15, Math.max(3, +(r * 6).toFixed(1)));
-            let maxLev = isScalp ? 10 : isSwing ? 3 : 5;
-            if (r <= 0.5) maxLev = Math.min(maxLev + 2, isScalp ? 12 : 7);
-            if (r >= 2) maxLev = Math.max(2, maxLev - 2);
-            const maxTradesDay = r >= 2 ? 2 : r >= 1 ? 3 : 4;
-            return { dailyLimit, monthlyLimit, maxLev, maxTradesDay };
+
+            // Límites de pérdida del escenario (prioridad) con leve ajuste por TF
+            let dailyLimit = sc.dailyLimit;
+            let monthlyLimit = sc.monthlyLimit;
+            if (isScalp) {
+                dailyLimit = Math.min(dailyLimit, +(sc.dailyLimit * 0.85).toFixed(1));
+            }
+            if (isSwing) {
+                monthlyLimit = Math.min(12, +(sc.monthlyLimit * 1.1).toFixed(1));
+            }
+
+            // Apalancamiento: rango del escenario × TF
+            let maxLev = sc.levMax;
+            let minLev = sc.levMin;
+            if (isScalp) maxLev = Math.min(12, maxLev + 1);
+            if (isSwing) {
+                maxLev = Math.max(minLev, Math.min(maxLev, 4));
+                minLev = Math.min(minLev, 2);
+            }
+            // Si el usuario sube mucho el riesgo, recortar lev
+            if (r >= 2) maxLev = Math.max(minLev, Math.min(maxLev, 3));
+            if (r <= 0.5) maxLev = Math.min(maxLev + 1, isScalp ? 10 : maxLev);
+
+            const maxTradesDay = sc.maxTradesDay;
+            return {
+                dailyLimit,
+                monthlyLimit,
+                maxLev,
+                minLev,
+                maxTradesDay,
+                levLabel: minLev + '–' + maxLev + 'x',
+                scenario: sc.label
+            };
         }
 
         function getPortfolioSettings() {
+            const sc = getPortfolioScenario();
             const capital = parseFloat(document.getElementById('pfCapital')?.value) || 10000;
-            const riskPct = parseFloat(document.getElementById('pfRiskPct')?.value) || 1;
-            const rewardRatio = parseFloat(document.getElementById('pfRewardRatio')?.value) || 2;
+            const riskPct = parseFloat(document.getElementById('pfRiskPct')?.value) || sc.riskPct;
+            const rewardRatio = parseFloat(document.getElementById('pfRewardRatio')?.value) || sc.rewardRatio;
             const tf = (typeof currentInterval !== 'undefined' && currentInterval) ? currentInterval : '1h';
             const sug = suggestPortfolioRules(riskPct, tf);
             return {
@@ -6688,7 +6800,11 @@ let currentInterval = '1h';
                 dailyLimit: sug.dailyLimit,
                 monthlyLimit: sug.monthlyLimit,
                 maxLev: sug.maxLev,
+                minLev: sug.minLev,
                 maxTradesDay: sug.maxTradesDay,
+                levLabel: sug.levLabel,
+                scenario: portfolioScenario,
+                scenarioLabel: sc.label,
                 tf
             };
         }
@@ -6699,7 +6815,8 @@ let currentInterval = '1h';
                 localStorage.setItem(LS_PORTFOLIO, JSON.stringify({
                     capital: s.capital,
                     riskPct: s.riskPct,
-                    rewardRatio: s.rewardRatio
+                    rewardRatio: s.rewardRatio,
+                    scenario: portfolioScenario
                 }));
             } catch (e) {}
         }
@@ -6708,12 +6825,32 @@ let currentInterval = '1h';
         function loadPortfolioSettings() {
             try {
                 const raw = localStorage.getItem(LS_PORTFOLIO);
-                if (!raw) return;
+                if (!raw) {
+                    // Aplicar escenario por defecto a la UI
+                    setPortfolioScenario(portfolioScenario);
+                    return;
+                }
                 const s = JSON.parse(raw);
                 const set = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = v; };
                 set('pfCapital', s.capital);
-                set('pfRiskPct', s.riskPct);
-                set('pfRewardRatio', s.rewardRatio != null ? s.rewardRatio : 2);
+                if (s.scenario && PORTFOLIO_SCENARIOS[s.scenario]) {
+                    portfolioScenario = s.scenario;
+                }
+                // Si hay escenario, preferir valores guardados o los del escenario
+                set('pfRiskPct', s.riskPct != null ? s.riskPct : getPortfolioScenario().riskPct);
+                set('pfRewardRatio', s.rewardRatio != null ? s.rewardRatio : getPortfolioScenario().rewardRatio);
+
+                document.querySelectorAll('.pfscen-btn').forEach(btn => {
+                    const on = btn.getAttribute('data-pfscen') === portfolioScenario;
+                    btn.className = on
+                        ? 'pfscen-btn px-2.5 py-1.5 rounded-lg text-[10px] font-bold border border-accentYellow/50 bg-accentYellow/15 text-accentYellow'
+                        : 'pfscen-btn px-2.5 py-1.5 rounded-lg text-[10px] font-bold border border-borderBg text-slate-400 hover:text-white';
+                });
+                const sc = getPortfolioScenario();
+                const note = document.getElementById('pfScenarioNote');
+                if (note) {
+                    note.innerHTML = `Escenario <strong class="text-accentYellow">${sc.label}</strong>: riesgo ${s.riskPct != null ? s.riskPct : sc.riskPct}% · R:R 1:${s.rewardRatio != null ? s.rewardRatio : sc.rewardRatio} · lev. ${sc.levMin}–${sc.levMax}x · stop diario ${sc.dailyLimit}% · mensual ${sc.monthlyLimit}%.`;
+                }
             } catch (e) {}
         }
 
@@ -6847,7 +6984,8 @@ let currentInterval = '1h';
 
             const st = computePortfolioStats();
             const lot = calcSuggestedLot(entry, sl, st.riskUsd) || 0;
-            const lev = Math.min((plan && plan.leverage) ? plan.leverage : s.maxLev, s.maxLev);
+            let lev = (plan && plan.leverage) ? plan.leverage : Math.round(((s.minLev || 1) + s.maxLev) / 2);
+            lev = Math.max(s.minLev || 1, Math.min(s.maxLev, lev));
 
             const dig = entry >= 100 ? 2 : entry >= 1 ? 4 : 6;
             const setv = (id, v, d) => {
@@ -6988,7 +7126,7 @@ let currentInterval = '1h';
             // Risk $ for next trade on current equity
             const riskUsd = equity * (s.riskPct / 100);
             // Suggested leverage: keep liquidación lejos del SL típico 1% → lev max min(user, floor(1/slPct))
-            const suggestedLev = Math.min(s.maxLev, 10);
+            const suggestedLev = Math.max(s.minLev || 1, Math.min(s.maxLev, Math.round(((s.minLev || 1) + s.maxLev) / 2)));
 
             return {
                 settings: s,
@@ -7116,7 +7254,7 @@ let currentInterval = '1h';
                 const setT = (id, v) => { const el = document.getElementById(id); if (el) el.innerText = v; };
                 setT('pfSugDaily', s.dailyLimit + '%');
                 setT('pfSugMonthly', s.monthlyLimit + '%');
-                setT('pfSugLev', s.maxLev + 'x');
+                setT('pfSugLev', s.levLabel || ((s.minLev || 1) + '–' + s.maxLev + 'x'));
                 setT('pfSugMaxTrades', String(s.maxTradesDay));
                 setT('pfSugTf', s.tf || currentInterval || '1h');
                 const px = getMarketPrice();
