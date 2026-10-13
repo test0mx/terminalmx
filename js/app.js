@@ -6398,19 +6398,46 @@ let currentInterval = '1h';
          */
         
         // ========== CARTERA DE INVERSIONES ==========
+        function suggestPortfolioRules(riskPct, tf) {
+            const r = Math.max(0.25, Math.min(5, Number(riskPct) || 1));
+            const isScalp = ['1m', '3m', '5m', '9m', '15m'].includes(tf);
+            const isSwing = ['4h', '1d', '1w'].includes(tf);
+            // Breakout-style: daily ≈ 2× risk, monthly ≈ 6× risk (clamped)
+            const dailyLimit = Math.min(8, Math.max(1, +(r * 2).toFixed(1)));
+            const monthlyLimit = Math.min(15, Math.max(3, +(r * 6).toFixed(1)));
+            let maxLev = isScalp ? 10 : isSwing ? 3 : 5;
+            if (r <= 0.5) maxLev = Math.min(maxLev + 2, isScalp ? 12 : 7);
+            if (r >= 2) maxLev = Math.max(2, maxLev - 2);
+            const maxTradesDay = r >= 2 ? 2 : r >= 1 ? 3 : 4;
+            return { dailyLimit, monthlyLimit, maxLev, maxTradesDay };
+        }
+
         function getPortfolioSettings() {
             const capital = parseFloat(document.getElementById('pfCapital')?.value) || 10000;
             const riskPct = parseFloat(document.getElementById('pfRiskPct')?.value) || 1;
-            const dailyLimit = parseFloat(document.getElementById('pfDailyLimit')?.value) || 2;
-            const monthlyLimit = parseFloat(document.getElementById('pfMonthlyLimit')?.value) || 6;
-            const maxLev = parseInt(document.getElementById('pfMaxLev')?.value, 10) || 10;
-            const maxTradesDay = parseInt(document.getElementById('pfMaxTradesDay')?.value, 10) || 3;
-            return { capital, riskPct, dailyLimit, monthlyLimit, maxLev, maxTradesDay };
+            const rewardRatio = parseFloat(document.getElementById('pfRewardRatio')?.value) || 2;
+            const tf = (typeof currentInterval !== 'undefined' && currentInterval) ? currentInterval : '1h';
+            const sug = suggestPortfolioRules(riskPct, tf);
+            return {
+                capital,
+                riskPct,
+                rewardRatio,
+                dailyLimit: sug.dailyLimit,
+                monthlyLimit: sug.monthlyLimit,
+                maxLev: sug.maxLev,
+                maxTradesDay: sug.maxTradesDay,
+                tf
+            };
         }
 
         function savePortfolioSettings() {
             try {
-                localStorage.setItem(LS_PORTFOLIO, JSON.stringify(getPortfolioSettings()));
+                const s = getPortfolioSettings();
+                localStorage.setItem(LS_PORTFOLIO, JSON.stringify({
+                    capital: s.capital,
+                    riskPct: s.riskPct,
+                    rewardRatio: s.rewardRatio
+                }));
             } catch (e) {}
         }
         window.savePortfolioSettings = savePortfolioSettings;
@@ -6423,12 +6450,113 @@ let currentInterval = '1h';
                 const set = (id, v) => { const el = document.getElementById(id); if (el && v != null) el.value = v; };
                 set('pfCapital', s.capital);
                 set('pfRiskPct', s.riskPct);
-                set('pfDailyLimit', s.dailyLimit);
-                set('pfMonthlyLimit', s.monthlyLimit);
-                set('pfMaxLev', s.maxLev);
-                set('pfMaxTradesDay', s.maxTradesDay);
+                set('pfRewardRatio', s.rewardRatio != null ? s.rewardRatio : 2);
             } catch (e) {}
         }
+
+        function getMarketPrice() {
+            if (rawKlines && rawKlines.length) return rawKlines[rawKlines.length - 1].close;
+            try {
+                const el = document.getElementById('currentPriceDisplay');
+                const v = parseFloat(el && el.innerText);
+                if (Number.isFinite(v) && v > 0) return v;
+            } catch (e) {}
+            return 0;
+        }
+
+        function preparePortfolioSide(side) {
+            side = (side || 'LONG').toUpperCase();
+            const sideEl = document.getElementById('pfTradeSide');
+            if (sideEl) sideEl.value = side;
+            const s = getPortfolioSettings();
+            const tf = s.tf || currentInterval || '1h';
+            const plan = recommendTradePlan(side, tf);
+            const price = getMarketPrice();
+            if (!plan && !price) {
+                alert('No hay precio de mercado. Espera a que carguen las velas.');
+                return;
+            }
+            const entry = plan ? plan.entry : price;
+            const sl = plan ? plan.sl : (side === 'LONG' ? entry * 0.99 : entry * 1.01);
+            const riskDist = Math.abs(entry - sl);
+            const rr = s.rewardRatio || 2;
+            let tp1, tp2, tp3;
+            if (side === 'LONG') {
+                tp1 = entry + riskDist * Math.max(1, rr * 0.6);
+                tp2 = entry + riskDist * rr;
+                tp3 = entry + riskDist * rr * 1.6;
+            } else {
+                tp1 = entry - riskDist * Math.max(1, rr * 0.6);
+                tp2 = entry - riskDist * rr;
+                tp3 = entry - riskDist * rr * 1.6;
+            }
+            const st = computePortfolioStats();
+            const lot = calcSuggestedLot(entry, sl, st.riskUsd) || 0;
+            const lev = Math.min(plan ? plan.leverage : s.maxLev, s.maxLev);
+
+            const setv = (id, v, dig) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.value = dig != null ? Number(v).toFixed(dig) : v;
+            };
+            setv('pfTradeTf', tf);
+            setv('pfTradeEntry', entry, 2);
+            setv('pfTradeSl', sl, 2);
+            setv('pfTradeTp1', tp1, 2);
+            setv('pfTradeTp', tp2, 2);
+            setv('pfTradeTp3', tp3, 2);
+            setv('pfTradeSize', lot >= 1 ? lot.toFixed(4) : lot.toPrecision(4));
+            setv('pfTradeLev', lev);
+            const rrLab = document.getElementById('pfRrLabel');
+            if (rrLab) rrLab.innerText = '1:' + Number(rr).toFixed(1);
+            const estP = document.getElementById('pfEstProfit');
+            if (estP) estP.innerText = '$' + (lot * riskDist * rr).toFixed(2);
+            const estL = document.getElementById('pfEstLoss');
+            if (estL) estL.innerText = '$' + (lot * riskDist).toFixed(2);
+            recalcPortfolio();
+        }
+        window.preparePortfolioSide = preparePortfolioSide;
+
+        function onPortfolioLevelsEdit() {
+            const side = (document.getElementById('pfTradeSide')?.value || 'LONG').toUpperCase();
+            const entry = parseFloat(document.getElementById('pfTradeEntry')?.value);
+            const sl = parseFloat(document.getElementById('pfTradeSl')?.value);
+            const s = getPortfolioSettings();
+            if (!Number.isFinite(entry) || !Number.isFinite(sl)) return;
+            const riskDist = Math.abs(entry - sl);
+            const rr = s.rewardRatio || 2;
+            let tp1, tp2, tp3;
+            if (side === 'LONG') {
+                tp1 = entry + riskDist * Math.max(1, rr * 0.6);
+                tp2 = entry + riskDist * rr;
+                tp3 = entry + riskDist * rr * 1.6;
+            } else {
+                tp1 = entry - riskDist * Math.max(1, rr * 0.6);
+                tp2 = entry - riskDist * rr;
+                tp3 = entry - riskDist * rr * 1.6;
+            }
+            const st = computePortfolioStats();
+            const lot = calcSuggestedLot(entry, sl, st.riskUsd) || 0;
+            const setv = (id, v, dig) => {
+                const el = document.getElementById(id);
+                if (!el) return;
+                el.value = dig != null ? Number(v).toFixed(dig) : v;
+            };
+            setv('pfTradeTp1', tp1, 2);
+            setv('pfTradeTp', tp2, 2);
+            setv('pfTradeTp3', tp3, 2);
+            setv('pfTradeSize', lot >= 1 ? lot.toFixed(4) : lot.toPrecision(4));
+            const estP = document.getElementById('pfEstProfit');
+            if (estP) estP.innerText = '$' + (lot * riskDist * rr).toFixed(2);
+            const estL = document.getElementById('pfEstLoss');
+            if (estL) estL.innerText = '$' + (lot * riskDist).toFixed(2);
+        }
+        window.onPortfolioLevelsEdit = onPortfolioLevelsEdit;
+        window.onPortfolioRrChange = function() {
+            savePortfolioSettings();
+            const side = document.getElementById('pfTradeSide')?.value || 'LONG';
+            preparePortfolioSide(side);
+        };
 
         function tradeRealizedPnl(t) {
             if (t.pnl != null && Number.isFinite(Number(t.pnl))) return Number(t.pnl);
@@ -6619,6 +6747,21 @@ let currentInterval = '1h';
                 if (nextHint) nextHint.innerText = 'Indica entrada y SL para calcular lotaje exacto.';
             }
 
+            // Sugerencias auto + precio mercado
+            try {
+                const s = st.settings;
+                const setT = (id, v) => { const el = document.getElementById(id); if (el) el.innerText = v; };
+                setT('pfSugDaily', s.dailyLimit + '%');
+                setT('pfSugMonthly', s.monthlyLimit + '%');
+                setT('pfSugLev', s.maxLev + 'x');
+                setT('pfSugMaxTrades', String(s.maxTradesDay));
+                setT('pfSugTf', s.tf || currentInterval || '1h');
+                const px = getMarketPrice();
+                setT('pfMarketPrice', px ? px.toLocaleString('en-US', { maximumFractionDigits: 2 }) : '—');
+                const rrLab = document.getElementById('pfRrLabel');
+                if (rrLab) rrLab.innerText = '1:' + Number(s.rewardRatio || 2).toFixed(1);
+            } catch (e) {}
+
             // Header stats
             const he = document.getElementById('statPortfolioEquity');
             if (he) he.innerText = '$' + fmt(st.equity);
@@ -6642,28 +6785,33 @@ let currentInterval = '1h';
                 alert('Límite diario o mensual alcanzado. No registres más riesgo hasta resetear el período.');
                 return;
             }
+            // Si no hay entrada, preparar con mercado
+            let entry = parseFloat(document.getElementById('pfTradeEntry')?.value);
+            if (!Number.isFinite(entry)) {
+                preparePortfolioSide(document.getElementById('pfTradeSide')?.value || 'LONG');
+                entry = parseFloat(document.getElementById('pfTradeEntry')?.value);
+            }
             const side = (document.getElementById('pfTradeSide')?.value || 'LONG').toUpperCase();
-            const entry = parseFloat(document.getElementById('pfTradeEntry')?.value);
             const sl = parseFloat(document.getElementById('pfTradeSl')?.value);
+            const tp1 = parseFloat(document.getElementById('pfTradeTp1')?.value);
             const tp = parseFloat(document.getElementById('pfTradeTp')?.value);
+            const tp3 = parseFloat(document.getElementById('pfTradeTp3')?.value);
             let size = parseFloat(document.getElementById('pfTradeSize')?.value);
             const lev = parseInt(document.getElementById('pfTradeLev')?.value, 10) || st.suggestedLev;
+            const tf = document.getElementById('pfTradeTf')?.value || currentInterval || '1h';
             const pnlRaw = document.getElementById('pfTradePnl')?.value;
             const pnl = pnlRaw !== '' && pnlRaw != null ? parseFloat(pnlRaw) : null;
 
             if (!Number.isFinite(entry)) {
-                alert('Indica precio de entrada.');
+                alert('No hay precio de mercado. Espera a que carguen las velas.');
                 return;
             }
             if (!Number.isFinite(size) || size <= 0) {
                 size = calcSuggestedLot(entry, Number.isFinite(sl) ? sl : entry * 0.99, st.riskUsd);
                 if (!size) {
-                    alert('No se pudo calcular lotaje. Indica SL o lotaje manual.');
+                    alert('No se pudo calcular lotaje.');
                     return;
                 }
-            }
-            if (lev > st.settings.maxLev) {
-                if (!confirm(`Apalancamiento ${lev}x supera el máximo sugerido (${st.settings.maxLev}x). ¿Continuar?`)) return;
             }
 
             const trade = {
@@ -6674,26 +6822,26 @@ let currentInterval = '1h';
                 entry,
                 sl: Number.isFinite(sl) ? sl : null,
                 tp: Number.isFinite(tp) ? tp : null,
-                tp1: Number.isFinite(tp) ? tp : null,
+                tp1: Number.isFinite(tp1) ? tp1 : null,
                 tp2: Number.isFinite(tp) ? tp : null,
-                tp3: null,
-                leverage: Math.min(lev, 125),
+                tp3: Number.isFinite(tp3) ? tp3 : null,
+                leverage: Math.min(lev, st.settings.maxLev || 10),
                 size,
-                source: 'Manual',
-                note: '',
-                score: 50,
+                source: 'Cartera',
+                note: `R:R 1:${st.settings.rewardRatio || 2}`,
+                score: 55,
                 openedAt: Date.now(),
-                expiresAt: Date.now() + 24 * 3600 * 1000,
-                tf: currentInterval || '1h',
+                expiresAt: Date.now() + (typeof getHoldingMsForTf === 'function' ? getHoldingMsForTf(tf) : 24 * 3600 * 1000),
+                tf,
                 closed: pnl != null && Number.isFinite(pnl),
                 pnl: pnl != null && Number.isFinite(pnl) ? pnl : null,
                 ts: Date.now()
             };
             addJournalEntry(trade);
-            ['pfTradeEntry','pfTradeSl','pfTradeTp','pfTradeSize','pfTradePnl'].forEach(id => {
-                const el = document.getElementById(id);
-                if (el) el.value = '';
-            });
+            const pnlEl = document.getElementById('pfTradePnl');
+            if (pnlEl) pnlEl.value = '';
+            // Re-preparar siguiente entrada con mercado actualizado
+            preparePortfolioSide(side);
             recalcPortfolio();
             renderJournal();
         }
