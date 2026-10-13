@@ -618,37 +618,25 @@
             <section id="bottomPanelSection" class="bg-panelBg border-t border-borderBg flex flex-col shrink-0" style="flex: 1 1 auto; min-height: 280px;">
                 <div class="flex items-center justify-between px-2 sm:px-4 py-2 border-b border-borderBg bg-cardBg/50 text-xs gap-2">
                     <div class="flex items-center space-x-1 sm:space-x-2 overflow-x-auto max-w-full pb-0.5">
+                        <button type="button" id="tabBtnCalendar" onclick="switchBottomTab('calendar')" class="font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs">
+                            <i class="fa-solid fa-calendar-days"></i>
+                            <span class="hidden sm:inline">Calendario</span><span class="sm:hidden">Cal.</span>
+                        </button>
                         <button type="button" id="tabBtnSignals" onclick="switchBottomTab('signals')" class="font-bold px-2 sm:px-3 py-1.5 rounded-lg bg-accentYellow text-slate-950 flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs">
                             <i class="fa-solid fa-bolt"></i>
                             <span>Señales</span>
                         </button>
                         <button type="button" id="tabBtnJournal" onclick="switchBottomTab('journal')" class="font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs">
-                            <i class="fa-solid fa-list-check"></i>
-                            <span class="hidden sm:inline">Cartera</span><span class="sm:hidden">Cartera</span>
+                            <i class="fa-solid fa-wallet"></i>
+                            <span>Cartera</span>
                         </button>
-                        <button type="button" id="tabBtnPalacios" onclick="switchBottomTab('palacios')" class="font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs">
-                            <i class="fa-solid fa-layer-group"></i>
-                            <span class="hidden sm:inline">Indicador Palacios</span><span class="sm:hidden">Palacios</span>
-                        </button>
-                        <button type="button" id="tabBtnConfluencias" onclick="switchBottomTab('confluencias')" class="font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs">
-                            <i class="fa-solid fa-chart-pie"></i>
-                            <span class="hidden sm:inline">Mejores confluencias</span><span class="sm:hidden">Conflu.</span>
-                        </button>
-                        <button type="button" id="tabBtnTrendiloProj" onclick="switchBottomTab('trendiloProj')" class="font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs">
-                            <i class="fa-solid fa-wave-square"></i>
-                            <span class="hidden sm:inline">TrendiloMX</span><span class="sm:hidden">TrendiloMX</span>
+                        <button type="button" id="tabBtnIndicators" onclick="switchBottomTab('indicators')" class="font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs">
+                            <i class="fa-solid fa-chart-line"></i>
+                            <span class="hidden sm:inline">Indicadores</span><span class="sm:hidden">Ind.</span>
                         </button>
                         <button type="button" id="tabBtnAlts" onclick="switchBottomTab('alts')" class="font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs">
                             <i class="fa-solid fa-coins"></i>
                             <span class="hidden sm:inline">Altcoins</span><span class="sm:hidden">Alts</span>
-                        </button>
-                        <button type="button" id="tabBtnOrderBlock" onclick="switchBottomTab('orderblock')" class="font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs">
-                            <i class="fa-solid fa-cubes"></i>
-                            <span class="hidden sm:inline">Orderblock</span><span class="sm:hidden">OB</span>
-                        </button>
-                        <button type="button" id="tabBtnCalendar" onclick="switchBottomTab('calendar')" class="font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs">
-                            <i class="fa-solid fa-calendar-days"></i>
-                            <span class="hidden sm:inline">Calendario</span><span class="sm:hidden">Cal.</span>
                         </button>
                     </div>
 
@@ -1522,6 +1510,26 @@
                 </div>
 
                 <!-- Tab: Indicador Palacios — confluencia 1H + 15m + 1m -->
+
+                <!-- Tab: Indicadores (sub-tabs) -->
+                <div id="tabContentIndicators" class="flex-1 overflow-hidden p-0 hidden flex-col min-h-0">
+                    <div class="flex items-center gap-1 px-2 sm:px-3 py-1.5 border-b border-borderBg bg-cardBg/40 overflow-x-auto shrink-0">
+                        <button type="button" id="indSubBtnPalacios" onclick="switchIndicatorSubTab('palacios')" class="ind-sub-btn px-2.5 py-1 rounded-md text-[10px] sm:text-[11px] font-bold bg-accentYellow/15 text-accentYellow border border-accentYellow/30 whitespace-nowrap">
+                            <i class="fa-solid fa-layer-group mr-1"></i>Indicador Palacios
+                        </button>
+                        <button type="button" id="indSubBtnTrendilo" onclick="switchIndicatorSubTab('trendiloProj')" class="ind-sub-btn px-2.5 py-1 rounded-md text-[10px] sm:text-[11px] font-medium text-slate-400 hover:text-white border border-transparent whitespace-nowrap">
+                            <i class="fa-solid fa-wave-square mr-1"></i>TrendiloMX
+                        </button>
+                        <button type="button" id="indSubBtnConfluencias" onclick="switchIndicatorSubTab('confluencias')" class="ind-sub-btn px-2.5 py-1 rounded-md text-[10px] sm:text-[11px] font-medium text-slate-400 hover:text-white border border-transparent whitespace-nowrap">
+                            <i class="fa-solid fa-chart-pie mr-1"></i>Mejores confluencias
+                        </button>
+                        <button type="button" id="indSubBtnOrderblock" onclick="switchIndicatorSubTab('orderblock')" class="ind-sub-btn px-2.5 py-1 rounded-md text-[10px] sm:text-[11px] font-medium text-slate-400 hover:text-white border border-transparent whitespace-nowrap">
+                            <i class="fa-solid fa-cubes mr-1"></i>Orderblock
+                        </button>
+                    </div>
+                    <div id="indicatorsSubHost" class="flex-1 min-h-0 overflow-auto relative"></div>
+                </div>
+
                 <div id="tabContentPalacios" class="flex-1 overflow-auto p-2 sm:p-3 hidden">
                     <div class="flex flex-col sm:flex-row sm:items-center justify-between gap-2 mb-3">
                         <div>

@@ -371,15 +371,26 @@ let currentInterval = '1h';
         }
 
         function switchBottomTab(tab) {
+            // Compat: antiguas pestañas → Indicadores + sub
+            const legacy = { palacios: 'palacios', confluencias: 'confluencias', trendiloProj: 'trendiloProj', orderblock: 'orderblock' };
+            let pendingSub = null;
+            if (legacy[tab]) {
+                pendingSub = legacy[tab];
+                tab = 'indicators';
+            }
+
             const map = {
+                calendar: { btn: 'tabBtnCalendar', content: 'tabContentCalendar' },
                 signals: { btn: 'tabBtnSignals', content: 'tabContentSignals' },
                 journal: { btn: 'tabBtnJournal', content: 'tabContentJournal' },
-                palacios: { btn: 'tabBtnPalacios', content: 'tabContentPalacios' },
-                confluencias: { btn: 'tabBtnConfluencias', content: 'tabContentConfluencias' },
-                trendiloProj: { btn: 'tabBtnTrendiloProj', content: 'tabContentTrendiloProj' },
-                alts: { btn: 'tabBtnAlts', content: 'tabContentAlts' },
-                orderblock: { btn: 'tabBtnOrderBlock', content: 'tabContentOrderBlock' },
-                calendar: { btn: 'tabBtnCalendar', content: 'tabContentCalendar' }
+                indicators: { btn: 'tabBtnIndicators', content: 'tabContentIndicators' },
+                alts: { btn: 'tabBtnAlts', content: 'tabContentAlts' }
+            };
+            const indicatorSubs = {
+                palacios: 'tabContentPalacios',
+                trendiloProj: 'tabContentTrendiloProj',
+                confluencias: 'tabContentConfluencias',
+                orderblock: 'tabContentOrderBlock'
             };
             if (!map[tab]) tab = 'signals';
 
@@ -390,6 +401,13 @@ let currentInterval = '1h';
                 const b = document.getElementById(map[key].btn);
                 const c = document.getElementById(map[key].content);
                 if (b) b.className = inactive;
+                if (c) {
+                    c.classList.add('hidden');
+                    c.style.display = 'none';
+                }
+            });
+            Object.keys(indicatorSubs).forEach(k => {
+                const c = document.getElementById(indicatorSubs[k]);
                 if (c) {
                     c.classList.add('hidden');
                     c.style.display = 'none';
@@ -411,7 +429,7 @@ let currentInterval = '1h';
                 content.style.flexDirection = 'column';
                 content.style.flex = '1 1 auto';
                 content.style.minHeight = '0';
-                content.style.overflow = 'auto';
+                content.style.overflow = (tab === 'indicators') ? 'hidden' : 'auto';
             }
 
             if (tab === 'journal' && statsHeader) {
@@ -420,17 +438,8 @@ let currentInterval = '1h';
                 try {
                     loadPortfolioSettings();
                     renderJournal();
-                    // Rellenar precios de mercado al abrir Cartera
                     setTimeout(() => { try { refreshPortfolioMarket(true); } catch (e) {} }, 100);
                 } catch (e) {}
-            }
-            if (tab === 'backtest' && btStatsHeader) {
-                btStatsHeader.classList.remove('hidden');
-                btStatsHeader.style.display = 'flex';
-            }
-            if (tab === 'projection') {
-                try { projectNextHourBias(); } catch (e) {}
-                try { projectWyckoffOrderBook(); } catch (e) {}
             }
             if (tab === 'signals') {
                 try { if (typeof updateSignalsTable === 'function') updateSignalsTable(); } catch (e) {}
@@ -441,16 +450,100 @@ let currentInterval = '1h';
             if (tab === 'alts') {
                 try { loadAltsList(false); } catch (e) {}
             }
-            if (tab === 'rankings') {
-                // No auto-run (costoso); mostrar estado si ya hay cache
+            if (tab === 'indicators') {
                 try {
-                    if (comboRankingsCache && comboRankingsCache.length) renderComboRankings(comboRankingsCache);
+                    const sub = pendingSub || localStorage.getItem('tmx_ind_sub') || 'palacios';
+                    switchIndicatorSubTab(sub);
+                } catch (e) {
+                    try { switchIndicatorSubTab('palacios'); } catch (e2) {}
+                }
+            }
+        }
+
+        let currentIndicatorSub = 'palacios';
+
+        function switchIndicatorSubTab(sub) {
+            const subs = {
+                palacios: { btn: 'indSubBtnPalacios', content: 'tabContentPalacios' },
+                trendiloProj: { btn: 'indSubBtnTrendilo', content: 'tabContentTrendiloProj' },
+                confluencias: { btn: 'indSubBtnConfluencias', content: 'tabContentConfluencias' },
+                orderblock: { btn: 'indSubBtnOrderblock', content: 'tabContentOrderBlock' }
+            };
+            if (!subs[sub]) sub = 'palacios';
+            currentIndicatorSub = sub;
+            try { localStorage.setItem('tmx_ind_sub', sub); } catch (e) {}
+
+            const host = document.getElementById('tabContentIndicators');
+            if (host) {
+                host.classList.remove('hidden');
+                host.style.display = 'flex';
+                host.style.flexDirection = 'column';
+                host.style.flex = '1 1 auto';
+                host.style.minHeight = '0';
+                host.style.overflow = 'hidden';
+            }
+
+            // Activar botón principal Indicadores
+            try {
+                const inactiveMain = 'font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs';
+                const activeMain = 'font-bold px-2 sm:px-3 py-1.5 rounded-lg bg-accentYellow text-slate-950 flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs';
+                ['tabBtnCalendar','tabBtnSignals','tabBtnJournal','tabBtnIndicators','tabBtnAlts'].forEach(id => {
+                    const b = document.getElementById(id);
+                    if (b) b.className = inactiveMain;
+                });
+                const ib = document.getElementById('tabBtnIndicators');
+                if (ib) ib.className = activeMain;
+                // Ocultar otros contents principales
+                ['tabContentCalendar','tabContentSignals','tabContentJournal','tabContentAlts'].forEach(id => {
+                    const c = document.getElementById(id);
+                    if (c) { c.classList.add('hidden'); c.style.display = 'none'; }
+                });
+            } catch (e) {}
+
+            const inactive = 'ind-sub-btn px-2.5 py-1 rounded-md text-[10px] sm:text-[11px] font-medium text-slate-400 hover:text-white border border-transparent whitespace-nowrap';
+            const active = 'ind-sub-btn px-2.5 py-1 rounded-md text-[10px] sm:text-[11px] font-bold bg-accentYellow/15 text-accentYellow border border-accentYellow/30 whitespace-nowrap';
+
+            Object.keys(subs).forEach(k => {
+                const b = document.getElementById(subs[k].btn);
+                const c = document.getElementById(subs[k].content);
+                if (b) b.className = inactive;
+                if (c) {
+                    c.classList.add('hidden');
+                    c.style.display = 'none';
+                }
+            });
+
+            const sel = subs[sub];
+            const btn = document.getElementById(sel.btn);
+            const content = document.getElementById(sel.content);
+            const subHost = document.getElementById('indicatorsSubHost');
+            if (btn) btn.className = active;
+            if (content) {
+                // Montar dentro del host de Indicadores para layout correcto
+                try {
+                    if (subHost && content.parentElement !== subHost) {
+                        subHost.appendChild(content);
+                    }
                 } catch (e) {}
+                content.classList.remove('hidden');
+                content.style.display = 'flex';
+                content.style.flexDirection = 'column';
+                content.style.flex = '1 1 auto';
+                content.style.minHeight = '0';
+                content.style.overflow = 'auto';
+                content.style.height = '100%';
             }
-            if (tab === 'palacios') {
+            if (subHost) {
+                subHost.style.display = 'flex';
+                subHost.style.flexDirection = 'column';
+                subHost.style.flex = '1 1 auto';
+                subHost.style.minHeight = '0';
+                subHost.style.overflow = 'hidden';
+            }
+
+            if (sub === 'palacios') {
                 try { runPalaciosIndicator(false); } catch (e) {}
-            }
-            if (tab === 'confluencias') {
+            } else if (sub === 'confluencias') {
                 try {
                     if (mejoresConfluenciasCache && (mejoresConfluenciasCache.scalp || mejoresConfluenciasCache.intraday)) {
                         renderMejoresConfluencias(mejoresConfluenciasCache);
@@ -459,8 +552,7 @@ let currentInterval = '1h';
                     runMejoresConfluencias(false);
                     startConfluenciasAutoRefresh();
                 } catch (e) {}
-            }
-            if (tab === 'trendiloProj') {
+            } else if (sub === 'trendiloProj') {
                 try {
                     setTimeout(() => {
                         ensureTrendiloProjChart();
@@ -479,6 +571,8 @@ let currentInterval = '1h';
                 } catch (e) {}
             }
         }
+        window.switchIndicatorSubTab = switchIndicatorSubTab;
+
         window.switchBottomTab = switchBottomTab;
 
         // ========== PROYECCIÓN TRENDILO ==========
