@@ -370,97 +370,118 @@ let currentInterval = '1h';
             return setup.profile || 'intraday';
         }
 
+        let currentBottomTab = 'signals';
+        let currentIndicatorSub = 'palacios';
+
         function switchBottomTab(tab) {
-            // Compat: antiguas pestañas → Indicadores + sub
-            const legacy = { palacios: 'palacios', confluencias: 'confluencias', trendiloProj: 'trendiloProj', orderblock: 'orderblock' };
-            let pendingSub = null;
-            if (legacy[tab]) {
-                pendingSub = legacy[tab];
-                tab = 'indicators';
-            }
-
-            const map = {
-                calendar: { btn: 'tabBtnCalendar', content: 'tabContentCalendar' },
-                signals: { btn: 'tabBtnSignals', content: 'tabContentSignals' },
-                journal: { btn: 'tabBtnJournal', content: 'tabContentJournal' },
-                indicators: { btn: 'tabBtnIndicators', content: 'tabContentIndicators' },
-                alts: { btn: 'tabBtnAlts', content: 'tabContentAlts' }
-            };
-            const indicatorSubs = {
-                palacios: 'tabContentPalacios',
-                trendiloProj: 'tabContentTrendiloProj',
-                confluencias: 'tabContentConfluencias',
-                orderblock: 'tabContentOrderBlock'
-            };
-            if (!map[tab]) tab = 'signals';
-
-            const inactive = 'font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs';
-            const active = 'font-bold px-2 sm:px-3 py-1.5 rounded-lg bg-accentYellow text-slate-950 flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs';
-
-            Object.keys(map).forEach(key => {
-                const b = document.getElementById(map[key].btn);
-                const c = document.getElementById(map[key].content);
-                if (b) b.className = inactive;
-                if (c) {
-                    c.classList.add('hidden');
-                    c.style.display = 'none';
+            try {
+                // Compat: antiguas pestañas → Indicadores + sub
+                const legacy = { palacios: 'palacios', confluencias: 'confluencias', trendiloProj: 'trendiloProj', orderblock: 'orderblock' };
+                let pendingSub = null;
+                if (legacy[tab]) {
+                    pendingSub = legacy[tab];
+                    tab = 'indicators';
                 }
-            });
-            Object.keys(indicatorSubs).forEach(k => {
-                const c = document.getElementById(indicatorSubs[k]);
-                if (c) {
-                    c.classList.add('hidden');
-                    c.style.display = 'none';
+
+                const map = {
+                    calendar: { btn: 'tabBtnCalendar', content: 'tabContentCalendar' },
+                    signals: { btn: 'tabBtnSignals', content: 'tabContentSignals' },
+                    journal: { btn: 'tabBtnJournal', content: 'tabContentJournal' },
+                    indicators: { btn: 'tabBtnIndicators', content: 'tabContentIndicators' },
+                    alts: { btn: 'tabBtnAlts', content: 'tabContentAlts' }
+                };
+                const indicatorSubIds = [
+                    'tabContentPalacios',
+                    'tabContentTrendiloProj',
+                    'tabContentConfluencias',
+                    'tabContentOrderBlock'
+                ];
+
+                if (!tab || !map[tab]) {
+                    console.warn('switchBottomTab: tab desconocida', tab);
+                    tab = 'signals';
                 }
-            });
+                currentBottomTab = tab;
 
-            const statsHeader = document.getElementById('journalStatsHeader');
-            const btStatsHeader = document.getElementById('backtestStatsHeader');
-            if (statsHeader) { statsHeader.classList.add('hidden'); statsHeader.style.display = 'none'; }
-            if (btStatsHeader) { btStatsHeader.classList.add('hidden'); btStatsHeader.style.display = 'none'; }
+                const inactive = 'font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs';
+                const active = 'font-bold px-2 sm:px-3 py-1.5 rounded-lg bg-accentYellow text-slate-950 flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs';
 
-            const sel = map[tab];
-            const btn = document.getElementById(sel.btn);
-            const content = document.getElementById(sel.content);
-            if (btn) btn.className = active;
-            if (content) {
-                content.classList.remove('hidden');
-                content.style.display = 'flex';
-                content.style.flexDirection = 'column';
-                content.style.flex = '1 1 auto';
-                content.style.minHeight = '0';
-                content.style.overflow = (tab === 'indicators') ? 'hidden' : 'auto';
-            }
+                // Ocultar TODOS los contenidos principales y de indicadores
+                Object.keys(map).forEach(key => {
+                    const b = document.getElementById(map[key].btn);
+                    const c = document.getElementById(map[key].content);
+                    if (b) b.className = inactive;
+                    if (c) {
+                        c.classList.add('hidden');
+                        c.style.setProperty('display', 'none', 'important');
+                    }
+                });
+                indicatorSubIds.forEach(id => {
+                    const c = document.getElementById(id);
+                    if (c) {
+                        c.classList.add('hidden');
+                        c.style.setProperty('display', 'none', 'important');
+                    }
+                });
 
-            if (tab === 'journal' && statsHeader) {
-                statsHeader.classList.remove('hidden');
-                statsHeader.style.display = 'flex';
-                try {
-                    loadPortfolioSettings();
-                    renderJournal();
-                    setTimeout(() => { try { refreshPortfolioMarket(true); } catch (e) {} }, 100);
-                } catch (e) {}
-            }
-            if (tab === 'signals') {
-                try { if (typeof updateSignalsTable === 'function') updateSignalsTable(); } catch (e) {}
-            }
-            if (tab === 'calendar') {
-                try { loadEconomicCalendar(false); } catch (e) {}
-            }
-            if (tab === 'alts') {
-                try { loadAltsList(false); } catch (e) {}
-            }
-            if (tab === 'indicators') {
-                try {
-                    const sub = pendingSub || localStorage.getItem('tmx_ind_sub') || 'palacios';
-                    switchIndicatorSubTab(sub);
-                } catch (e) {
-                    try { switchIndicatorSubTab('palacios'); } catch (e2) {}
+                const statsHeader = document.getElementById('journalStatsHeader');
+                const btStatsHeader = document.getElementById('backtestStatsHeader');
+                if (statsHeader) { statsHeader.classList.add('hidden'); statsHeader.style.display = 'none'; }
+                if (btStatsHeader) { btStatsHeader.classList.add('hidden'); btStatsHeader.style.display = 'none'; }
+
+                // Activar pestaña elegida
+                const sel = map[tab];
+                const btn = document.getElementById(sel.btn);
+                const content = document.getElementById(sel.content);
+                if (btn) btn.className = active;
+                if (content) {
+                    content.classList.remove('hidden');
+                    content.style.setProperty('display', 'flex', 'important');
+                    content.style.flexDirection = 'column';
+                    content.style.flex = '1 1 auto';
+                    content.style.minHeight = '0';
+                    content.style.overflow = (tab === 'indicators') ? 'hidden' : 'auto';
+                } else {
+                    console.warn('switchBottomTab: content no encontrado', sel.content);
                 }
+
+                if (tab === 'journal' && statsHeader) {
+                    statsHeader.classList.remove('hidden');
+                    statsHeader.style.display = 'flex';
+                    try {
+                        loadPortfolioSettings();
+                        renderJournal();
+                        setTimeout(() => { try { refreshPortfolioMarket(true); } catch (e) {} }, 100);
+                    } catch (e) {}
+                }
+                if (tab === 'signals') {
+                    try { if (typeof updateSignalsTable === 'function') updateSignalsTable(); } catch (e) {}
+                }
+                if (tab === 'calendar') {
+                    try { loadEconomicCalendar(false); } catch (e) {}
+                }
+                if (tab === 'alts') {
+                    try { loadAltsList(false); } catch (e) {}
+                }
+                if (tab === 'indicators') {
+                    let sub = pendingSub;
+                    if (!sub) {
+                        try { sub = localStorage.getItem('tmx_ind_sub'); } catch (e) {}
+                    }
+                    if (!sub || !['palacios', 'trendiloProj', 'confluencias', 'orderblock'].includes(sub)) {
+                        sub = 'palacios';
+                    }
+                    // Diferir un frame para que el host ya esté visible
+                    requestAnimationFrame(() => {
+                        try { switchIndicatorSubTab(sub); } catch (e) {
+                            console.warn('switchIndicatorSubTab', e);
+                        }
+                    });
+                }
+            } catch (err) {
+                console.error('switchBottomTab error', err);
             }
         }
-
-        let currentIndicatorSub = 'palacios';
 
         function switchIndicatorSubTab(sub) {
             const subs = {
@@ -471,34 +492,40 @@ let currentInterval = '1h';
             };
             if (!subs[sub]) sub = 'palacios';
             currentIndicatorSub = sub;
+            currentBottomTab = 'indicators';
             try { localStorage.setItem('tmx_ind_sub', sub); } catch (e) {}
 
+            // Asegurar pestaña principal Indicadores visible y Señales oculta
             const host = document.getElementById('tabContentIndicators');
+            const signals = document.getElementById('tabContentSignals');
+            if (signals) {
+                signals.classList.add('hidden');
+                signals.style.setProperty('display', 'none', 'important');
+            }
             if (host) {
                 host.classList.remove('hidden');
-                host.style.display = 'flex';
+                host.style.setProperty('display', 'flex', 'important');
                 host.style.flexDirection = 'column';
                 host.style.flex = '1 1 auto';
                 host.style.minHeight = '0';
                 host.style.overflow = 'hidden';
             }
 
-            // Activar botón principal Indicadores
-            try {
-                const inactiveMain = 'font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs';
-                const activeMain = 'font-bold px-2 sm:px-3 py-1.5 rounded-lg bg-accentYellow text-slate-950 flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs';
-                ['tabBtnCalendar','tabBtnSignals','tabBtnJournal','tabBtnIndicators','tabBtnAlts'].forEach(id => {
-                    const b = document.getElementById(id);
-                    if (b) b.className = inactiveMain;
-                });
-                const ib = document.getElementById('tabBtnIndicators');
-                if (ib) ib.className = activeMain;
-                // Ocultar otros contents principales
-                ['tabContentCalendar','tabContentSignals','tabContentJournal','tabContentAlts'].forEach(id => {
-                    const c = document.getElementById(id);
-                    if (c) { c.classList.add('hidden'); c.style.display = 'none'; }
-                });
-            } catch (e) {}
+            // Botones principales
+            const inactiveMain = 'font-medium px-2 sm:px-3 py-1.5 rounded-lg text-slate-400 hover:text-white flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs';
+            const activeMain = 'font-bold px-2 sm:px-3 py-1.5 rounded-lg bg-accentYellow text-slate-950 flex items-center gap-1 sm:gap-1.5 transition whitespace-nowrap text-[10px] sm:text-xs';
+            ['tabBtnCalendar', 'tabBtnSignals', 'tabBtnJournal', 'tabBtnIndicators', 'tabBtnAlts'].forEach(id => {
+                const b = document.getElementById(id);
+                if (b) b.className = (id === 'tabBtnIndicators') ? activeMain : inactiveMain;
+            });
+            // Ocultar otros contenidos principales
+            ['tabContentCalendar', 'tabContentSignals', 'tabContentJournal', 'tabContentAlts'].forEach(id => {
+                const c = document.getElementById(id);
+                if (c) {
+                    c.classList.add('hidden');
+                    c.style.setProperty('display', 'none', 'important');
+                }
+            });
 
             const inactive = 'ind-sub-btn px-2.5 py-1 rounded-md text-[10px] sm:text-[11px] font-medium text-slate-400 hover:text-white border border-transparent whitespace-nowrap';
             const active = 'ind-sub-btn px-2.5 py-1 rounded-md text-[10px] sm:text-[11px] font-bold bg-accentYellow/15 text-accentYellow border border-accentYellow/30 whitespace-nowrap';
@@ -509,7 +536,7 @@ let currentInterval = '1h';
                 if (b) b.className = inactive;
                 if (c) {
                     c.classList.add('hidden');
-                    c.style.display = 'none';
+                    c.style.setProperty('display', 'none', 'important');
                 }
             });
 
@@ -518,15 +545,15 @@ let currentInterval = '1h';
             const content = document.getElementById(sel.content);
             const subHost = document.getElementById('indicatorsSubHost');
             if (btn) btn.className = active;
+
             if (content) {
-                // Montar dentro del host de Indicadores para layout correcto
                 try {
                     if (subHost && content.parentElement !== subHost) {
                         subHost.appendChild(content);
                     }
                 } catch (e) {}
                 content.classList.remove('hidden');
-                content.style.display = 'flex';
+                content.style.setProperty('display', 'flex', 'important');
                 content.style.flexDirection = 'column';
                 content.style.flex = '1 1 auto';
                 content.style.minHeight = '0';
@@ -534,31 +561,30 @@ let currentInterval = '1h';
                 content.style.height = '100%';
             }
             if (subHost) {
-                subHost.style.display = 'flex';
+                subHost.style.setProperty('display', 'flex', 'important');
                 subHost.style.flexDirection = 'column';
                 subHost.style.flex = '1 1 auto';
                 subHost.style.minHeight = '0';
                 subHost.style.overflow = 'hidden';
             }
 
-            if (sub === 'palacios') {
-                try { runPalaciosIndicator(false); } catch (e) {}
-            } else if (sub === 'confluencias') {
-                try {
+            // Cargar datos del sub-indicador (sin cambiar de pestaña)
+            try {
+                if (sub === 'palacios') {
+                    if (typeof runPalaciosIndicator === 'function') runPalaciosIndicator(false);
+                } else if (sub === 'confluencias') {
                     if (mejoresConfluenciasCache && (mejoresConfluenciasCache.scalp || mejoresConfluenciasCache.intraday)) {
                         renderMejoresConfluencias(mejoresConfluenciasCache);
                         if (confluenciasHorizonRecs) renderHorizonRecommendations(confluenciasHorizonRecs);
                     }
-                    runMejoresConfluencias(false);
-                    startConfluenciasAutoRefresh();
-                } catch (e) {}
-            } else if (sub === 'trendiloProj') {
-                try {
+                    if (typeof runMejoresConfluencias === 'function') runMejoresConfluencias(false);
+                    if (typeof startConfluenciasAutoRefresh === 'function') startConfluenciasAutoRefresh();
+                } else if (sub === 'trendiloProj') {
                     setTimeout(() => {
-                        ensureTrendiloProjChart();
-                        initTrendiloProjChartResize();
-                        runTrendiloProjection(false);
                         try {
+                            if (typeof ensureTrendiloProjChart === 'function') ensureTrendiloProjChart();
+                            if (typeof initTrendiloProjChartResize === 'function') initTrendiloProjChartResize();
+                            if (typeof runTrendiloProjection === 'function') runTrendiloProjection(false);
                             if (trendiloProjChart) {
                                 const el = document.getElementById('trendiloProjChart');
                                 if (el) trendiloProjChart.applyOptions({
@@ -568,9 +594,13 @@ let currentInterval = '1h';
                             }
                         } catch (e2) {}
                     }, 80);
-                } catch (e) {}
+                }
+            } catch (e) {
+                console.warn('indicator sub load', e);
             }
         }
+
+        window.switchBottomTab = switchBottomTab;
         window.switchIndicatorSubTab = switchIndicatorSubTab;
 
         window.switchBottomTab = switchBottomTab;
