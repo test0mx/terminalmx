@@ -1810,6 +1810,11 @@
                             <i class="fa-solid fa-wave-square"></i> TrendiloMX · zonas ALMA / RMS
                         </div>
                         <div class="flex items-center gap-2 flex-wrap">
+                            <div class="flex flex-wrap gap-1" id="trendiloScenarioFilters" title="Escenario de operación">
+                                <button type="button" data-tpscen="pesimista" onclick="setTrendiloScenario('pesimista')" class="tpscen-btn px-2 py-1 rounded text-[10px] font-bold border border-borderBg text-slate-400 hover:text-white">Pesimista</button>
+                                <button type="button" data-tpscen="conservador" onclick="setTrendiloScenario('conservador')" class="tpscen-btn px-2 py-1 rounded text-[10px] font-bold border border-accentYellow/50 bg-accentYellow/15 text-accentYellow">Conservador</button>
+                                <button type="button" data-tpscen="optimista" onclick="setTrendiloScenario('optimista')" class="tpscen-btn px-2 py-1 rounded text-[10px] font-bold border border-borderBg text-slate-400 hover:text-white">Optimista</button>
+                            </div>
                             <div class="flex flex-wrap gap-1" id="trendiloProjTfFilters">
                                 <button type="button" data-tptf="5m" onclick="setTrendiloProjTf('5m')" class="tptf-btn px-2 py-1 rounded text-[10px] font-mono border border-borderBg text-slate-400 hover:text-white">5m</button>
                                 <button type="button" data-tptf="15m" onclick="setTrendiloProjTf('15m')" class="tptf-btn px-2 py-1 rounded text-[10px] font-mono border border-borderBg text-slate-400 hover:text-white">15m</button>
@@ -1826,21 +1831,21 @@
                     <div class="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3">
                         <div class="space-y-3">
                             <div class="rounded-2xl border border-borderBg bg-[#12151c] p-4">
-                                <p class="text-[12px] text-slate-400 leading-relaxed">
-                                    Señal basada en la <strong class="text-white">distancia relativa</strong>
-                                    <span class="text-accentYellow font-mono">ratio = ALMA ÷ RMS</span>.
-                                    Cuando <span class="text-white font-mono">|ratio| ≥ 0.85</span>, ALMA está en el borde de la banda RMS
-                                    <strong class="text-accentRed">(zona del círculo)</strong>: extremo de momentum y posible rebote o cambio de tendencia.
+                                <p class="text-[12px] text-slate-400 leading-relaxed" id="tpScenarioDesc">
+                                    Señal basada en <strong class="text-white">ratio = ALMA ÷ RMS</strong>.
+                                    Escenario <strong class="text-accentYellow" id="tpScenarioLabel">Conservador</strong>:
+                                    zona ≥ <span id="tpScenZone">0.75</span> · extremo ≥ <span id="tpScenExt">0.85</span> ·
+                                    R:R <span id="tpScenRr">1:2.5</span> · SL ×ATR <span id="tpScenSl">1.35</span>.
                                 </p>
                             </div>
                             <div class="rounded-2xl border border-borderBg bg-[#12151c] p-4">
                                 <div class="text-[12px] font-bold text-white mb-2">Umbrales</div>
-                                <ul class="text-[12px] text-slate-400 space-y-2 leading-relaxed">
-                                    <li><span class="text-accentRed font-mono">ratio ≤ −0.85</span> → zona extrema bajista (sobreventa de momentum)</li>
-                                    <li><span class="text-accentRed font-mono">ratio ≥ +0.85</span> → zona extrema alcista (sobrecompra de momentum)</li>
-                                    <li><span class="text-slate-200 font-mono">|ratio| ≥ 0.50</span> → sesgo direccional (como Trendilo OS)</li>
-                                    <li><span class="text-accentYellow">Giro:</span> ALMA deja de extenderse y cambia de pendiente dentro de la zona</li>
-                                    <li class="text-[11px] text-slate-500">Círculo de aviso desde <span class="font-mono text-slate-400">|ratio| ≥ 0.75</span> (cerca de ±RMS)</li>
+                                <ul class="text-[12px] text-slate-400 space-y-2 leading-relaxed" id="tpUmbralesList">
+                                    <li><span class="text-accentRed font-mono" id="tpUmbBear">ratio ≤ −0.85</span> → zona extrema bajista</li>
+                                    <li><span class="text-accentRed font-mono" id="tpUmbBull">ratio ≥ +0.85</span> → zona extrema alcista</li>
+                                    <li><span class="text-slate-200 font-mono" id="tpUmbBias">|ratio| ≥ 0.50</span> → sesgo direccional</li>
+                                    <li><span class="text-accentYellow">Giro:</span> cambio de pendiente dentro de la zona</li>
+                                    <li class="text-[11px] text-slate-500">Círculo desde <span class="font-mono text-slate-400" id="tpUmbZone">|ratio| ≥ 0.75</span></li>
                                 </ul>
                             </div>
                             <div class="rounded-2xl border border-borderBg bg-[#12151c] p-4">
@@ -1886,7 +1891,7 @@
                                 </div>
                                 <div class="rounded-xl bg-[#0b0e11] border border-borderBg p-2.5 text-center">
                                     <div class="text-[10px] text-slate-500 mb-0.5">Umbral extremo</div>
-                                    <div class="text-sm font-bold font-mono text-accentYellow">±0.85</div>
+                                    <div id="tpUmbralExtremoVal" class="text-sm font-bold font-mono text-accentYellow">±0.85</div>
                                 </div>
                             </div>
                             <div class="mb-3">

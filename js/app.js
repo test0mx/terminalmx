@@ -582,6 +582,15 @@ let currentInterval = '1h';
                 } else if (sub === 'trendiloProj') {
                     setTimeout(() => {
                         try {
+                            try { updateTrendiloScenarioUI(); } catch (e) {}
+                            try {
+                                document.querySelectorAll('.tpscen-btn').forEach(btn => {
+                                    const on = btn.getAttribute('data-tpscen') === trendiloScenario;
+                                    btn.className = on
+                                        ? 'tpscen-btn px-2 py-1 rounded text-[10px] font-bold border border-accentYellow/50 bg-accentYellow/15 text-accentYellow'
+                                        : 'tpscen-btn px-2 py-1 rounded text-[10px] font-bold border border-borderBg text-slate-400 hover:text-white';
+                                });
+                            } catch (e) {}
                             if (typeof ensureTrendiloProjChart === 'function') ensureTrendiloProjChart();
                             if (typeof initTrendiloProjChartResize === 'function') initTrendiloProjChartResize();
                             if (typeof runTrendiloProjection === 'function') runTrendiloProjection(false);
@@ -699,9 +708,113 @@ let currentInterval = '1h';
          * Reversal (mercado alcista): ratio ≥ +0.75 y pendiente ALMA < 0
          * TFs fiables: 15m · 1H · 4H · 1D
          */
-        const TRENDILO_EXTREME = 0.85;
-        const TRENDILO_ZONE = 0.75;   // activa círculo (como en la imagen)
-        const TRENDILO_BIAS = 0.50;
+        /** Escenarios TrendiloMX: pesimista | conservador | optimista */
+        let trendiloScenario = 'conservador';
+        try {
+            const s = localStorage.getItem('tmx_trendilo_scenario');
+            if (s && ['pesimista', 'conservador', 'optimista'].includes(s)) trendiloScenario = s;
+        } catch (e) {}
+
+        const TRENDILO_SCENARIOS = {
+            pesimista: {
+                label: 'Pesimista',
+                zone: 0.90,
+                extreme: 0.95,
+                bias: 0.60,
+                requireTurn: true,      // solo señal con giro de pendiente
+                confBoost: -8,
+                slAtrMult: 1.8,         // SL más amplio
+                rrTp1: 1.0,
+                rrTp2: 1.5,
+                rrTp3: 2.5,
+                levMult: 0.7,           // menos apalancamiento
+                minConfToTrade: 70
+            },
+            conservador: {
+                label: 'Conservador',
+                zone: 0.75,
+                extreme: 0.85,
+                bias: 0.50,
+                requireTurn: false,
+                confBoost: 0,
+                slAtrMult: 1.35,
+                rrTp1: 1.5,
+                rrTp2: 2.5,
+                rrTp3: 4.0,
+                levMult: 1.0,
+                minConfToTrade: 55
+            },
+            optimista: {
+                label: 'Optimista',
+                zone: 0.60,
+                extreme: 0.70,
+                bias: 0.40,
+                requireTurn: false,
+                confBoost: 6,
+                slAtrMult: 1.0,         // SL más justo
+                rrTp1: 2.0,
+                rrTp2: 3.0,
+                rrTp3: 5.0,
+                levMult: 1.25,
+                minConfToTrade: 48
+            }
+        };
+
+        function getTrendiloScenario() {
+            return TRENDILO_SCENARIOS[trendiloScenario] || TRENDILO_SCENARIOS.conservador;
+        }
+
+        function getTrendiloThresholds() {
+            const sc = getTrendiloScenario();
+            return { ZONE: sc.zone, EXTREME: sc.extreme, BIAS: sc.bias, sc };
+        }
+
+        // Compat: constantes dinámicas vía getters usados en código legado
+        let TRENDILO_EXTREME = 0.85;
+        let TRENDILO_ZONE = 0.75;
+        let TRENDILO_BIAS = 0.50;
+
+        function syncTrendiloThresholdConsts() {
+            const t = getTrendiloThresholds();
+            TRENDILO_EXTREME = t.EXTREME;
+            TRENDILO_ZONE = t.ZONE;
+            TRENDILO_BIAS = t.BIAS;
+        }
+        syncTrendiloThresholdConsts();
+
+        function setTrendiloScenario(name) {
+            if (!TRENDILO_SCENARIOS[name]) name = 'conservador';
+            trendiloScenario = name;
+            try { localStorage.setItem('tmx_trendilo_scenario', name); } catch (e) {}
+            syncTrendiloThresholdConsts();
+            document.querySelectorAll('.tpscen-btn').forEach(btn => {
+                const on = btn.getAttribute('data-tpscen') === trendiloScenario;
+                btn.className = on
+                    ? 'tpscen-btn px-2 py-1 rounded text-[10px] font-bold border border-accentYellow/50 bg-accentYellow/15 text-accentYellow'
+                    : 'tpscen-btn px-2 py-1 rounded text-[10px] font-bold border border-borderBg text-slate-400 hover:text-white';
+            });
+            updateTrendiloScenarioUI();
+            // Recalcular proyección y gráfico principal
+            try { runTrendiloProjection(true); } catch (e) {}
+            try { if (typeof calculateTrendilo === 'function') calculateTrendilo(); } catch (e) {}
+        }
+        window.setTrendiloScenario = setTrendiloScenario;
+
+        function updateTrendiloScenarioUI() {
+            const sc = getTrendiloScenario();
+            const setT = (id, v) => { const el = document.getElementById(id); if (el) el.innerText = v; };
+            setT('tpScenarioLabel', sc.label);
+            setT('tpScenZone', sc.zone.toFixed(2));
+            setT('tpScenExt', sc.extreme.toFixed(2));
+            setT('tpScenRr', '1:' + sc.rrTp2.toFixed(1));
+            setT('tpScenSl', sc.slAtrMult.toFixed(2));
+            setT('tpUmbBear', 'ratio ≤ −' + sc.extreme.toFixed(2));
+            setT('tpUmbBull', 'ratio ≥ +' + sc.extreme.toFixed(2));
+            setT('tpUmbBias', '|ratio| ≥ ' + sc.bias.toFixed(2));
+            setT('tpUmbZone', '|ratio| ≥ ' + sc.zone.toFixed(2));
+            setT('tpUmbralExtremoVal', '±' + sc.extreme.toFixed(2));
+        }
+        window.updateTrendiloScenarioUI = updateTrendiloScenarioUI;
 
         function trendiloRatio(alma, rms) {
             const r = Math.abs(rms) < 1e-12 ? 0 : alma / rms;
@@ -720,6 +833,9 @@ let currentInterval = '1h';
         }
 
         function evaluateTrendiloRatioStrategy(almaLine, rmsUp) {
+            syncTrendiloThresholdConsts();
+            const sc = getTrendiloScenario();
+            const ZONE = sc.zone, EXTREME = sc.extreme, BIAS = sc.bias;
             const markers = [];
             let last = {
                 ratio: 0, zone: 'NONE', signal: 'NONE', conf: 40,
@@ -800,18 +916,28 @@ let currentInterval = '1h';
             const { dist } = trendiloBandDistance(alma, rms);
             const slope = alma - almaLine[n - 2].value;
             let zone = 'NEUTRAL', signal = 'NONE', conf = 42;
-            if (ratio <= -TRENDILO_ZONE) {
+            if (ratio <= -ZONE) {
                 zone = 'EXTREME_BEAR';
                 if (slope > 0) { signal = 'BUY'; conf = 80; zone = 'BOUNCE'; }
-                else { signal = 'BUY'; conf = 64; }
-            } else if (ratio >= TRENDILO_ZONE) {
+                else if (!sc.requireTurn) { signal = 'BUY'; conf = 64; }
+                else { signal = 'NONE'; conf = 50; } // pesimista: espera giro
+            } else if (ratio >= ZONE) {
                 zone = 'EXTREME_BULL';
                 if (slope < 0) { signal = 'SELL'; conf = 80; zone = 'REVERSAL'; }
-                else { signal = 'SELL'; conf = 64; }
-            } else if (ratio >= TRENDILO_BIAS) {
-                zone = 'BULL_BIAS'; signal = 'BUY'; conf = 52;
-            } else if (ratio <= -TRENDILO_BIAS) {
-                zone = 'BEAR_BIAS'; signal = 'SELL'; conf = 52;
+                else if (!sc.requireTurn) { signal = 'SELL'; conf = 64; }
+                else { signal = 'NONE'; conf = 50; }
+            } else if (ratio >= BIAS) {
+                zone = 'BULL_BIAS';
+                signal = sc.requireTurn ? 'NONE' : 'BUY';
+                conf = sc.requireTurn ? 42 : 52;
+            } else if (ratio <= -BIAS) {
+                zone = 'BEAR_BIAS';
+                signal = sc.requireTurn ? 'NONE' : 'SELL';
+                conf = sc.requireTurn ? 42 : 52;
+            }
+            // Ajuste de confianza por escenario
+            if (signal !== 'NONE') {
+                conf = Math.max(30, Math.min(92, conf + (sc.confBoost || 0)));
             }
 
             const lastCircle = circleEvents.length ? circleEvents[circleEvents.length - 1] : null;
@@ -1194,15 +1320,16 @@ let currentInterval = '1h';
             // Badge izquierdo = sesgo | tpBiasMain = acción (estilo panel referencia)
             const ratioN = Number(p.ratio);
             const absRn = Math.abs(ratioN);
+            const scUi = getTrendiloScenario();
             if (badge) {
-                if (ratioN <= -0.50) {
-                    badge.innerText = 'Sesgo bajista (|r|≥0.50)';
+                if (ratioN <= -scUi.bias) {
+                    badge.innerText = `Sesgo bajista · ${scUi.label}`;
                     badge.className = 'px-3 py-1 rounded-lg text-[11px] font-bold border border-rose-500/40 bg-rose-500/10 text-rose-300';
-                } else if (ratioN >= 0.50) {
-                    badge.innerText = 'Sesgo alcista (|r|≥0.50)';
+                } else if (ratioN >= scUi.bias) {
+                    badge.innerText = `Sesgo alcista · ${scUi.label}`;
                     badge.className = 'px-3 py-1 rounded-lg text-[11px] font-bold border border-emerald-500/40 bg-emerald-500/10 text-emerald-300';
                 } else {
-                    badge.innerText = 'Sin sesgo fuerte';
+                    badge.innerText = `Sin sesgo · ${scUi.label}`;
                     badge.className = 'px-3 py-1 rounded-lg text-[11px] font-bold border border-borderBg bg-borderBg/40 text-slate-400';
                 }
             }
@@ -1230,7 +1357,7 @@ let currentInterval = '1h';
                     main.innerText = 'Esperar · sin setup claro';
                     main.className = 'px-3 py-1 rounded-lg text-[11px] font-black bg-slate-600 text-slate-100';
                 }
-                if (hint) hint.innerText = 'ALMA entre bandas o sin giro. Esperar |ratio| ≥ 0.75 y cambio de pendiente.';
+                if (hint) hint.innerText = `Escenario ${scUi.label}: esperar |ratio| ≥ ${scUi.zone} y giro de pendiente. R:R 1:${scUi.rrTp2} · SL×ATR ${scUi.slAtrMult}.`;
                 if (btnL) { btnL.disabled = true; btnL.classList.add('opacity-40', 'cursor-not-allowed'); }
                 if (btnS) { btnS.disabled = true; btnS.classList.add('opacity-40', 'cursor-not-allowed'); }
             }
@@ -1243,11 +1370,17 @@ let currentInterval = '1h';
             }
             if (trendiloProjLatest.signal === 'BUY' && side !== 'LONG') return;
             if (trendiloProjLatest.signal === 'SELL' && side !== 'SHORT') return;
+            const sc = getTrendiloScenario();
+            const conf = trendiloProjLatest.conf || 0;
+            if (conf < sc.minConfToTrade) {
+                alert(`Escenario ${sc.label}: confianza ${Math.round(conf)}% < mínimo ${sc.minConfToTrade}%. Espera mejor setup o cambia a Optimista.`);
+                return;
+            }
             try {
                 if (typeof changeTimeframe === 'function') changeTimeframe(trendiloProjTf);
                 const trade = registerAppliedPosition(side, {
-                    source: 'Trendilo ' + trendiloProjTf,
-                    score: trendiloProjLatest.conf || 55,
+                    source: 'TrendiloMX ' + sc.label + ' · ' + trendiloProjTf,
+                    score: conf,
                     tf: trendiloProjTf,
                     note: `ALMA ${Number(trendiloProjLatest.alma).toFixed(3)} · RMS ±${Number(trendiloProjLatest.rms).toFixed(3)} · proy ${Number(trendiloProjLatest.proj).toFixed(3)}`
                 });
@@ -6464,26 +6597,26 @@ let currentInterval = '1h';
             }
 
             const tf = tfHint || currentInterval || '1h';
-            // Multiplicadores de riesgo según TF (scalp más estrecho)
             const isScalp = ['1m', '3m', '5m', '9m', '15m'].includes(tf);
             const isSwing = ['4h', '1d', '1w'].includes(tf);
-            const slMult = isScalp ? 1.0 : isSwing ? 1.8 : 1.35;
+            const sc = getTrendiloScenario();
+            // SL: base TF × escenario
+            const baseSl = isScalp ? 1.0 : isSwing ? 1.8 : 1.35;
+            const slMult = baseSl * (sc.slAtrMult / 1.35);
             const risk = atr * slMult;
 
             let entry = price;
             let sl, tp1, tp2, tp3;
             if (side === 'LONG') {
                 sl = entry - risk;
-                // Si hay soporte cercano por debajo, usarlo como SL si es razonable
                 if (calculatedPivots && calculatedPivots.nearestSup && calculatedPivots.nearestSup < entry && calculatedPivots.nearestSup > entry - risk * 2) {
                     sl = Math.min(sl, calculatedPivots.nearestSup * 0.999);
                 }
                 const r = entry - sl;
-                tp1 = entry + r * 1.5;  // R/R 1.5
-                tp2 = entry + r * 2.5;  // R/R 2.5
-                tp3 = entry + r * 4.0;  // R/R 4
+                tp1 = entry + r * sc.rrTp1;
+                tp2 = entry + r * sc.rrTp2;
+                tp3 = entry + r * sc.rrTp3;
                 if (calculatedPivots && calculatedPivots.nearestRes && calculatedPivots.nearestRes > entry) {
-                    // Ajustar TP2 hacia resistencia si está en zona intermedia
                     const res = calculatedPivots.nearestRes;
                     if (res > tp1 && res < tp3) tp2 = res;
                 }
@@ -6493,20 +6626,21 @@ let currentInterval = '1h';
                     sl = Math.max(sl, calculatedPivots.nearestRes * 1.001);
                 }
                 const r = sl - entry;
-                tp1 = entry - r * 1.5;
-                tp2 = entry - r * 2.5;
-                tp3 = entry - r * 4.0;
+                tp1 = entry - r * sc.rrTp1;
+                tp2 = entry - r * sc.rrTp2;
+                tp3 = entry - r * sc.rrTp3;
                 if (calculatedPivots && calculatedPivots.nearestSup && calculatedPivots.nearestSup < entry) {
                     const sup = calculatedPivots.nearestSup;
                     if (sup < tp1 && sup > tp3) tp2 = sup;
                 }
             }
 
-            // Apalancamiento recomendado
+            // Apalancamiento × escenario
             const diSpread = parseFloat((dmiLatest && dmiLatest.diSpread) || 0);
             let leverage = isScalp ? 8 : isSwing ? 3 : 5;
             if (diSpread >= 18) leverage = Math.min(leverage + 2, isScalp ? 12 : 7);
             if (diSpread < 8) leverage = Math.max(leverage - 2, 2);
+            leverage = Math.max(1, Math.round(leverage * sc.levMult));
 
             const openedAt = Date.now();
             const expiresAt = openedAt + getHoldingMsForTf(tf);
