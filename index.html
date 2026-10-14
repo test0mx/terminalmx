@@ -514,12 +514,18 @@
                 <button type="button" onclick="chartFitContent()" class="tv-tool-btn px-2 py-1 rounded border border-borderBg bg-cardBg text-slate-300 hover:text-white hover:bg-borderBg transition shrink-0" title="Ajustar al contenido"><i class="fa-solid fa-maximize"></i></button>
                 <button type="button" onclick="chartResetZoom()" class="tv-tool-btn px-2 py-1 rounded border border-borderBg bg-cardBg text-slate-300 hover:text-white hover:bg-borderBg transition shrink-0" title="Reset zoom"><i class="fa-solid fa-clock-rotate-left"></i></button>
                 <button type="button" onclick="toggleVolumeOverlay()" id="btnToggleVol" class="tv-tool-btn px-2 py-1 rounded border border-borderBg bg-cardBg text-accentYellow hover:bg-borderBg transition shrink-0" title="Mostrar/ocultar volumen">Vol</button>
-                <div class="relative shrink-0" id="orderFlowBtnWrap">
-                    <button type="button" onclick="toggleOrderFlowMenu(event)" id="btnOrderFlow" class="tv-tool-btn px-2 py-1 rounded border border-borderBg bg-cardBg text-slate-300 hover:text-accentYellow hover:bg-borderBg transition flex items-center gap-1" title="Order Flow / footprint">
+                <div class="relative shrink-0 flex items-stretch" id="orderFlowBtnWrap">
+                    <button type="button" onclick="toggleOrderFlow(event)" id="btnOrderFlow" class="tv-tool-btn px-2 py-1 rounded-l border border-borderBg bg-cardBg text-slate-300 hover:text-accentYellow hover:bg-borderBg transition flex items-center gap-1" title="Agregar / quitar Order Flow del gráfico">
                         <i class="fa-solid fa-table-cells"></i><span class="hidden sm:inline">Order Flow</span>
                     </button>
-                    <div id="orderFlowMenu" class="hidden absolute left-0 top-full mt-1 z-50 min-w-[220px] rounded-lg border border-borderBg bg-panelBg shadow-xl py-1 text-[11px]">
-                        <button type="button" class="of-mode-item w-full text-left px-3 py-1.5 hover:bg-cardBg text-slate-300" data-ofmode="off" onclick="setOrderFlowMode('off')">Desactivado</button>
+                    <button type="button" onclick="toggleOrderFlowMenu(event)" id="btnOrderFlowMenu" class="tv-tool-btn px-1.5 py-1 rounded-r border border-l-0 border-borderBg bg-cardBg text-slate-400 hover:text-accentYellow hover:bg-borderBg transition" title="Elegir modo Order Flow">
+                        <i class="fa-solid fa-caret-down text-[10px]"></i>
+                    </button>
+                    <div id="orderFlowMenu" class="hidden absolute left-0 top-full mt-1 z-50 min-w-[240px] rounded-lg border border-borderBg bg-panelBg shadow-xl py-1 text-[11px]">
+                        <div class="px-3 py-1 text-[9px] uppercase tracking-wide text-slate-500 font-bold">En el gráfico</div>
+                        <button type="button" class="of-mode-item w-full text-left px-3 py-1.5 hover:bg-cardBg text-slate-300" data-ofmode="off" onclick="setOrderFlowMode('off')"><i class="fa-solid fa-eye-slash mr-1.5 text-slate-500"></i>Quitar del gráfico</button>
+                        <div class="my-1 border-t border-borderBg"></div>
+                        <div class="px-3 py-1 text-[9px] uppercase tracking-wide text-slate-500 font-bold">Modo</div>
                         <button type="button" class="of-mode-item w-full text-left px-3 py-1.5 hover:bg-cardBg text-slate-300" data-ofmode="footprint" onclick="setOrderFlowMode('footprint')">Bid × Ask (footprint)</button>
                         <button type="button" class="of-mode-item w-full text-left px-3 py-1.5 hover:bg-cardBg text-slate-300" data-ofmode="delta_profile" onclick="setOrderFlowMode('delta_profile')">Escalera de delta + perfil</button>
                         <button type="button" class="of-mode-item w-full text-left px-3 py-1.5 hover:bg-cardBg text-slate-300" data-ofmode="volume_cells" onclick="setOrderFlowMode('volume_cells')">Volumen (celdas)</button>

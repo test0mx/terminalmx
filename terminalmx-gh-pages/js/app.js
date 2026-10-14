@@ -4513,19 +4513,38 @@ let currentInterval = '1h';
 
         // ========== ORDER FLOW (footprint / delta / volumen por vela) ==========
         let orderFlowMode = 'off'; // off | footprint | delta_profile | volume_cells | delta_cells | bidask_hist | vp_candle
+        let orderFlowLastMode = 'footprint'; // último modo activo para re-agregar al gráfico
         const OF_LEVELS = 8;
         let orderFlowRaf = 0;
+        try {
+            const saved = localStorage.getItem('tmx_orderflow_mode');
+            const savedLast = localStorage.getItem('tmx_orderflow_last');
+            if (savedLast && savedLast !== 'off') orderFlowLastMode = savedLast;
+            if (saved && saved !== 'off') {
+                orderFlowMode = saved;
+                orderFlowLastMode = saved;
+            }
+        } catch (e) {}
 
+        /** Clic principal: agregar o quitar Order Flow del gráfico */
+        function toggleOrderFlow(ev) {
+            if (ev) { ev.preventDefault(); ev.stopPropagation(); }
+            const menu = document.getElementById('orderFlowMenu');
+            if (menu) menu.classList.add('hidden');
+            if (orderFlowMode === 'off') {
+                setOrderFlowMode(orderFlowLastMode || 'footprint');
+            } else {
+                setOrderFlowMode('off');
+            }
+        }
+        window.toggleOrderFlow = toggleOrderFlow;
+
+        /** Flecha: solo abre el menú de modos (no fuerza activación) */
         function toggleOrderFlowMenu(ev) {
             if (ev) { ev.preventDefault(); ev.stopPropagation(); }
             const menu = document.getElementById('orderFlowMenu');
             if (!menu) return;
-            const opening = menu.classList.contains('hidden');
             menu.classList.toggle('hidden');
-            // Al abrir el menú, si está off activa footprint para que se vea de inmediato
-            if (opening && orderFlowMode === 'off') {
-                setOrderFlowMode('footprint');
-            }
         }
         window.toggleOrderFlowMenu = toggleOrderFlowMenu;
 
@@ -4538,18 +4557,36 @@ let currentInterval = '1h';
 
         function setOrderFlowMode(mode) {
             orderFlowMode = mode || 'off';
-            try { localStorage.setItem('tmx_orderflow_mode', orderFlowMode); } catch (e) {}
+            if (orderFlowMode !== 'off') orderFlowLastMode = orderFlowMode;
+            try {
+                localStorage.setItem('tmx_orderflow_mode', orderFlowMode);
+                localStorage.setItem('tmx_orderflow_last', orderFlowLastMode);
+            } catch (e) {}
             const btn = document.getElementById('btnOrderFlow');
             if (btn) {
-                btn.classList.toggle('active', orderFlowMode !== 'off');
-                btn.title = orderFlowMode === 'off' ? 'Order Flow / footprint' : ('Order Flow: ' + orderFlowMode);
+                const on = orderFlowMode !== 'off';
+                btn.classList.toggle('active', on);
+                btn.classList.toggle('text-accentYellow', on);
+                btn.classList.toggle('border-accentYellow/40', on);
+                btn.classList.toggle('bg-accentYellow/10', on);
+                btn.title = on
+                    ? ('Order Flow ON · ' + orderFlowMode + ' (clic para quitar del gráfico)')
+                    : 'Order Flow OFF · clic para agregar al gráfico';
+            }
+            const menuBtn = document.getElementById('btnOrderFlowMenu');
+            if (menuBtn) {
+                const on = orderFlowMode !== 'off';
+                menuBtn.classList.toggle('text-accentYellow', on);
+                menuBtn.classList.toggle('border-accentYellow/40', on);
             }
             document.querySelectorAll('.of-mode-item').forEach(el => {
-                el.classList.toggle('active', el.getAttribute('data-ofmode') === orderFlowMode);
+                const active = el.getAttribute('data-ofmode') === orderFlowMode;
+                el.classList.toggle('active', active);
+                el.classList.toggle('text-accentYellow', active);
+                el.classList.toggle('bg-accentYellow/10', active);
             });
             const menu = document.getElementById('orderFlowMenu');
-            if (menu && mode !== undefined) menu.classList.add('hidden');
-            // Redibujar en el siguiente frame (chart ya listo)
+            if (menu) menu.classList.add('hidden');
             scheduleOrderFlowRender();
             setTimeout(scheduleOrderFlowRender, 80);
             setTimeout(scheduleOrderFlowRender, 250);
