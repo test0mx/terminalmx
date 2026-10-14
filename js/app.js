@@ -715,26 +715,32 @@ let currentInterval = '1h';
             if (s && ['pesimista', 'conservador', 'optimista'].includes(s)) trendiloScenario = s;
         } catch (e) {}
 
+        /**
+         * Trendilo OS (dudeowns): ALMA(|pct change|) vs bandas RMS.
+         * Fuera de banda = |ALMA| > RMS → |ratio| > 1.0 (tendencia).
+         * Entradas top: cruce de ±RMS; Bounce/Reversal en extremos con giro.
+         * Params oficiales: length=50, offset=0.85, sigma=6, smooth=1, bmult=1.
+         */
         const TRENDILO_SCENARIOS = {
             pesimista: {
                 label: 'Pesimista',
-                zone: 0.90,
-                extreme: 0.95,
-                bias: 0.60,
-                requireTurn: true,      // solo señal con giro de pendiente
-                confBoost: -8,
-                slAtrMult: 1.8,         // SL más amplio
+                zone: 1.10,             // exige superación clara de banda
+                extreme: 1.25,          // sobreextensión fuerte
+                bias: 0.85,
+                requireTurn: true,      // solo con giro confirmado
+                confBoost: -5,
+                slAtrMult: 1.8,
                 rrTp1: 1.0,
                 rrTp2: 1.5,
                 rrTp3: 2.5,
-                levMult: 0.7,           // menos apalancamiento
-                minConfToTrade: 70
+                levMult: 0.7,
+                minConfToTrade: 68
             },
             conservador: {
                 label: 'Conservador',
-                zone: 0.75,
-                extreme: 0.85,
-                bias: 0.50,
+                zone: 1.00,             // = banda RMS oficial (cdir)
+                extreme: 1.15,          // extremo para mean-reversion
+                bias: 0.70,             // aproximación a banda
                 requireTurn: false,
                 confBoost: 0,
                 slAtrMult: 1.35,
@@ -746,17 +752,17 @@ let currentInterval = '1h';
             },
             optimista: {
                 label: 'Optimista',
-                zone: 0.60,
-                extreme: 0.70,
-                bias: 0.40,
+                zone: 0.92,             // anticipa cerca del borde
+                extreme: 1.08,
+                bias: 0.55,
                 requireTurn: false,
-                confBoost: 6,
-                slAtrMult: 1.0,         // SL más justo
-                rrTp1: 2.0,
+                confBoost: 4,
+                slAtrMult: 1.05,
+                rrTp1: 1.8,
                 rrTp2: 3.0,
-                rrTp3: 5.0,
-                levMult: 1.25,
-                minConfToTrade: 48
+                rrTp3: 4.5,
+                levMult: 1.2,
+                minConfToTrade: 50
             }
         };
 
@@ -770,9 +776,9 @@ let currentInterval = '1h';
         }
 
         // Compat: constantes dinámicas vía getters usados en código legado
-        let TRENDILO_EXTREME = 0.85;
-        let TRENDILO_ZONE = 0.75;
-        let TRENDILO_BIAS = 0.50;
+        let TRENDILO_EXTREME = 1.15;
+        let TRENDILO_ZONE = 1.00;
+        let TRENDILO_BIAS = 0.70;
 
         function syncTrendiloThresholdConsts() {
             const t = getTrendiloThresholds();
@@ -1011,7 +1017,7 @@ let currentInterval = '1h';
             lab.className = 'trendilo-signal-label';
             if (isBounce) lab.textContent = 'BOUNCE';
             else if (last.circleType === 'REVERSAL' || last.zone === 'REVERSAL') lab.textContent = 'REVERSAL';
-            else lab.textContent = '|r|≥0.75';
+            else lab.textContent = '|r|≥1';
             div.appendChild(lab);
             ov.appendChild(div);
         }
@@ -1019,23 +1025,21 @@ let currentInterval = '1h';
 
 
         function computeTrendiloSeriesFromKlines(klines) {
-            const almaLen = 20, almaOffset = 0.85, almaSigma = 6, rmsLen = 20, smoothLen = 3;
-            if (!klines || klines.length < almaLen + 5) return null;
+            // Trendilo OS defaults (dudeowns / TradingView):
+            // smooth=1, lookback=50, offset=0.85, sigma=6, bmult=1, band length=lookback
+            const almaLen = 50, almaOffset = 0.85, almaSigma = 6, rmsLen = 50, smooth = 1, bmult = 1.0;
+            if (!klines || klines.length < almaLen + 8) return null;
+            // pch = change(src, smooth) / src * 100
             const pctChange = [];
             for (let i = 0; i < klines.length; i++) {
-                if (i === 0) pctChange.push(0);
+                if (i < smooth) pctChange.push(0);
                 else {
-                    const prev = klines[i - 1].close || 1;
+                    const prev = klines[i - smooth].close || 1;
                     pctChange.push(((klines[i].close - prev) / prev) * 100);
                 }
             }
-            const smoothed = [];
-            const alpha = 2 / (smoothLen + 1);
-            let emaS = pctChange[0];
-            for (let i = 0; i < pctChange.length; i++) {
-                emaS = pctChange[i] * alpha + emaS * (1 - alpha);
-                smoothed.push(emaS);
-            }
+            // Sin EMA extra: smooth oficial = 1 (solo el change)
+            const smoothed = pctChange;
             const almaArr = [];
             for (let i = 0; i < smoothed.length; i++) {
                 almaArr.push(typeof almaValue === 'function' ? almaValue(smoothed, i, almaLen, almaOffset, almaSigma) : smoothed[i]);
@@ -1050,7 +1054,7 @@ let currentInterval = '1h';
                     const a = almaArr[i - j];
                     if (a !== null) { sumSq += a * a; cnt++; }
                 }
-                const rms = cnt > 0 ? Math.sqrt(sumSq / cnt) : 0;
+                const rms = (cnt > 0 ? Math.sqrt(sumSq / cnt) : 0) * bmult;
                 lastRms = rms;
                 almaLine.push({ time: klines[i].time, value: alma });
                 rmsUp.push({ time: klines[i].time, value: rms });
@@ -4144,11 +4148,11 @@ let currentInterval = '1h';
 
         function calculateTrendilo() {
             // Parámetros típicos del script Trendilo OS
-            const almaLen = 20;
+            const almaLen = 50;
             const almaOffset = 0.85;
             const almaSigma = 6;
-            const rmsLen = 20;
-            const smoothLen = 3;
+            const rmsLen = 50;
+            const smoothLen = 1;
 
             if (rawKlines.length < almaLen + 5) return;
 
