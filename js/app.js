@@ -597,8 +597,8 @@ let currentInterval = '1h';
                             if (trendiloProjChart) {
                                 const el = document.getElementById('trendiloProjChart');
                                 if (el) trendiloProjChart.applyOptions({
-                                    width: Math.max(el.clientWidth || 280, 260),
-                                    height: Math.max(el.clientHeight || 200, 160)
+                                    width: Math.max(el.clientWidth || 320, 280),
+                                    height: Math.max(el.clientHeight || 300, 240)
                                 });
                             }
                         } catch (e2) {}
@@ -1080,47 +1080,102 @@ let currentInterval = '1h';
             const zone = strat.last.zone;
             const extreme = strat.last.extreme;
             const markers = strat.markers;
-            // Acierto histórico: señal en barra i vs movimiento de precio en las siguientes 3 velas
-            let hits = 0, total = 0;
+            // Acierto histórico con la MISMA lógica ratio/zona del escenario
+            const scHit = getTrendiloScenario();
+            const ZONE_H = scHit.zone, EXT_H = scHit.extreme, BIAS_H = scHit.bias;
             const look = 3;
-            const almaByTime = {};
-            almaLine.forEach(p => { almaByTime[p.time] = p.value; });
-            for (let i = almaLen; i < klines.length - look; i++) {
+            let hits = 0, total = 0;
+            let hitsL = 0, totL = 0, hitsS = 0, totS = 0;
+            for (let i = Math.max(almaLen + 2, rmsLen); i < klines.length - look; i++) {
                 const a0 = almaArr[i];
-                const a1 = almaArr[i - 2] != null ? almaArr[i - 2] : a0;
-                if (a0 == null) continue;
-                const slopeI = (a0 - a1) / 2;
-                let sig = 'NONE';
-                // RMS local
+                const a1 = almaArr[i - 1];
+                const a2 = almaArr[i - 2];
+                if (a0 == null || a1 == null) continue;
                 let sumSq = 0, cnt = 0;
                 for (let j = 0; j < rmsLen && i - j >= 0; j++) {
                     const a = almaArr[i - j];
                     if (a !== null) { sumSq += a * a; cnt++; }
                 }
                 const rmsI = cnt > 0 ? Math.sqrt(sumSq / cnt) : 0;
-                if (a0 > rmsI * 0.45 && slopeI > 0) sig = 'BUY';
-                else if (a0 < -rmsI * 0.45 && slopeI < 0) sig = 'SELL';
-                else if (a0 > 0 && slopeI > 0) sig = 'BUY';
-                else if (a0 < 0 && slopeI < 0) sig = 'SELL';
-                if (sig === 'NONE') continue;
+                if (rmsI < 1e-12) continue;
+                const ratioI = a0 / rmsI;
+                const slopeI = a0 - a1;
+                const wasDown = a1 <= (a2 != null ? a2 : a1);
+                const wasUp = a1 >= (a2 != null ? a2 : a1);
+                let sig = 'NONE';
+                let quality = 0;
+                if (ratioI <= -ZONE_H) {
+                    if (slopeI > 0 && wasDown) { sig = 'BUY'; quality = 3; }
+                    else if (!scHit.requireTurn) { sig = 'BUY'; quality = 2; }
+                } else if (ratioI >= ZONE_H) {
+                    if (slopeI < 0 && wasUp) { sig = 'SELL'; quality = 3; }
+                    else if (!scHit.requireTurn) { sig = 'SELL'; quality = 2; }
+                } else if (!scHit.requireTurn && ratioI >= BIAS_H && slopeI > 0) {
+                    sig = 'BUY'; quality = 1;
+                } else if (!scHit.requireTurn && ratioI <= -BIAS_H && slopeI < 0) {
+                    sig = 'SELL'; quality = 1;
+                }
+                if (sig === 'NONE' || quality < 2) continue;
+
                 const p0 = klines[i].close;
                 const p1 = klines[i + look].close;
-                const up = p1 > p0 * 1.0001;
-                const dn = p1 < p0 * 0.9999;
+                const thr = Math.max(p0 * 0.0005, 1e-8);
+                const up = p1 > p0 + thr;
+                const dn = p1 < p0 - thr;
                 if (!up && !dn) continue;
+
                 total++;
-                if (sig === 'BUY' && up) hits++;
-                if (sig === 'SELL' && dn) hits++;
+                if (sig === 'BUY') {
+                    totL++;
+                    if (up) { hits++; hitsL++; }
+                } else if (sig === 'SELL') {
+                    totS++;
+                    if (dn) { hits++; hitsS++; }
+                }
             }
             const hitRate = total > 0 ? (hits / total) * 100 : null;
             const hitSamples = total;
+            const hitRateLong = totL > 0 ? (hitsL / totL) * 100 : null;
+            const hitRateShort = totS > 0 ? (hitsS / totS) * 100 : null;
+
+            let probLong = 50, probShort = 50;
+            const absR = Math.abs(ratio);
+            const slopeNow = slope;
+            if (signal === 'BUY') {
+                const base = hitRateLong != null ? hitRateLong : (hitRate != null ? hitRate : 55);
+                const boost = (zone === 'BOUNCE' ? 12 : extreme ? 8 : 4)
+                    + Math.min(10, absR * 8)
+                    + (slopeNow > 0 ? 5 : -3);
+                probLong = Math.max(35, Math.min(92, base + boost * 0.35 + (conf - 50) * 0.25));
+                probShort = 100 - probLong;
+            } else if (signal === 'SELL') {
+                const base = hitRateShort != null ? hitRateShort : (hitRate != null ? hitRate : 55);
+                const boost = (zone === 'REVERSAL' ? 12 : extreme ? 8 : 4)
+                    + Math.min(10, absR * 8)
+                    + (slopeNow < 0 ? 5 : -3);
+                probShort = Math.max(35, Math.min(92, base + boost * 0.35 + (conf - 50) * 0.25));
+                probLong = 100 - probShort;
+            } else {
+                const tilt = Math.max(-15, Math.min(15, ratio * 12));
+                probLong = 50 + tilt;
+                probShort = 50 - tilt;
+            }
+            if (signal === 'BUY' && hitRateLong != null) {
+                conf = Math.round(Math.max(35, Math.min(92, conf * 0.45 + hitRateLong * 0.55)));
+            } else if (signal === 'SELL' && hitRateShort != null) {
+                conf = Math.round(Math.max(35, Math.min(92, conf * 0.45 + hitRateShort * 0.55)));
+            } else if (hitRate != null && signal !== 'NONE') {
+                conf = Math.round(Math.max(35, Math.min(92, conf * 0.5 + hitRate * 0.5)));
+            }
 
             return {
                 almaLine, rmsUp, rmsDn, zero, proj,
                 alma: y2, rms: lastRms, projEnd, slope, signal, conf,
                 ratio, zone, extreme, markers,
                 dist: strat.last.dist, nearBand: strat.last.nearBand,
-                hitRate, hitSamples, hits
+                hitRate, hitSamples, hits,
+                hitRateLong, hitRateShort, totL, totS, hitsL, hitsS,
+                probLong, probShort
             };
         }
 
@@ -1172,6 +1227,14 @@ let currentInterval = '1h';
                     hitRate: series.hitRate,
                     hitSamples: series.hitSamples,
                     hits: series.hits,
+                    hitRateLong: series.hitRateLong,
+                    hitRateShort: series.hitRateShort,
+                    totL: series.totL,
+                    totS: series.totS,
+                    hitsL: series.hitsL,
+                    hitsS: series.hitsS,
+                    probLong: series.probLong,
+                    probShort: series.probShort,
                     updatedAt: Date.now()
                 };
                 if (tpAlmaSeries) applyTrendiloMarkers(tpAlmaSeries, series.markers || []);
@@ -1294,11 +1357,37 @@ let currentInterval = '1h';
             const hrEl = document.getElementById('tpHitRateVal');
             const hrBar = document.getElementById('tpHitRateBar');
             const hrDet = document.getElementById('tpHitRateDetail');
+            // Probabilidades long/short
+            const pl = document.getElementById('tpProbLong');
+            const ps = document.getElementById('tpProbShort');
+            const pLong = p.probLong != null ? Number(p.probLong) : null;
+            const pShort = p.probShort != null ? Number(p.probShort) : null;
+            if (pl) {
+                pl.innerText = pLong != null ? pLong.toFixed(0) + '%' : '—';
+                pl.className = 'text-base font-black font-mono ' + (
+                    pLong != null && pLong >= 58 ? 'text-accentGreen' : pLong != null && pLong >= 48 ? 'text-accentYellow' : 'text-slate-400'
+                );
+            }
+            if (ps) {
+                ps.innerText = pShort != null ? pShort.toFixed(0) + '%' : '—';
+                ps.className = 'text-base font-black font-mono ' + (
+                    pShort != null && pShort >= 58 ? 'text-accentRed' : pShort != null && pShort >= 48 ? 'text-accentYellow' : 'text-slate-400'
+                );
+            }
+            const chip = document.getElementById('tpScenarioChip');
+            if (chip) {
+                try { chip.innerText = getTrendiloScenario().label; } catch (e) {}
+            }
+            const sL = document.getElementById('tpSamplesLong');
+            const sS = document.getElementById('tpSamplesShort');
+            if (sL) sL.innerText = (p.hitsL != null && p.totL) ? `${p.hitsL}/${p.totL}` : '—';
+            if (sS) sS.innerText = (p.hitsS != null && p.totS) ? `${p.hitsS}/${p.totS}` : '—';
+
             if (p.hitRate != null && p.hitSamples > 0) {
                 const hr = Number(p.hitRate);
                 if (hrEl) {
                     hrEl.innerText = hr.toFixed(0) + '%';
-                    hrEl.className = 'text-lg font-black ' + (
+                    hrEl.className = 'text-base font-black font-mono ' + (
                         hr >= 58 ? 'text-accentGreen' : hr >= 48 ? 'text-accentYellow' : 'text-accentRed'
                     );
                 }
@@ -1309,12 +1398,14 @@ let currentInterval = '1h';
                     );
                 }
                 if (hrDet) {
-                    hrDet.innerText = `Aciertos ${p.hits || 0}/${p.hitSamples} · señal Trendilo vs precio +3 velas (${p.tf || trendiloProjTf})`;
+                    const lTxt = p.hitRateLong != null ? ` L ${p.hitRateLong.toFixed(0)}%` : '';
+                    const sTxt = p.hitRateShort != null ? ` S ${p.hitRateShort.toFixed(0)}%` : '';
+                    hrDet.innerText = `Setup zona/giro · ${p.hits || 0}/${p.hitSamples} aciertos · +3 velas (${p.tf || trendiloProjTf})${lTxt}${sTxt}`;
                 }
             } else {
-                if (hrEl) { hrEl.innerText = '—'; hrEl.className = 'text-lg font-black text-slate-500'; }
+                if (hrEl) { hrEl.innerText = '—'; hrEl.className = 'text-base font-black font-mono text-slate-500'; }
                 if (hrBar) { hrBar.style.width = '0%'; }
-                if (hrDet) hrDet.innerText = 'Calculando acierto vs movimiento real…';
+                if (hrDet) hrDet.innerText = 'Calculando acierto de setups zona/giro vs precio…';
             }
 
             // Badge izquierdo = sesgo | tpBiasMain = acción (estilo panel referencia)

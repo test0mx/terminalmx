@@ -1837,54 +1837,55 @@
                         </div>
                     </div>
 
-                    <div class="grid grid-cols-1 xl:grid-cols-2 gap-3 mb-3">
-                        <div class="space-y-3">
-                            <div class="rounded-2xl border border-borderBg bg-[#12151c] p-4">
-                                <p class="text-[12px] text-slate-400 leading-relaxed" id="tpScenarioDesc">
-                                    Señal basada en <strong class="text-white">ratio = ALMA ÷ RMS</strong>.
-                                    Escenario <strong class="text-accentYellow" id="tpScenarioLabel">Conservador</strong>:
-                                    zona ≥ <span id="tpScenZone">0.75</span> · extremo ≥ <span id="tpScenExt">0.85</span> ·
-                                    R:R <span id="tpScenRr">1:2.5</span> · SL ×ATR <span id="tpScenSl">1.35</span>.
-                                </p>
+                    <!-- SEÑAL + PROBABILIDADES (prioridad) -->
+                    <div class="rounded-2xl border border-borderBg bg-[#12151c] p-3 sm:p-4 mb-3">
+                        <div class="flex flex-col lg:flex-row lg:items-center gap-3">
+                            <div class="flex flex-wrap items-center gap-2 flex-1">
+                                <span id="tpBiasBadge" class="px-3 py-1.5 rounded-lg text-[11px] font-bold border border-borderBg bg-borderBg/40 text-slate-400">Sesgo —</span>
+                                <span id="tpBiasMain" class="px-3 py-1.5 rounded-lg text-[12px] font-black bg-slate-600 text-slate-100">Cargando…</span>
+                                <span id="tpScenarioChip" class="px-2 py-1 rounded text-[10px] font-mono text-accentYellow border border-accentYellow/30 bg-accentYellow/10">Conservador</span>
                             </div>
-                            <div class="rounded-2xl border border-borderBg bg-[#12151c] p-4">
-                                <div class="text-[12px] font-bold text-white mb-2">Umbrales</div>
-                                <ul class="text-[12px] text-slate-400 space-y-2 leading-relaxed" id="tpUmbralesList">
-                                    <li><span class="text-accentRed font-mono" id="tpUmbBear">ratio ≤ −0.85</span> → zona extrema bajista</li>
-                                    <li><span class="text-accentRed font-mono" id="tpUmbBull">ratio ≥ +0.85</span> → zona extrema alcista</li>
-                                    <li><span class="text-slate-200 font-mono" id="tpUmbBias">|ratio| ≥ 0.50</span> → sesgo direccional</li>
-                                    <li><span class="text-accentYellow">Giro:</span> cambio de pendiente dentro de la zona</li>
-                                    <li class="text-[11px] text-slate-500">Círculo desde <span class="font-mono text-slate-400" id="tpUmbZone">|ratio| ≥ 0.75</span></li>
-                                </ul>
+                            <div class="grid grid-cols-3 gap-2 min-w-[240px] lg:min-w-[320px]">
+                                <div class="rounded-xl bg-[#0b0e11] border border-borderBg p-2 text-center">
+                                    <div class="text-[9px] text-slate-500">P(alcista)</div>
+                                    <div id="tpProbLong" class="text-base font-black font-mono text-accentGreen">—</div>
+                                </div>
+                                <div class="rounded-xl bg-[#0b0e11] border border-borderBg p-2 text-center">
+                                    <div class="text-[9px] text-slate-500">P(bajista)</div>
+                                    <div id="tpProbShort" class="text-base font-black font-mono text-accentRed">—</div>
+                                </div>
+                                <div class="rounded-xl bg-[#0b0e11] border border-borderBg p-2 text-center">
+                                    <div class="text-[9px] text-slate-500">Acierto setup</div>
+                                    <div id="tpHitRateVal" class="text-base font-black font-mono text-accentYellow">—</div>
+                                </div>
                             </div>
-                            <div class="rounded-2xl border border-borderBg bg-[#12151c] p-4">
-                                <div class="text-[12px] font-bold text-white mb-2">Mercado bajista → rebote</div>
-                                <p class="text-[12px] text-slate-400 leading-relaxed mb-2">
-                                    En <strong class="text-slate-200">15m / 1H / 4H / 1D</strong>: buscar
-                                    <span class="text-accentRed font-mono">ratio ≤ −0.85</span> y luego
-                                    <span class="text-accentGreen font-semibold">ALMA subiendo</span> (delta &gt; 0) o cruce de vuelta por encima de −0.85.
-                                </p>
-                                <p class="text-[11px] text-slate-500 leading-relaxed">
-                                    Confluencia ideal: StochRSI sobreventa, Yoshi ST↓ pero BOS/OB compra, DMI −DI dominante pero estrecho, precio en soporte/OB.
-                                </p>
-                            </div>
-                            <div class="rounded-2xl border border-borderBg bg-[#12151c] p-4">
-                                <div class="text-[12px] font-bold text-white mb-2">Mercado alcista → cambio de tendencia</div>
-                                <p class="text-[12px] text-slate-400 leading-relaxed mb-2">
-                                    Buscar <span class="text-accentRed font-mono">ratio ≥ +0.85</span> y
-                                    <span class="text-accentRed font-semibold">ALMA bajando</span> o cruce bajo +0.85.
-                                </p>
-                                <p class="text-[11px] text-slate-500 leading-relaxed">
-                                    Confluencia: StochRSI sobrecompra, Yoshi CHoCH↓ / ST flip sell, DMI +DI perdiendo dominio, rechazo de resistencia/OB venta.
-                                </p>
+                            <div class="flex gap-2 shrink-0">
+                                <button type="button" id="btnTpApplyLong" onclick="applyTrendiloProjection('LONG')" disabled
+                                    class="px-4 py-2 rounded-xl text-[11px] font-bold border border-accentGreen/40 bg-accentGreen/10 text-accentGreen opacity-40 cursor-not-allowed">LONG</button>
+                                <button type="button" id="btnTpApplyShort" onclick="applyTrendiloProjection('SHORT')" disabled
+                                    class="px-4 py-2 rounded-xl text-[11px] font-bold border border-accentRed/40 bg-accentRed/10 text-accentRed opacity-40 cursor-not-allowed">SHORT</button>
                             </div>
                         </div>
-
-                        <div class="rounded-2xl border border-borderBg bg-[#12151c] p-4 flex flex-col">
-                            <div class="flex flex-wrap items-center gap-2 mb-3">
-                                <span id="tpBiasBadge" class="px-3 py-1 rounded-lg text-[11px] font-bold border border-rose-500/40 bg-rose-500/10 text-rose-300">Sesgo —</span>
-                                <span id="tpBiasMain" class="px-3 py-1 rounded-lg text-[11px] font-black bg-emerald-500 text-slate-950">Cargando…</span>
+                        <div class="mt-2 flex flex-wrap items-center gap-3 text-[10px] text-slate-500">
+                            <span id="tpHitRateDetail">—</span>
+                            <div class="flex-1 min-w-[120px] h-1.5 rounded-full bg-borderBg overflow-hidden max-w-xs">
+                                <div id="tpHitRateBar" class="h-full rounded-full bg-accentYellow" style="width:0%"></div>
                             </div>
+                            <span id="tpBiasHint" class="text-slate-400">—</span>
+                        </div>
+                        <p id="tpStatus" class="text-[10px] text-slate-600 font-mono mt-1">—</p>
+                    </div>
+
+                    <!-- GRÁFICO (prioridad visual) -->
+                    <div class="rounded-2xl border border-borderBg bg-black overflow-hidden relative flex flex-col mb-3" id="trendiloProjChartWrap" style="min-height:280px;height:360px;">
+                        <div class="absolute top-1.5 left-2 z-10 text-[10px] text-slate-500 pointer-events-none">TrendiloMX · ALMA + ±RMS · proyección · círculos de zona</div>
+                        <div id="trendiloProjChart" class="w-full flex-1" style="min-height:240px;"></div>
+                        <div id="trendiloProjResizeHandle" class="tmx-inline-resize" title="Redimensionar"><span class="resize-grip"></span></div>
+                    </div>
+
+                    <!-- MÉTRICAS + CONFLUENCIA -->
+                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-3">
+                        <div class="lg:col-span-2 rounded-2xl border border-borderBg bg-[#12151c] p-3 sm:p-4">
                             <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 mb-3">
                                 <div class="rounded-xl bg-[#0b0e11] border border-borderBg p-2.5 text-center">
                                     <div class="text-[10px] text-slate-500 mb-0.5">ALMA</div>
@@ -1906,52 +1907,14 @@
                             <div class="mb-3">
                                 <div class="flex justify-between text-[10px] text-slate-500 font-mono mb-1">
                                     <span>0</span>
-                                    <span id="tpZoneVal">|ratio| vs umbral 0.85</span>
+                                    <span id="tpZoneVal">|ratio| vs umbral</span>
                                     <span>ext</span>
                                 </div>
                                 <div class="h-2 rounded-full bg-[#0b0e11] border border-borderBg overflow-hidden">
                                     <div id="tpZoneBarFill" class="h-full rounded-full bg-accentRed transition-all duration-300" style="width:0%"></div>
                                 </div>
                             </div>
-                            <div class="mb-3">
-                                <div class="text-[11px] font-bold text-slate-300 mb-1.5">Confluencia ahora</div>
-                                <ul id="tpConfluenceList" class="space-y-1 text-[12px] text-slate-400">
-                                    <li class="text-slate-500">— Cargando indicadores…</li>
-                                </ul>
-                                <p class="text-[10px] text-slate-600 font-mono mt-2">TF actual: <span id="tpTfLabel" class="text-slate-400">1h</span> · Mejor en 15m / 1H / 4H / 1D</p>
-                            </div>
-                            <p id="tpBiasHint" class="text-[11px] text-slate-500 leading-relaxed mb-3 flex-1">—</p>
-                            <div class="flex flex-wrap gap-2 mb-2">
-                                <button type="button" id="btnTpApplyLong" onclick="applyTrendiloProjection('LONG')" disabled
-                                    class="flex-1 min-w-[120px] px-3 py-2 rounded-xl text-[11px] font-bold border border-accentGreen/40 bg-accentGreen/10 text-accentGreen opacity-40 cursor-not-allowed">Aplicar LONG</button>
-                                <button type="button" id="btnTpApplyShort" onclick="applyTrendiloProjection('SHORT')" disabled
-                                    class="flex-1 min-w-[120px] px-3 py-2 rounded-xl text-[11px] font-bold border border-accentRed/40 bg-accentRed/10 text-accentRed opacity-40 cursor-not-allowed">Aplicar SHORT</button>
-                            </div>
-                            <p id="tpStatus" class="text-[10px] text-slate-600 font-mono">—</p>
-                        </div>
-                    </div>
-
-                    <div class="grid grid-cols-1 lg:grid-cols-3 gap-3 mb-3">
-                        <div class="lg:col-span-2 rounded-2xl border border-borderBg bg-black overflow-hidden relative flex flex-col" id="trendiloProjChartWrap" style="min-height:200px;height:280px;">
-                            <div class="absolute top-1.5 left-2 z-10 text-[10px] text-slate-500 pointer-events-none">TrendiloMX · ALMA + ±RMS · proyección</div>
-                            <div id="trendiloProjChart" class="w-full flex-1" style="min-height:160px;"></div>
-                            <div id="trendiloProjResizeHandle" class="tmx-inline-resize" title="Redimensionar"><span class="resize-grip"></span></div>
-                        </div>
-                        <div class="rounded-2xl border border-borderBg bg-[#12151c] p-4">
-                            <div class="text-[11px] font-bold text-slate-300 mb-2">Confluencia recomendada</div>
-                            <p class="text-[12px] text-slate-400 leading-relaxed mb-2">
-                                <strong class="text-slate-200">TrendiloMX (ratio)</strong> + <strong class="text-slate-200">StochRSI</strong> +
-                                <strong class="text-slate-200">Yoshi</strong> (estructura/ST) + <strong class="text-slate-200">DMI</strong> + S/R u OB.
-                            </p>
-                            <p class="text-[11px] text-slate-500 leading-relaxed mb-2">
-                                En temporalidades <strong class="text-slate-300">15 · 1H · 4H · 1D</strong> la señal de zona extrema es más fiable que en 1–5m (más ruido).
-                            </p>
-                            <p class="text-[11px] text-slate-500 leading-relaxed mb-3">
-                                Marcadores <span class="text-accentGreen font-semibold">▲ Bounce</span> /
-                                <span class="text-accentRed font-semibold">▼ Reversal</span> y el
-                                <span class="text-accentRed font-semibold">círculo</span> en el panel Trendilo.
-                            </p>
-                            <div class="grid grid-cols-2 gap-2 text-[10px] font-mono">
+                            <div class="grid grid-cols-2 sm:grid-cols-4 gap-2 text-[10px] font-mono">
                                 <div class="rounded-lg bg-[#0b0e11] border border-borderBg p-2">
                                     <div class="text-slate-500">Proy. 3 barras</div>
                                     <div id="tpProjVal" class="text-accentYellow font-bold">—</div>
@@ -1960,16 +1923,62 @@
                                     <div class="text-slate-500">Confianza</div>
                                     <div id="tpConfVal" class="text-slate-200 font-bold">—</div>
                                 </div>
-                                <div class="rounded-lg bg-[#0b0e11] border border-borderBg p-2 col-span-2">
-                                    <div class="text-slate-500">Acierto vs precio</div>
-                                    <div class="flex items-center justify-between gap-2 mt-0.5">
-                                        <div id="tpHitRateDetail" class="text-[9px] text-slate-500">—</div>
-                                        <div id="tpHitRateVal" class="text-sm font-black text-accentYellow">—</div>
-                                    </div>
-                                    <div class="mt-1 h-1.5 rounded-full bg-borderBg overflow-hidden">
-                                        <div id="tpHitRateBar" class="h-full rounded-full bg-accentYellow" style="width:0%"></div>
-                                    </div>
+                                <div class="rounded-lg bg-[#0b0e11] border border-borderBg p-2">
+                                    <div class="text-slate-500">Samples long</div>
+                                    <div id="tpSamplesLong" class="text-slate-200 font-bold">—</div>
                                 </div>
+                                <div class="rounded-lg bg-[#0b0e11] border border-borderBg p-2">
+                                    <div class="text-slate-500">Samples short</div>
+                                    <div id="tpSamplesShort" class="text-slate-200 font-bold">—</div>
+                                </div>
+                            </div>
+                        </div>
+                        <div class="rounded-2xl border border-borderBg bg-[#12151c] p-3 sm:p-4">
+                            <div class="text-[11px] font-bold text-slate-300 mb-1.5">Confluencia ahora</div>
+                            <ul id="tpConfluenceList" class="space-y-1 text-[12px] text-slate-400 mb-2">
+                                <li class="text-slate-500">— Cargando…</li>
+                            </ul>
+                            <p class="text-[10px] text-slate-600 font-mono">TF: <span id="tpTfLabel" class="text-slate-400">1h</span> · Mejor en 15m / 1H / 4H / 1D</p>
+                            <p class="text-[11px] text-slate-500 mt-2 leading-relaxed">
+                                Ideal: Trendilo + StochRSI + Yoshi + DMI + S/R u OB.
+                            </p>
+                        </div>
+                    </div>
+
+                    <!-- ESTRATEGIA (abajo) -->
+                    <div class="rounded-2xl border border-borderBg bg-[#0d1016] p-3 sm:p-4 mb-2">
+                        <div class="text-[11px] font-bold text-slate-400 mb-2 flex items-center gap-1.5">
+                            <i class="fa-solid fa-book-open text-slate-500"></i> Cómo aplicar la estrategia
+                        </div>
+                        <p class="text-[12px] text-slate-500 leading-relaxed mb-3" id="tpScenarioDesc">
+                            Señal por <strong class="text-slate-300">ratio = ALMA ÷ RMS</strong>.
+                            Escenario <strong class="text-accentYellow" id="tpScenarioLabel">Conservador</strong>:
+                            zona ≥ <span id="tpScenZone">0.75</span> · extremo ≥ <span id="tpScenExt">0.85</span> ·
+                            R:R <span id="tpScenRr">1:2.5</span> · SL ×ATR <span id="tpScenSl">1.35</span>.
+                        </p>
+                        <div class="grid grid-cols-1 md:grid-cols-3 gap-3 text-[12px] text-slate-500">
+                            <div>
+                                <div class="text-slate-300 font-semibold mb-1">Umbrales</div>
+                                <ul class="space-y-1 leading-relaxed" id="tpUmbralesList">
+                                    <li><span class="text-accentRed font-mono" id="tpUmbBear">ratio ≤ −0.85</span> → extrema bajista</li>
+                                    <li><span class="text-accentRed font-mono" id="tpUmbBull">ratio ≥ +0.85</span> → extrema alcista</li>
+                                    <li><span class="text-slate-200 font-mono" id="tpUmbBias">|ratio| ≥ 0.50</span> → sesgo</li>
+                                    <li>Círculo desde <span class="font-mono" id="tpUmbZone">|ratio| ≥ 0.75</span></li>
+                                </ul>
+                            </div>
+                            <div>
+                                <div class="text-accentGreen font-semibold mb-1">Alcista / Bounce</div>
+                                <p class="leading-relaxed">
+                                    En zona bajista extrema y ALMA girando al alza → buscar <strong class="text-accentGreen">LONG</strong>.
+                                    Confirma con StochRSI sobreventa y soporte/OB.
+                                </p>
+                            </div>
+                            <div>
+                                <div class="text-accentRed font-semibold mb-1">Bajista / Reversal</div>
+                                <p class="leading-relaxed">
+                                    En zona alcista extrema y ALMA girando a la baja → buscar <strong class="text-accentRed">SHORT</strong>.
+                                    Confirma con StochRSI sobrecompra y resistencia/OB.
+                                </p>
                             </div>
                         </div>
                     </div>
